@@ -1,0 +1,225 @@
+import { describe, expect, it } from 'vitest'
+import type { Exercise } from './exercise.types.ts'
+import { grade } from './grade.ts'
+
+// ---------------------------------------------------------------------------
+// Acceptance: "grade принимает będziemy robić при вводе będziemy  robić (двойной пробел)".
+// Modeled as a `form-input` (verb future analytic form, real per `być|VERB` data) since
+// that's the exercise shape a whole-phrase answer like this actually appears on.
+// ---------------------------------------------------------------------------
+
+describe('grade — whitespace collapsing (acceptance)', () => {
+  const exercise: Exercise = {
+    type: 'form-input',
+    lemma: 'robić',
+    hint: 'делать',
+    slot: 'verb:future:1:pl',
+    accepted: ['będziemy robić'],
+  }
+
+  it('accepts "będziemy  robić" (double internal space) as correct', () => {
+    const result = grade(exercise, 'będziemy  robić')
+    expect(result.correct).toBe(true)
+    expect(result.nearMiss).toBe(false)
+    expect(result.matched).toBe('będziemy robić')
+  })
+
+  it('accepts leading/trailing whitespace too', () => {
+    expect(grade(exercise, '  będziemy robić  ').correct).toBe(true)
+  })
+
+  it('is case-insensitive', () => {
+    expect(grade(exercise, 'Będziemy Robić').correct).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Acceptance (as resolved by this task's supervisor — see task 09's file-header decision
+// log in generate.ts/grade.ts and `enumerate.test.ts`'s own note): the real multi-spelling
+// slot for `aborcja|NOUN` is plural genitive (`noun:pl:genitive`), not singular — verified
+// against `public/content/paradigms/023.json` in task 03. `grade` must accept both
+// `aborcji` and `aborcyj` for that slot.
+// ---------------------------------------------------------------------------
+
+describe('grade — multi-form slot: aborcja|NOUN plural genitive (acceptance)', () => {
+  const exercise: Exercise = {
+    type: 'form-input',
+    lemma: 'aborcja',
+    hint: 'аборт',
+    slot: 'noun:pl:genitive',
+    accepted: ['aborcyj', 'aborcji'],
+  }
+
+  it('accepts "aborcji"', () => {
+    const result = grade(exercise, 'aborcji')
+    expect(result.correct).toBe(true)
+    expect(result.matched).toBe('aborcji')
+  })
+
+  it('accepts "aborcyj"', () => {
+    const result = grade(exercise, 'aborcyj')
+    expect(result.correct).toBe(true)
+    expect(result.matched).toBe('aborcyj')
+  })
+
+  it('rejects a form that belongs to neither accepted spelling', () => {
+    expect(grade(exercise, 'aborcje').correct).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Acceptance: "grade помечает zolty как nearMiss, а не как верный".
+// ---------------------------------------------------------------------------
+
+describe('grade — Polish diacritics near-miss (acceptance)', () => {
+  const exercise: Exercise = {
+    type: 'form-input',
+    lemma: 'żółty',
+    hint: 'жёлтый',
+    slot: 'adj:degree:positive',
+    accepted: ['żółty'],
+  }
+
+  it('a diacritic-free answer is nearMiss, not correct', () => {
+    const result = grade(exercise, 'zolty')
+    expect(result.correct).toBe(false)
+    expect(result.nearMiss).toBe(true)
+    expect(result.matched).toBe('żółty')
+  })
+
+  it('the diff hint flags every diacritic letter in the expected answer', () => {
+    const result = grade(exercise, 'zolty')
+    expect(result.diff?.expected).toBe('żółty')
+    // "żółty": ż(0) ó(1) ł(2) t(3) y(4) — ż/ó/ł all count as diacritic letters; t/y don't.
+    expect(result.diff?.diacriticIndexes).toEqual([0, 1, 2])
+  })
+
+  it('a completely wrong answer is neither correct nor nearMiss', () => {
+    const result = grade(exercise, 'niebieski')
+    expect(result.correct).toBe(false)
+    expect(result.nearMiss).toBe(false)
+  })
+
+  it('the exact diacritic spelling is correct, not nearMiss', () => {
+    const result = grade(exercise, 'żółty')
+    expect(result.correct).toBe(true)
+    expect(result.nearMiss).toBe(false)
+  })
+
+  it('ł (no Unicode decomposition) is also treated as a near-miss diacritic', () => {
+    const ex: Exercise = {
+      type: 'form-input',
+      lemma: 'żółty',
+      hint: 'жёлтый',
+      slot: 'adj:degree:comparative',
+      accepted: ['żółciejszy'],
+    }
+    // sanity: not directly relevant to ł, but exercises the same path with a longer word
+    expect(grade(ex, 'zolciejszy').nearMiss).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Acceptance: "grade принимает ежик для ответа ёжик".
+// ---------------------------------------------------------------------------
+
+describe('grade — Russian ё/е folding (acceptance)', () => {
+  const exercise: Exercise = {
+    type: 'input',
+    direction: 'pl-ru',
+    prompt: 'jeż',
+    accepted: ['ёжик'],
+  }
+
+  it('accepts "ежик" for "ёжик"', () => {
+    const result = grade(exercise, 'ежик')
+    expect(result.correct).toBe(true)
+    expect(result.nearMiss).toBe(false)
+  })
+
+  it('ё/е folding does not apply to Polish-direction answers', () => {
+    // ru-pl: the user types Polish, so ё/е folding must not kick in even if (hypothetically)
+    // a Polish accepted form contained a Cyrillic-looking character — not a realistic case,
+    // but confirms the language switch is keyed off `direction`, not content sniffing.
+    const ex: Exercise = { type: 'input', direction: 'ru-pl', prompt: 'ёжик', accepted: ['jeż'] }
+    expect(grade(ex, 'jez').nearMiss).toBe(true) // diacritic-insensitive PL path, not RU path
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Acceptance: "grade не принимает пустую строку".
+// ---------------------------------------------------------------------------
+
+describe('grade — empty answer (acceptance)', () => {
+  const exercise: Exercise = { type: 'input', direction: 'pl-ru', prompt: 'dom', accepted: ['дом'] }
+
+  it('rejects an empty string', () => {
+    const result = grade(exercise, '')
+    expect(result.correct).toBe(false)
+    expect(result.nearMiss).toBe(false)
+  })
+
+  it('rejects a whitespace-only string', () => {
+    expect(grade(exercise, '   ').correct).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Coverage for the remaining exercise shapes grade() must support.
+// ---------------------------------------------------------------------------
+
+describe('grade — choice / form-choice / self-assess', () => {
+  it('choice: matches the single `correct` value', () => {
+    const exercise: Exercise = {
+      type: 'choice',
+      direction: 'pl-ru',
+      prompt: 'dom',
+      options: ['дом', 'кот', 'стол'],
+      correct: 'дом',
+    }
+    expect(grade(exercise, 'дом').correct).toBe(true)
+    expect(grade(exercise, 'кот').correct).toBe(false)
+  })
+
+  it('form-choice: matches the single `correct` value', () => {
+    const exercise: Exercise = {
+      type: 'form-choice',
+      lemma: 'kobieta',
+      hint: 'женщина',
+      slot: 'noun:sg:genitive',
+      options: ['kobiety', 'kobiecie', 'kobietę'],
+      correct: 'kobiety',
+    }
+    expect(grade(exercise, 'kobiety').correct).toBe(true)
+  })
+
+  it('self-assess: matches its `answer` field', () => {
+    const exercise: Exercise = { type: 'self-assess', prompt: 'osiągnąć', answer: 'достигнуть' }
+    expect(grade(exercise, 'достигнуть').correct).toBe(true)
+  })
+})
+
+describe('grade — table / matching are refused (composite, no single accepted answer)', () => {
+  it('throws for "table"', () => {
+    const exercise: Exercise = { type: 'table', lemma: 'kobieta', cells: [] }
+    expect(() => grade(exercise, 'kobiety')).toThrow()
+  })
+
+  it('throws for "matching"', () => {
+    const exercise: Exercise = { type: 'matching', pairs: [{ pl: 'dom', ru: 'дом' }] }
+    expect(() => grade(exercise, 'dom')).toThrow()
+  })
+})
+
+describe('grade — accepts any of several accepted answers (general case)', () => {
+  it('input: any translation in `accepted` counts', () => {
+    const exercise: Exercise = {
+      type: 'input',
+      direction: 'pl-ru',
+      prompt: 'znać',
+      accepted: ['знать', 'быть знакомым'],
+    }
+    expect(grade(exercise, 'быть знакомым').correct).toBe(true)
+    expect(grade(exercise, 'знать').correct).toBe(true)
+  })
+})
