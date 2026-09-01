@@ -158,6 +158,16 @@ function matchesDimension(form: DecodedForm, dimension: Dimension): boolean {
           gender,
         )
       }
+      // The bare `masculine` gender (distinct from the 4 `AdjGenderAggregate` values above)
+      // shows up on real singular nominative/vocative ADJ forms — e.g. `dobry|ADJ`'s "dobry"
+      // itself (verified against `public/content/paradigms/006.json`): Polish genuinely
+      // doesn't distinguish personal/animate/inanimate in that slot, so the one stored form
+      // is the correct answer for all three concrete masculine columns. Display-only, same
+      // as the aggregate case above — `learning/skills/enumerate.ts`'s skill *dimensions*
+      // are untouched by this (out of this task's scope; see this task's decision log).
+      if (form.gender === 'masculine') {
+        return gender === 'masculine_personal' || gender === 'masculine_animate' || gender === 'masculine_inanimate'
+      }
       return false
     }
 
@@ -222,6 +232,16 @@ export interface VerbConjugationRow {
    *  singular, masculine_personal/non_masculine_personal in plural). */
   readonly gender?: GenderValue
   readonly forms: readonly string[]
+  /**
+   * True when every form in this slot is an analytic construction (the imperfective future,
+   * e.g. `będę robić` — `codec.ts`'s `analytic` bit on the underlying `DecodedForm`, task
+   * 02). Always `false` for `present`/`imperative`/`past` rows — only imperfective `future`
+   * ever sets this. Added by task 08 (`spec/tasks/08-word-detail.md` §3/acceptance:
+   * "аналитические формы... помечены"); task 04's `getFormsForSlot` collapses a slot down to
+   * its literal form strings and drops this bit, so it's recovered here straight from the
+   * matching `DecodedForm`s rather than re-derived some other way.
+   */
+  readonly analytic: boolean
 }
 
 export interface VerbTable {
@@ -240,6 +260,14 @@ const PAST_GENDERS_BY_NUMBER: Readonly<Record<NumberValue, readonly GenderValue[
   plural: ['masculine_personal', 'non_masculine_personal'],
 }
 
+/** Whether any form matching `dimension` carries the `analytic` bit — reuses the same
+ *  `matchesDimension` predicate `getFormsForSlot` itself filters with, so a row's `analytic`
+ *  flag can never disagree with which forms `getFormsForSlot` returned for that same
+ *  dimension. */
+function isDimensionAnalytic(paradigm: Paradigm, dimension: Dimension): boolean {
+  return paradigm.forms.some((f) => matchesDimension(f, dimension) && f.analytic)
+}
+
 function buildPersonNumberRows(
   paradigm: Paradigm,
   makeDimension: (person: PersonValue, number: NumberValue) => Dimension,
@@ -247,8 +275,11 @@ function buildPersonNumberRows(
   const rows: VerbConjugationRow[] = []
   for (const person of PERSON_DISPLAY_ORDER) {
     for (const number of NUMBER_DISPLAY_ORDER) {
-      const forms = getFormsForSlot(paradigm, makeDimension(person, number))
-      if (forms.length > 0) rows.push({ person, number, forms })
+      const dimension = makeDimension(person, number)
+      const forms = getFormsForSlot(paradigm, dimension)
+      if (forms.length > 0) {
+        rows.push({ person, number, forms, analytic: isDimensionAnalytic(paradigm, dimension) })
+      }
     }
   }
   return rows
@@ -261,7 +292,11 @@ function buildPastRows(paradigm: Paradigm): VerbConjugationRow[] {
       for (const gender of PAST_GENDERS_BY_NUMBER[number]) {
         const dimension: Dimension = `verb:past:${person}:${abbreviateNumber(number)}:${gender}`
         const forms = getFormsForSlot(paradigm, dimension)
-        if (forms.length > 0) rows.push({ person, number, gender, forms })
+        // Past tense is never analytic (isDimensionAnalytic would always be false here too —
+        // no `raw_tag` in the real data ever marks a past form analytic), so this is a plain
+        // literal rather than another `isDimensionAnalytic` call, to make that fact visible
+        // at the call site instead of implicit in what the data happens to contain.
+        if (forms.length > 0) rows.push({ person, number, gender, forms, analytic: false })
       }
     }
   }

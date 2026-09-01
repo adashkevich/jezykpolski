@@ -15,21 +15,41 @@
  * filtering/list behavior is `WordsListPage.test.tsx`'s job) instead of living in the
  * provider-agnostic `it.each` table below.
  */
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { AppRouter } from './router.tsx'
 import { wordPath } from './word-path.ts'
 import { encodeWordId } from '@/learning/skills/skill-id.ts'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
+import { __resetLoaderCachesForTest } from '@/content/loader.ts'
 
 function renderAt(path: string) {
   window.history.pushState({}, '', path)
   return render(<AppRouter />)
 }
 
+/** Same fetch-stub shape as `content/senses.test.ts`/`content/paradigms.test.ts`: routes any
+ *  URL containing `senses/000.json` to an empty shard, 404s everything else — enough for
+ *  `/words/:wordId`'s eager senses fetch (task 08) to resolve without hitting the network,
+ *  without needing to model real sense data (that's `WordDetailPage.test.tsx`'s job). */
+function stubEmptySensesFetch() {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: unknown) => {
+      const href = String(url)
+      if (href.includes('senses/000.json')) {
+        return { ok: true, json: async () => ({}) } as Response
+      }
+      return { ok: false, status: 404, json: async () => ({}) } as Response
+    }),
+  )
+}
+
 afterEach(() => {
   cleanup()
   __resetIndexStoreForTest()
+  __resetLoaderCachesForTest()
+  vi.unstubAllGlobals()
 })
 
 describe('AppRouter', () => {
@@ -55,14 +75,38 @@ describe('AppRouter', () => {
   })
 
   it('decodes a URL-encoded :wordId (special characters, diacritics) on the word detail route', () => {
+    stubEmptySensesFetch()
     const wordId = encodeWordId('kobieta', 'NOUN')
+    initIndexStore([
+      {
+        lemma: 'kobieta',
+        pos: 'NOUN',
+        rank: 95,
+        level: 'A1',
+        primaryRu: 'женщина',
+        sensesShard: 0,
+        paradigmShard: -1,
+      },
+    ])
     renderAt(wordPath(wordId))
     expect(screen.getByRole('heading', { name: 'kobieta' })).toBeInTheDocument()
-    expect(screen.getByText(/NOUN/)).toBeInTheDocument()
+    expect(screen.getByText(/Существительное/)).toBeInTheDocument()
   })
 
   it('decodes a lemma with Polish diacritics on the word detail route', () => {
+    stubEmptySensesFetch()
     const wordId = encodeWordId('żółty', 'ADJ')
+    initIndexStore([
+      {
+        lemma: 'żółty',
+        pos: 'ADJ',
+        rank: 300,
+        level: 'B1',
+        primaryRu: 'жёлтый',
+        sensesShard: 0,
+        paradigmShard: -1,
+      },
+    ])
     renderAt(wordPath(wordId))
     expect(screen.getByRole('heading', { name: 'żółty' })).toBeInTheDocument()
   })
