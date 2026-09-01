@@ -20,8 +20,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { loadIndex, loadManifest } from '@/content/loader.ts'
 import { initIndexStore } from '@/content/index-store.ts'
 import { ContentContext, type ContentContextValue } from './content-context.ts'
-import { ErrorState } from './ErrorState.tsx'
-import { LoadingScreen } from './LoadingScreen.tsx'
+import { ErrorState } from '@/components/app/ErrorState.tsx'
+import { LoadingScreen } from '@/components/app/LoadingScreen.tsx'
 
 type LoadState =
   | { readonly status: 'loading' }

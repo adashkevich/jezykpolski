@@ -1,25 +1,16 @@
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { AppProviders } from '@/app/providers/AppProviders.tsx'
+import { AppRouter } from '@/app/router.tsx'
 
 /**
- * Временная точка входа. Роутинг, AppShell и реальные экраны появятся в задаче 06.
- * Здесь только проверка, что тулчейн (Tailwind, токены, shadcn/ui) работает.
+ * Real entry point (`spec/tasks/06-app-shell-pwa.md`). `AppProviders` gates rendering on
+ * "the database is open and the word index is loaded" (tasks 05/04); `AppRouter` then
+ * renders `AppShell` + the route for whatever URL the app was opened at.
  */
 function App() {
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center gap-4 bg-background p-6 text-foreground">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Polski</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <p className="text-muted-foreground">
-            Тулчейн настроен. Приложение появится в следующих задачах.
-          </p>
-          <Button>Продолжить</Button>
-        </CardContent>
-      </Card>
-    </main>
+    <AppProviders>
+      <AppRouter />
+    </AppProviders>
   )
 }
 

@@ -15,10 +15,13 @@
  */
 import { useEffect, useState, type ReactNode } from 'react'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
-import { ErrorState } from './ErrorState.tsx'
-import { LoadingScreen } from './LoadingScreen.tsx'
+import { ErrorState } from '@/components/app/ErrorState.tsx'
+import { LoadingScreen } from '@/components/app/LoadingScreen.tsx'
 
-type LoadState = { readonly status: 'loading' } | { readonly status: 'error'; readonly error: Error } | { readonly status: 'ready' }
+type LoadState =
+  | { readonly status: 'loading' }
+  | { readonly status: 'error'; readonly error: Error }
+  | { readonly status: 'ready' }
 
 export function DatabaseProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
