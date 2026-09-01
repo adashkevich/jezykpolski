@@ -31,5 +31,31 @@ export default defineConfig([
       'react-refresh/only-export-components': 'off',
     },
   },
+  {
+    // `src/learning/**` is the pure domain layer (architecture.md §3): no React, no Dexie,
+    // no `features/**`. Enforced here rather than left as a convention — task 03 acceptance.
+    files: ['src/learning/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['react', 'react/*', 'react-dom', 'react-dom/*'],
+              message: 'src/learning/** is a pure domain layer and must not import React.',
+            },
+            {
+              group: ['dexie', 'dexie/*'],
+              message: 'src/learning/** is a pure domain layer and must not import Dexie.',
+            },
+            {
+              group: ['**/features/**', '@/features/*', '@/features/**'],
+              message: 'src/learning/** is a pure domain layer and must not import features/**.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   eslintConfigPrettier,
 ])

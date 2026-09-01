@@ -1,0 +1,102 @@
+import { describe, expect, it } from 'vitest'
+import { CASE_VALUES, DEGREE_VALUES, GENDER_VALUES, TENSE_VALUES } from '@/content/codec.ts'
+import {
+  abbreviateNumber,
+  CASE_DISPLAY_ORDER,
+  CASE_LABELS,
+  DEGREE_DISPLAY_ORDER,
+  DEGREE_LABELS,
+  expandNumberAbbrev,
+  GENDER_DISPLAY_ORDER,
+  GENDER_LABELS,
+  NUMBER_DISPLAY_ORDER,
+  NUMBER_LABELS,
+  TENSE_DISPLAY_ORDER,
+  TENSE_LABELS,
+} from './dimensions.ts'
+
+describe('number abbreviation', () => {
+  it('abbreviates and expands round-trip for both values', () => {
+    expect(abbreviateNumber('singular')).toBe('sg')
+    expect(abbreviateNumber('plural')).toBe('pl')
+    expect(expandNumberAbbrev('sg')).toBe('singular')
+    expect(expandNumberAbbrev('pl')).toBe('plural')
+    expect(expandNumberAbbrev(abbreviateNumber('singular'))).toBe('singular')
+    expect(expandNumberAbbrev(abbreviateNumber('plural'))).toBe('plural')
+  })
+})
+
+describe('canonical display order', () => {
+  it('case order is exactly the 7 Polish cases in school-mnemonic order (M. D. C. B. N. Ms. W.)', () => {
+    expect(CASE_DISPLAY_ORDER).toEqual([
+      'nominative',
+      'genitive',
+      'dative',
+      'accusative',
+      'instrumental',
+      'locative',
+      'vocative',
+    ])
+    expect(new Set(CASE_DISPLAY_ORDER)).toEqual(new Set(CASE_VALUES))
+  })
+
+  it('number order is singular then plural', () => {
+    expect(NUMBER_DISPLAY_ORDER).toEqual(['singular', 'plural'])
+  })
+
+  it('tense order is present, past, future', () => {
+    expect(TENSE_DISPLAY_ORDER).toEqual(['present', 'past', 'future'])
+    expect(new Set(TENSE_DISPLAY_ORDER)).toEqual(new Set(TENSE_VALUES))
+  })
+
+  it('degree order is positive, comparative, superlative', () => {
+    expect(DEGREE_DISPLAY_ORDER).toEqual(['positive', 'comparative', 'superlative'])
+    expect(new Set(DEGREE_DISPLAY_ORDER)).toEqual(new Set(DEGREE_VALUES))
+  })
+
+  it('gender display order lists exactly the 5 concrete declension genders, no aggregates', () => {
+    expect(GENDER_DISPLAY_ORDER).toEqual([
+      'masculine_personal',
+      'masculine_animate',
+      'masculine_inanimate',
+      'feminine',
+      'neuter',
+    ])
+  })
+})
+
+describe('bilingual labels', () => {
+  it('every case has a Polish and Russian label', () => {
+    for (const c of CASE_VALUES) {
+      expect(CASE_LABELS[c].pl.length).toBeGreaterThan(0)
+      expect(CASE_LABELS[c].ru.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('every tense and degree has a label', () => {
+    for (const t of TENSE_VALUES) expect(TENSE_LABELS[t].pl.length).toBeGreaterThan(0)
+    for (const d of DEGREE_VALUES) expect(DEGREE_LABELS[d].pl.length).toBeGreaterThan(0)
+  })
+
+  it('every one of the 10 GENDER_VALUES (5 concrete + 4 ADJ aggregates + bare masculine) has a label', () => {
+    for (const g of GENDER_VALUES) {
+      expect(GENDER_LABELS[g].pl.length).toBeGreaterThan(0)
+      expect(GENDER_LABELS[g].ru.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('Polish label is the primary term, distinct from the Russian one, for every case', () => {
+    for (const c of CASE_VALUES) {
+      expect(CASE_LABELS[c].pl).not.toBe(CASE_LABELS[c].ru)
+    }
+  })
+
+  it('pins the genitive label (Dopełniacz / Родительный) from the task text example', () => {
+    expect(CASE_LABELS.genitive).toEqual({ pl: 'Dopełniacz', ru: 'Родительный' })
+  })
+
+  it('NUMBER_LABELS covers both values', () => {
+    expect(NUMBER_LABELS.singular.pl.length).toBeGreaterThan(0)
+    expect(NUMBER_LABELS.plural.pl.length).toBeGreaterThan(0)
+  })
+})
