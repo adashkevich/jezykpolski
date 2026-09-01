@@ -57,5 +57,30 @@ export default defineConfig([
       ],
     },
   },
+  {
+    // Only `src/db/**` may import the live Dexie `db` instance / `PolishLearningDatabase`
+    // class directly (architecture.md §3, §11 "Do not call IndexedDB APIs directly from
+    // React components", task 05 acceptance point 7 / NFR-12). Everywhere else — components,
+    // hooks in `src/hooks/**`, `features/**`, `learning/**` — must go through the typed
+    // functions in `src/db/repositories/**` (or the `useLiveQuery`-based hooks that wrap
+    // them), never `db.table(...)` / `db.skills....` etc. directly.
+    files: ['**/*.{ts,tsx}'],
+    ignores: ['src/db/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/db/database', '**/db/database.ts', '@/db/database', '@/db/database.ts'],
+              message:
+                'Only src/db/** may import the Dexie `db` instance directly. Use a repository ' +
+                'function from src/db/repositories/** (or a hook from src/hooks/**) instead.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   eslintConfigPrettier,
 ])
