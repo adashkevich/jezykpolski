@@ -13,6 +13,13 @@
  * without importing task 04's not-yet-built loader — `src/learning/**` may still import
  * `src/content/codec.ts` itself (plain dictionaries/decoders, no React/Dexie), just not the
  * loader/store modules that will eventually produce these values from `fetch`.
+ *
+ * `Sense` was added by task 04 (`src/content/senses.ts`): task 03 only defined
+ * `WordIndexEntry`/`Paradigm`, but `spec/architecture.md` §7.1's future `Exercise` union
+ * (task 09+) is expected to reference decoded `Paradigm`/`Sense` shapes side by side, so the
+ * decoded sense view is declared here rather than as a `content/**`-local type. Decoding is
+ * trivial (no numeric codec involved, unlike `Paradigm`) — it just types the JSON shape of
+ * one `public/content/senses/NNN.json` entry (`SenseEntry` in `content.schema.ts`).
  */
 import type { DecodedForm, GenderValue, LevelValue, PosValue } from '@/content/codec.ts'
 
@@ -30,6 +37,19 @@ export interface WordIndexEntry {
   readonly sensesShard: number
   /** `-1` when the word has no paradigm (14 words in the real corpus, see task 02 §6). */
   readonly paradigmShard: number
+}
+
+/**
+ * Decoded view of one meaning of a word (one entry of `public/content/senses/NNN.json`'s
+ * per-word array).
+ */
+export interface Sense {
+  /** Russian translation(s) for this sense; always at least one. */
+  readonly ru: readonly string[]
+  /** English-language gloss, when the source dictionary provided one. */
+  readonly en?: string
+  /** Whether this is the word's primary/most common sense. */
+  readonly primary: boolean
 }
 
 /**
