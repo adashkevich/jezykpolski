@@ -13,3 +13,11 @@ export async function get<T>(key: string, fallback: T): Promise<T> {
 export async function set<T>(key: string, value: T): Promise<void> {
   await db.settings.put({ key, value })
 }
+
+/** Deletes a key entirely (as opposed to `set`-ing it to some "empty" value). Needed by
+ *  `zustand/middleware/persist`'s `PersistStorage.removeItem` contract (`stores/filters.store.ts`
+ *  uses this repository as its persist backend) — that middleware calls it on `persist.clearStorage()`,
+ *  which no current caller exercises in practice, but the interface requires it. */
+export async function remove(key: string): Promise<void> {
+  await db.settings.delete(key)
+}

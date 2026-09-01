@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { db } from '../database.ts'
-import { get, set } from './settings.repository.ts'
+import { get, remove, set } from './settings.repository.ts'
 
 beforeEach(async () => {
   await db.open()
@@ -30,5 +30,11 @@ describe('settings.repository', () => {
     await set('theme', 'dark')
     await set('theme', 'light')
     expect(await get('theme', 'system')).toBe('light')
+  })
+
+  it('remove deletes the key so a subsequent get falls back again', async () => {
+    await set('theme', 'dark')
+    await remove('theme')
+    expect(await get('theme', 'system')).toBe('system')
   })
 })

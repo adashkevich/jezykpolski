@@ -22,10 +22,20 @@ import { BottomNavigation } from './BottomNavigation.tsx'
  * `env(safe-area-inset-bottom)`) so content never renders underneath it. The top bar grows
  * with `env(safe-area-inset-top)` via `min-h` + padding (not a fixed `h-*`) so it doesn't get
  * clipped under a notch/Dynamic Island.
+ *
+ * The root itself is `h-svh` (bounded), not `min-h-svh` (floor only, task 07 fix): with only
+ * a minimum, a flex column has no actual height ceiling, so `main`'s `flex-1` has nothing
+ * fixed to size itself against — a child taller than the viewport (task 07's `/words`, the
+ * first route with real scrollable content) just grows the whole `<html>` instead of
+ * `main`'s own `overflow-y-auto` ever engaging, defeating "the content region is the only
+ * scroll container" above. `h-svh` gives the flex column an actual ceiling, so `main`
+ * genuinely clips to the remaining space and its own scrollbar is what activates — load-
+ * bearing for `@tanstack/react-virtual` inside it too: the virtualizer sizes its viewport off
+ * its scroll container's real (bounded) height, not the page's.
  */
 export function AppShell() {
   return (
-    <div className="flex min-h-svh flex-col bg-background text-foreground">
+    <div className="flex h-svh flex-col bg-background text-foreground">
       <header
         className="sticky top-0 z-20 flex min-h-14 shrink-0 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}

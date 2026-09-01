@@ -7,12 +7,20 @@
  * concern, one level up), so these tests render it directly — no fetch/IndexedDB mocking
  * needed, just `history.pushState` before each render to pick the initial route (React
  * Router's `<BrowserRouter>` reads `window.location` at mount time).
+ *
+ * `/words` is the one exception since task 07: it's no longer a provider-agnostic stub, it's
+ * the real `WordsListPage`, which reads the content index (`content/index-store.ts`) and the
+ * `wordProgress` table directly. Its heading check therefore seeds a minimal index first
+ * (`initIndexStore([])` — an empty index is enough for "the heading renders", the actual
+ * filtering/list behavior is `WordsListPage.test.tsx`'s job) instead of living in the
+ * provider-agnostic `it.each` table below.
  */
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { AppRouter } from './router.tsx'
 import { wordPath } from './word-path.ts'
 import { encodeWordId } from '@/learning/skills/skill-id.ts'
+import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
 
 function renderAt(path: string) {
   window.history.pushState({}, '', path)
@@ -21,12 +29,12 @@ function renderAt(path: string) {
 
 afterEach(() => {
   cleanup()
+  __resetIndexStoreForTest()
 })
 
 describe('AppRouter', () => {
   it.each([
     ['/', 'Главная'],
-    ['/words', 'Слова'],
     ['/nouns', 'Существительные'],
     ['/verbs', 'Глаголы'],
     ['/adjectives', 'Прилагательные'],
@@ -38,6 +46,12 @@ describe('AppRouter', () => {
   ])('renders the %s stub', (path, heading) => {
     renderAt(path)
     expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument()
+  })
+
+  it('renders the /words screen (WordsListPage, task 07)', () => {
+    initIndexStore([])
+    renderAt('/words')
+    expect(screen.getByRole('heading', { name: 'Слова' })).toBeInTheDocument()
   })
 
   it('decodes a URL-encoded :wordId (special characters, diacritics) on the word detail route', () => {
