@@ -162,6 +162,18 @@ export function parseIndexJsonForTest(json: unknown): IndexJson {
 
 const sensesShardCache = new Map<number, Promise<Map<WordId, Sense[]>>>()
 
+/**
+ * Synchronously-readable mirror of `sensesShardCache`, populated the moment a shard's
+ * promise resolves (`spec/tasks/10-distractors.md`'s own resolution of the 09/10
+ * sync-vs-async tension for `pickVocabDistractors`: that function's signature is
+ * synchronous per spec, but the full translation set it needs to check for FR-92 overlap
+ * lives behind an async shard fetch. Task 10 reads *this* map — "уже загруженный в память
+ * кэш" — instead of awaiting a fetch itself, and falls back to the already-synchronous
+ * `WordIndexEntry.primaryRu` when a given candidate's shard hasn't been resolved yet. See
+ * `learning/exercises/distractors.ts`'s file header for the full writeup.
+ */
+const resolvedSensesShards = new Map<number, ReadonlyMap<WordId, Sense[]>>()
+
 export function loadSensesShard(n: number): Promise<Map<WordId, Sense[]>> {
   let promise = sensesShardCache.get(n)
   if (!promise) {
@@ -175,6 +187,7 @@ export function loadSensesShard(n: number): Promise<Map<WordId, Sense[]>> {
             entries.map((entry) => ({ ru: entry.ru, en: entry.en, primary: entry.primary })),
           )
         }
+        resolvedSensesShards.set(n, map)
         return map
       })
       .catch((error: unknown) => {
@@ -186,11 +199,23 @@ export function loadSensesShard(n: number): Promise<Map<WordId, Sense[]>> {
   return promise
 }
 
+/** Returns shard `n`'s already-resolved senses map, or `undefined` if it hasn't finished
+ *  loading (or hasn't been requested) yet. Never triggers a fetch — purely a peek at
+ *  {@link loadSensesShard}'s cache. See {@link resolvedSensesShards}. */
+export function peekSensesShard(n: number): ReadonlyMap<WordId, Sense[]> | undefined {
+  return resolvedSensesShards.get(n)
+}
+
 // ---------------------------------------------------------------------------
 // paradigms/NNN.json shards.
 // ---------------------------------------------------------------------------
 
 const paradigmShardCache = new Map<number, Promise<Map<WordId, Paradigm>>>()
+
+/** Synchronously-readable mirror of `paradigmShardCache` — same rationale as
+ *  {@link resolvedSensesShards}, used by `pickFormDistractors`'s same-slot-from-similar-word
+ *  fallback (`spec/tasks/10-distractors.md` §2). */
+const resolvedParadigmShards = new Map<number, ReadonlyMap<WordId, Paradigm>>()
 
 export function loadParadigmShard(n: number): Promise<Map<WordId, Paradigm>> {
   let promise = paradigmShardCache.get(n)
@@ -206,6 +231,7 @@ export function loadParadigmShard(n: number): Promise<Map<WordId, Paradigm>> {
               entry.dominantGender === undefined ? undefined : GENDER.valueOf(entry.dominantGender),
           })
         }
+        resolvedParadigmShards.set(n, map)
         return map
       })
       .catch((error: unknown) => {
@@ -215,6 +241,13 @@ export function loadParadigmShard(n: number): Promise<Map<WordId, Paradigm>> {
     paradigmShardCache.set(n, promise)
   }
   return promise
+}
+
+/** Returns shard `n`'s already-resolved paradigm map, or `undefined` if it hasn't finished
+ *  loading (or hasn't been requested) yet. Never triggers a fetch. See
+ *  {@link resolvedParadigmShards}. */
+export function peekParadigmShard(n: number): ReadonlyMap<WordId, Paradigm> | undefined {
+  return resolvedParadigmShards.get(n)
 }
 
 // ---------------------------------------------------------------------------
@@ -227,4 +260,6 @@ export function __resetLoaderCachesForTest(): void {
   indexPromise = null
   sensesShardCache.clear()
   paradigmShardCache.clear()
+  resolvedSensesShards.clear()
+  resolvedParadigmShards.clear()
 }

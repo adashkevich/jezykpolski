@@ -249,3 +249,42 @@ describe('generateExercise — ExerciseInstance shape', () => {
     expect(instance.id.length).toBeGreaterThan(0)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Task 10 §4 / acceptance: "Распределение позиции правильного ответа равномерно на 1000
+// генераций" — `insertAtSeededPosition` (this file, above) is what actually places the
+// correct answer among `distractors.ts`'s picks; it lives here (private to `generate.ts`,
+// not exported by `distractors.ts`) rather than in task 10's own file, so its uniformity
+// property is verified here rather than duplicated. This fixture's NOUN pool is fixed at
+// exactly 3 non-target words, so `pickVocabDistractors` always returns exactly
+// `DEFAULT_DISTRACTOR_COUNT` (3) distractors regardless of seed, making the correct
+// answer's index `seed % 4` — a plain, non-flaky uniformity check across 1000 consecutive
+// seeds is enough to catch a systematic-position bug without any statistical machinery.
+// ---------------------------------------------------------------------------
+
+describe('generateExercise — correct-answer position distribution (task 10 acceptance)', () => {
+  it('choice: correct answer lands in each of the 4 slots ~equally often over 1000 seeds', () => {
+    const ctx = makeContext()
+    const positionCounts = new Map<number, number>()
+    const totalSeeds = 1000
+
+    for (let seed = 0; seed < totalSeeds; seed++) {
+      const { exercise } = generateExercise(VOCAB_SKILL, undefined, ctx, seed)
+      if (exercise.type !== 'choice') throw new Error('unreachable')
+      const position = exercise.options.indexOf(exercise.correct)
+      expect(position).toBeGreaterThanOrEqual(0)
+      positionCounts.set(position, (positionCounts.get(position) ?? 0) + 1)
+    }
+
+    // 1 correct + 3 distractors -> 4 possible slots; every slot must actually occur.
+    expect(positionCounts.size).toBe(4)
+    const expectedShare = totalSeeds / positionCounts.size
+    for (const count of positionCounts.values()) {
+      // Generous +/-30% band around the uniform share -- not a strict chi-square test
+      // (task text allows either), but enough to fail loudly on a systematically biased
+      // position (e.g. "always index 0").
+      expect(count).toBeGreaterThan(expectedShare * 0.7)
+      expect(count).toBeLessThan(expectedShare * 1.3)
+    }
+  })
+})
