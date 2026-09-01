@@ -1,0 +1,9 @@
+data/
+public/content/
+dist/
+node_modules/
+package-lock.json
+
+# Owned by the supervisor / tooling — never rewritten by this project's format script.
+spec/
+.claude/

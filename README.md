@@ -1,75 +1,39 @@
-# React + TypeScript + Vite
+# Polski — изучение польского языка
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Офлайн PWA для русскоговорящих, изучающих польский. Приложение разделяет два независимых слоя
+знания: **словарь** (знаю лемму и её значение) и **морфология** (умею правильно изменять слово —
+падежи, времена, роды, степени сравнения). Прогресс строится на интервальных повторениях (FSRS)
+поверх атомарных навыков, а не «уроков».
 
-Currently, two official plugins are available:
+Подробности продукта и архитектуры — в `spec/`:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- `spec/requirements.md` — требования и правила разрешения конфликтов между спеками;
+- `spec/app-design.md` — продуктовое поведение экранов;
+- `spec/architecture.md` — структура каталогов, контентный пайплайн, схема Dexie, SRS;
+- `spec/polish-learning-pwa-technical-blueprint.md` — обязательный стек и инженерные правила;
+- `spec/tasks/` — пошаговый план реализации.
 
-## React Compiler
+## Стек
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+React 19 · TypeScript (strict) · Vite · React Router · Tailwind CSS v4 · shadcn/ui (Radix) ·
+Zustand · Dexie (IndexedDB) · Zod · ts-fsrs · vite-plugin-pwa.
 
-## Expanding the ESLint configuration
+Никакого бэкенда, авторизации и облачной синхронизации — всё локально, офлайн-first.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Разработка
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
+npm run dev            # dev-сервер
+npm run build           # проверка типов (tsc -b) + production-сборка
+npm run preview         # предпросмотр production-сборки
+npm run lint             # ESLint
+npm run format            # Prettier — автоформатирование
+npm run format:check       # Prettier — только проверка
+npm test                    # Vitest
+npm run test:watch           # Vitest в watch-режиме
+npm run test:coverage         # Vitest с отчётом покрытия
+npm run e2e                    # Playwright
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
+Требования: Node ≥ 20, npm.
