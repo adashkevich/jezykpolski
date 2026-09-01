@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "npm run build:content",
     "build": "tsc -b && vite build",
+    "build:content": "node scripts/build-content.ts",
+    "build:content:dev": "node scripts/build-content.ts --dev",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
