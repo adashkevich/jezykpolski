@@ -218,6 +218,91 @@ describe('generateExercise — morphology (form-choice / form-input)', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Task 22 (`spec/tasks/22-adjectives-section.md` step 3, FR-69): ADJ degree-of-comparison
+// skills go through the exact same `buildFormInput`/`buildFormChoice` builders as NOUN
+// above — the task's real risk was `describeDimension` not knowing the `adj:degree:*` shape
+// (fixed in `learning/skills/dimensions.ts`), not `generate.ts` itself. `entry.lemma` for an
+// ADJ word already *is* its positive-degree form ("dobry"), so no new lemma/hint plumbing
+// was needed here — this test is the end-to-end confirmation of that reasoning against the
+// task's own worked example (`dobry` -> `lepszy` -> `najlepszy`).
+// ---------------------------------------------------------------------------
+
+describe('generateExercise — ADJ degree of comparison (task 22, FR-69)', () => {
+  const DOBRY_ENTRY = entry({ lemma: 'dobry', pos: 'ADJ', rank: 4, primaryRu: 'хороший' })
+  const DOBRY_FORMS: DecodedForm[] = [
+    {
+      form: 'dobry',
+      number: 'singular',
+      case: 'nominative',
+      gender: 'masculine',
+      degree: 'positive',
+      analytic: false,
+    },
+    {
+      form: 'lepszy',
+      number: 'singular',
+      case: 'nominative',
+      gender: 'masculine',
+      degree: 'comparative',
+      analytic: false,
+    },
+    {
+      form: 'najlepszy',
+      number: 'singular',
+      case: 'nominative',
+      gender: 'masculine',
+      degree: 'superlative',
+      analytic: false,
+    },
+  ]
+  const DOBRY_PARADIGM: Paradigm = { forms: DOBRY_FORMS }
+
+  const ADJ_COMPARATIVE_SKILL: SkillDescriptor = {
+    skillId: 'dobry|ADJ::adj:degree:comparative',
+    wordId: 'dobry|ADJ',
+    kind: 'adj',
+    dimension: 'adj:degree:comparative',
+    acceptedAnswers: ['lepszy'],
+  }
+
+  function adjContext(): ContentContext {
+    return {
+      getWordEntry: (wordId) => {
+        if (wordId === 'dobry|ADJ') return DOBRY_ENTRY
+        throw new Error(`unknown wordId in test context: ${wordId}`)
+      },
+      getPrimaryTranslation: () => 'хороший',
+      getAllTranslations: () => ['хороший'],
+      getParadigm: (wordId) => (wordId === 'dobry|ADJ' ? DOBRY_PARADIGM : null),
+    }
+  }
+
+  it('form-input: lemma is the positive-degree form "dobry", accepted is ["lepszy"]', () => {
+    const ctx = adjContext()
+    const { exercise } = generateExercise(ADJ_COMPARATIVE_SKILL, undefined, ctx, 1, {
+      forceCategory: 'recall',
+    })
+    expect(exercise.type).toBe('form-input')
+    if (exercise.type !== 'form-input') throw new Error('unreachable')
+    expect(exercise.lemma).toBe('dobry')
+    expect(exercise.slot).toBe('adj:degree:comparative')
+    expect(exercise.accepted).toEqual(['lepszy'])
+  })
+
+  it('form-choice: correct answer is "lepszy", never offered twice among the options', () => {
+    const ctx = adjContext()
+    const { exercise } = generateExercise(ADJ_COMPARATIVE_SKILL, undefined, ctx, 1, {
+      forceCategory: 'recognition',
+    })
+    expect(exercise.type).toBe('form-choice')
+    if (exercise.type !== 'form-choice') throw new Error('unreachable')
+    expect(exercise.correct).toBe('lepszy')
+    expect(exercise.lemma).toBe('dobry')
+    expect(exercise.options.filter((o) => o === 'lepszy')).toHaveLength(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Task 18 (`spec/tasks/18-noun-exercises.md` steps 1/2): the `hintMode` option, threaded
 // into `form-input`/`form-choice`'s `promptMode`. Acceptance: "Оба направления подсказки
 // (лемма / перевод) работают на одном навыке" + "Настройка `случайно` действительно

@@ -11,31 +11,91 @@
  * comparative/superlative dimension (`adj:degree:<degree>`) already matches for any degree
  * value including `positive` (`content/paradigms.ts`'s `matchesDimension` doesn't restrict
  * `adj:degree:*` to comparative/superlative — only `learning/skills/enumerate.ts`'s *skill*
- * enumeration does, for SRS-scoping reasons unrelated to this display).
+ * enumeration does, for SRS-scoping reasons unrelated to this display). Task 22
+ * (`spec/tasks/22-adjectives-section.md`) moved the row-rendering part of that block into the
+ * shared `DegreeComparisonBlock` (also used by `AdvFormsTable`), and added the gender-cell
+ * merge below.
+ *
+ * Cell merge (task 22 step 2, acceptance "Совпадающие ячейки схлопываются"): Polish case
+ * syncretism means several of the 5 concrete gender columns very often carry the *identical*
+ * form for a given case/number (verified against real data — e.g. `absolutny|ADJ` plural
+ * genitive/dative/instrumental/locative: all 5 genders show one form, because the underlying
+ * paradigm slot is the `any` aggregate; plural nominative/accusative/vocative: 4 of the 5
+ * match and only `masculine_personal` differs; singular accusative: `masculine_personal` and
+ * `masculine_animate` match each other but NOT `masculine_inanimate` — the classic animacy
+ * split, `masculine_animate_or_personal` in the source data). `mergeGenderCells` below groups
+ * *adjacent* `GENDER_DISPLAY_ORDER` columns with identical rendered text into one `colSpan`
+ * cell, which is exactly the syncretism pattern above: every one of those aggregates expands
+ * to a contiguous run in `GENDER_DISPLAY_ORDER` (`masculine_personal, masculine_animate,
+ * masculine_inanimate, feminine, neuter` — see `codec.ts`'s `ADJ_GENDER_AGGREGATE_EXPANSION`
+ * doc comment), so a plain adjacent-run merge reproduces the source aggregate boundaries
+ * without this component re-deriving them itself.
  */
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { buildAdjTable, getFormsForSlot } from '@/content/paradigms.ts'
 import type { NumberValue } from '@/content/codec.ts'
 import {
   CASE_LABELS,
   DEGREE_DISPLAY_ORDER,
-  DEGREE_LABELS,
   GENDER_DISPLAY_ORDER,
   GENDER_LABELS,
+  type ConcreteGenderValue,
 } from '@/learning/skills/dimensions.ts'
 import type { Dimension } from '@/learning/skills/dimensions.ts'
+import type { AdjTableRow } from '@/content/paradigms.ts'
+import type { WordId } from '@/learning/skills/skill-id.ts'
 import type { Paradigm } from '@/types/content.ts'
+import type { SkillRecord } from '@/types/progress.ts'
 import { cn } from '@/lib/utils'
+import { DegreeComparisonBlock, type DegreeRow } from './DegreeComparisonBlock.tsx'
 
 function cellText(forms: readonly string[]): string {
   return forms.length > 0 ? forms.join(' / ') : '—'
 }
 
-export function AdjFormsTable({ paradigm }: { paradigm: Paradigm }) {
+interface MergedGenderCell {
+  readonly text: string
+  /** The concrete genders this cell stands for, in display order — used for the key and for
+   *  the accessible column association below (`headers` lists every `<th>` id it spans). */
+  readonly genders: readonly ConcreteGenderValue[]
+}
+
+/** Groups adjacent `GENDER_DISPLAY_ORDER` columns with identical `cellText` into one merged
+ *  cell (see file header for why "adjacent" is enough to reproduce the real aggregate
+ *  boundaries). Never merges non-adjacent columns, so e.g. singular accusative's
+ *  masculine_personal/masculine_animate (same text) merge with each other but not with the
+ *  differently-texted masculine_inanimate that sits right after them. */
+function mergeGenderCells(row: AdjTableRow): MergedGenderCell[] {
+  const cells: MergedGenderCell[] = []
+  for (const gender of GENDER_DISPLAY_ORDER) {
+    const text = cellText(row.forms[gender] ?? [])
+    const last = cells[cells.length - 1]
+    if (last && last.text === text) {
+      cells[cells.length - 1] = { text, genders: [...last.genders, gender] }
+    } else {
+      cells.push({ text, genders: [gender] })
+    }
+  }
+  return cells
+}
+
+export function AdjFormsTable({
+  wordId,
+  paradigm,
+  skills,
+}: {
+  wordId: WordId
+  paradigm: Paradigm
+  skills: readonly SkillRecord[] | undefined
+}) {
   const [number, setNumber] = useState<NumberValue>('singular')
   const table = buildAdjTable(paradigm, number)
+  // Unique per rendered instance (`useId`, not a plain string literal) — two `AdjFormsTable`s
+  // on the same page (unlikely today, but tests render more than one) must not collide on
+  // `<th id>`, which the merged cells' `headers` attribute below references.
+  const idPrefix = useId()
 
-  const degreeRows = DEGREE_DISPLAY_ORDER.map((degree) => ({
+  const degreeRows: DegreeRow[] = DEGREE_DISPLAY_ORDER.map((degree) => ({
     degree,
     forms: getFormsForSlot(paradigm, `adj:degree:${degree}` as Dimension),
   })).filter((row) => row.forms.length > 0)
@@ -73,7 +133,7 @@ export function AdjFormsTable({ paradigm }: { paradigm: Paradigm }) {
                 Падеж
               </th>
               {GENDER_DISPLAY_ORDER.map((gender) => (
-                <th key={gender} scope="col" className="py-1.5 pr-3 font-medium">
+                <th key={gender} id={`${idPrefix}-${gender}`} scope="col" className="py-1.5 pr-3 font-medium">
                   {GENDER_LABELS[gender].pl}
                 </th>
               ))}
@@ -85,9 +145,14 @@ export function AdjFormsTable({ paradigm }: { paradigm: Paradigm }) {
                 <th scope="row" className="py-1.5 pr-3 text-left font-medium text-foreground">
                   {CASE_LABELS[row.case].pl}
                 </th>
-                {GENDER_DISPLAY_ORDER.map((gender) => (
-                  <td key={gender} className="py-1.5 pr-3 text-foreground">
-                    {cellText(row.forms[gender] ?? [])}
+                {mergeGenderCells(row).map((cell) => (
+                  <td
+                    key={cell.genders[0]}
+                    colSpan={cell.genders.length}
+                    headers={cell.genders.map((gender) => `${idPrefix}-${gender}`).join(' ')}
+                    className="py-1.5 pr-3 text-foreground"
+                  >
+                    {cell.text}
                   </td>
                 ))}
               </tr>
@@ -96,19 +161,7 @@ export function AdjFormsTable({ paradigm }: { paradigm: Paradigm }) {
         </table>
       </div>
 
-      {degreeRows.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <h4 className="text-sm font-medium text-foreground">Степени сравнения</h4>
-          <ul className="flex flex-col gap-1 text-sm">
-            {degreeRows.map((row) => (
-              <li key={row.degree} className="flex items-baseline gap-2">
-                <span className="text-muted-foreground">{DEGREE_LABELS[row.degree].pl}:</span>
-                <span className="text-foreground">{row.forms.join(' / ')}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <DegreeComparisonBlock rows={degreeRows} kind="adj" wordId={wordId} skills={skills} />
     </div>
   )
 }

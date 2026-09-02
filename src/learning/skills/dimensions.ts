@@ -307,5 +307,39 @@ export function describeDimension(dimension: Dimension): DimensionDisplay {
     }
   }
 
+  // Task 22 (`spec/tasks/22-adjectives-section.md`): ADJ/ADV had no `describeDimension`
+  // branch before this task — `FormInputExercise.tsx`/`FormChoiceExercise.tsx` (tasks 18/21)
+  // are already POS-agnostic and only needed this module to learn the two new dimension
+  // shapes, no exercise-generation changes (`generate.ts#buildFormInput`/`buildFormChoice`
+  // already pass `entry.lemma` as `lemma`, which for an ADJ *is* the positive-degree form —
+  // `spec/app-design.md` §14's own mockup literally builds the degree prompt on top of it:
+  // "dobry -> [ lepszy ] -> [ najlepszy ]").
+  if (kind === 'adj') {
+    const parts = dimension.split(':')
+    if (parts[1] === 'degree') {
+      // adj:degree:<comparative|superlative> (FR-69) — the word itself (shown separately as
+      // the exercise prompt, see above) already says *which* word; this only needs to say
+      // *which degree* is being asked for.
+      const degree = parts[2] as DegreeValue
+      return { primary: DEGREE_LABELS[degree] }
+    }
+    // adj:<sg|pl>:<gender>:<case> (FR-67: "падеж + число + род"). Order matches
+    // `spec/app-design.md` §14's first mockup exactly ("Genitive / singular / feminine").
+    const numberAbbrev = parts[1] as NumberAbbrev
+    const gender = parts[2] as GenderValue
+    const caseValue = parts[3] as CaseValue
+    return {
+      primary: CASE_LABELS[caseValue],
+      secondary: NUMBER_LABELS[expandNumberAbbrev(numberAbbrev)],
+      tertiary: GENDER_LABELS[gender],
+    }
+  }
+
+  if (kind === 'adv') {
+    // adv:degree:<degree> — FR-05: adverbs carry no other dimension in the real data.
+    const degree = dimension.split(':')[2] as DegreeValue
+    return { primary: DEGREE_LABELS[degree] }
+  }
+
   return { primary: { pl: dimension, ru: dimension } }
 }

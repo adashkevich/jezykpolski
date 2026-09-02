@@ -233,3 +233,54 @@ describe('describeDimension — VERB (task 21, spec/tasks/21-verb-exercises.md)'
     }
   })
 })
+
+describe('describeDimension — ADJ/ADV (task 22, spec/tasks/22-adjectives-section.md)', () => {
+  it('adj:degree resolves to just the degree label — no lemma/hint framing baked in here', () => {
+    expect(describeDimension('adj:degree:comparative')).toEqual({
+      primary: { pl: 'Stopień wyższy', ru: 'Сравнительная степень' },
+    })
+    expect(describeDimension('adj:degree:superlative')).toEqual({
+      primary: { pl: 'Stopień najwyższy', ru: 'Превосходная степень' },
+    })
+    expect(describeDimension('adj:degree:comparative').secondary).toBeUndefined()
+  })
+
+  it('adv:degree resolves the same way as adj:degree (FR-05: same component, same labels)', () => {
+    expect(describeDimension('adv:degree:comparative')).toEqual(
+      describeDimension('adj:degree:comparative'),
+    )
+    expect(describeDimension('adv:degree:superlative')).toEqual(
+      describeDimension('adj:degree:superlative'),
+    )
+  })
+
+  it('an adj case dimension resolves to case (primary) + number (secondary) + gender (tertiary), matching app-design.md §14\'s mockup order', () => {
+    // app-design.md §14's own example: "dobrej" — Genitive, singular, feminine.
+    expect(describeDimension('adj:sg:feminine:genitive')).toEqual({
+      primary: { pl: 'Dopełniacz', ru: 'Родительный' },
+      secondary: { pl: 'Liczba pojedyncza', ru: 'Единственное число' },
+      tertiary: { pl: 'żeński', ru: 'женский' },
+    })
+    expect(describeDimension('adj:pl:masculine_personal:nominative')).toEqual({
+      primary: { pl: 'Mianownik', ru: 'Именительный' },
+      secondary: { pl: 'Liczba mnoga', ru: 'Множественное число' },
+      tertiary: { pl: 'męskoosobowy', ru: 'мужской личный' },
+    })
+  })
+
+  it('every real ADJ/ADV dimension shape resolves without throwing', () => {
+    for (const degree of DEGREE_VALUES) {
+      expect(() => describeDimension(`adj:degree:${degree}`)).not.toThrow()
+      expect(() => describeDimension(`adv:degree:${degree}`)).not.toThrow()
+    }
+    for (const numberAbbrev of ['sg', 'pl'] as const) {
+      for (const gender of GENDER_DISPLAY_ORDER) {
+        for (const caseValue of CASE_DISPLAY_ORDER) {
+          expect(() =>
+            describeDimension(`adj:${numberAbbrev}:${gender}:${caseValue}`),
+          ).not.toThrow()
+        }
+      }
+    }
+  })
+})

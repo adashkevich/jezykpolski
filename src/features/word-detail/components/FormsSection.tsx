@@ -12,7 +12,9 @@
  * as far as `NounFormsTable` at first — the one table task 17 made clickable. Task 20
  * (`spec/tasks/20-verbs-section.md`) extends the same click-to-train mechanism to
  * `VerbFormsTable`, reusing task 17's identical `targetSkillIds` navigation rather than a new
- * one. ADJ/ADV still get neither `wordId` nor `skills` — no click-to-train for them yet.
+ * one. Task 22 (`spec/tasks/22-adjectives-section.md`) extends it once more, to `AdjFormsTable`/
+ * `AdvFormsTable` — but only for their shared `DegreeComparisonBlock` rows, not the ADJ case x
+ * gender grid (that grid stays plain display; see `AdjFormsTable.tsx`'s own header for why).
  */
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
@@ -45,9 +47,9 @@ function FormsTables({
     case 'VERB':
       return <VerbFormsTable wordId={wordId} paradigm={paradigm} skills={skills} />
     case 'ADJ':
-      return <AdjFormsTable paradigm={paradigm} />
+      return <AdjFormsTable wordId={wordId} paradigm={paradigm} skills={skills} />
     case 'ADV':
-      return <AdvFormsTable paradigm={paradigm} />
+      return <AdvFormsTable wordId={wordId} paradigm={paradigm} skills={skills} />
   }
 }
 
