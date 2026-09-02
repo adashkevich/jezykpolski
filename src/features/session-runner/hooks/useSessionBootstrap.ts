@@ -24,7 +24,10 @@ import { encodeSkillId } from '@/learning/skills/skill-id.ts'
 import type { SkillId } from '@/learning/skills/skill-id.ts'
 import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import { buildLearnQueue } from '@/learning/session/build-learn-queue.ts'
+import { buildPracticeQueue } from '@/learning/session/build-practice-queue.ts'
+import type { PracticeConfig } from '@/learning/session/session.types.ts'
 import type { ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
+import type { ExerciseCategory } from '@/learning/exercises/picker.ts'
 import {
   NOUN_HINT_MODE_DEFAULT,
   NOUN_HINT_MODE_SETTING_KEY,
@@ -34,8 +37,29 @@ import type { Rating, SessionMode, SkillRecord } from '@/types/progress.ts'
 import { getIncompleteSession } from '@/db/repositories/sessions.repository.ts'
 import { useSessionStore } from '@/stores/session.store.ts'
 import { SessionContentCache } from '../lib/session-content-context.ts'
-import { generateForSkill, materializeQueueItem } from '../lib/build-session-exercises.ts'
-import { resolveSessionCandidates, type SessionScope } from '../lib/session-scope.ts'
+import {
+  generateForSkill,
+  materializePracticeItem,
+  materializeQueueItem,
+  type MaterializedQueueEntry,
+} from '../lib/build-session-exercises.ts'
+import {
+  resolvePracticeCandidateWords,
+  resolveSessionCandidates,
+  type SessionScope,
+} from '../lib/session-scope.ts'
+
+/** Task 19's Practice "Тип задания" restriction, resolved once per session (not per item —
+ *  the whole session shares one category or defers to the normal picker): exactly one of
+ *  `choice`/`input` checked forces every exercise to that recognition/recall category
+ *  (`picker.ts`'s `PickerOptions.forceCategory`); both checked (or, defensively, neither —
+ *  `features/training-setup/**` never lets the user reach "Начать" with neither checked)
+ *  leaves the state-based picker in charge, same as every non-Practice scope. */
+function forceCategoryFor(exerciseTypes: PracticeConfig['exerciseTypes']): ExerciseCategory | undefined {
+  if (exerciseTypes.choice && !exerciseTypes.input) return 'recognition'
+  if (exerciseTypes.input && !exerciseTypes.choice) return 'recall'
+  return undefined
+}
 
 export interface SessionRuntime {
   readonly sessionId: number
@@ -61,6 +85,11 @@ export interface SessionRuntime {
    *  including `SessionRunner.tsx`'s mistake-requeue path, which reads it back off this
    *  runtime rather than re-reading `settings` a second time mid-session. */
   readonly hintMode: HintMode
+  /** Task 19's Practice "Тип задания" restriction — `undefined` for every non-`'practice'`
+   *  scope. `SessionRunner.tsx`'s mistake-requeue path reads this back off the runtime and
+   *  passes it to its own `generateForSkill` retry call, so a wrong answer requeued mid a
+   *  Practice session still respects the user's chosen exercise-type restriction. */
+  readonly forceCategory: ExerciseCategory | undefined
 }
 
 export type BootstrapStatus =
@@ -122,6 +151,18 @@ export function useSessionBootstrap(scope: SessionScope) {
    * `completeSession` here instead, for the same reason: it must not linger as
    * "incomplete" either.
    */
+  /** Closes out a resumed session that turns out empty on rebuild (never a fresh one — see
+   *  this function's own doc comment above `buildAndStart`), then reports `'empty'`. Shared
+   *  by both the Learn-like and Practice branches of `buildAndStart` below so the two never
+   *  drift on this rule. */
+  async function handleEmptyPlan(existingSessionId: number | undefined, now: number) {
+    if (existingSessionId !== undefined) {
+      const logs = await getLogsForSession(existingSessionId)
+      await completeSession(existingSessionId, now, summarizeLogsForAbandonedSession(logs))
+    }
+    if (aliveRef.current) setStatus({ phase: 'empty' })
+  }
+
   async function buildAndStart(args: {
     existingSessionId?: number
     mode: SessionMode
@@ -129,44 +170,70 @@ export function useSessionBootstrap(scope: SessionScope) {
     prefillFirstAnswers: ReadonlyMap<SkillId, Rating>
   }) {
     const now = Date.now()
-    const [candidates, hintMode] = await Promise.all([
-      resolveSessionCandidates(scope, now),
-      settingsRepo.get<HintMode>(NOUN_HINT_MODE_SETTING_KEY, NOUN_HINT_MODE_DEFAULT),
-    ])
+    const hintModePromise = settingsRepo.get<HintMode>(NOUN_HINT_MODE_SETTING_KEY, NOUN_HINT_MODE_DEFAULT)
+    const cache = new SessionContentCache()
 
-    const dueSkills = candidates.dueSkills.filter((s) => !args.excludeSkillIds.has(s.skillId))
-    const candidateNewWords = candidates.candidateNewWords.filter(
-      (w) => !args.excludeSkillIds.has(encodeSkillId(`${w.lemma}|${w.pos}`, 'vocab:pl-ru')),
-    )
+    let materialized: MaterializedQueueEntry[]
+    let forceCategory: ExerciseCategory | undefined
 
-    const plan = buildLearnQueue({
-      now,
-      dueSkills,
-      newWordsBudget: candidates.newWordsBudget,
-      candidateNewWords,
-      targetSize: candidates.targetSize,
-    })
+    if (scope.kind === 'practice') {
+      // Task 19 — see `learning/session/build-practice-queue.ts`'s and
+      // `session-scope.ts#resolvePracticeCandidateWords`'s own headers for why this is a
+      // completely separate pipeline from `buildLearnQueue`'s due/new model: the user
+      // explicitly picked a section + dimension set, there is no `due` filter here at all.
+      forceCategory = forceCategoryFor(scope.config.exerciseTypes)
+      const candidateWords = await resolvePracticeCandidateWords(scope.config)
+      const plan = buildPracticeQueue({ config: scope.config, candidateWords, seed: now })
+      if (!aliveRef.current) return
 
-    if (!aliveRef.current) return
-    if (plan.items.length === 0) {
-      if (args.existingSessionId !== undefined) {
-        const logs = await getLogsForSession(args.existingSessionId)
-        await completeSession(args.existingSessionId, now, summarizeLogsForAbandonedSession(logs))
+      const items = plan.items.filter((item) => !args.excludeSkillIds.has(item.skillId))
+      if (items.length === 0) {
+        await handleEmptyPlan(args.existingSessionId, now)
+        return
       }
-      if (aliveRef.current) setStatus({ phase: 'empty' })
-      return
+
+      materialized = []
+      for (const item of items) {
+        materialized.push(await materializePracticeItem(item, cache))
+      }
+    } else {
+      const candidates = await resolveSessionCandidates(scope, now)
+      const dueSkills = candidates.dueSkills.filter((s) => !args.excludeSkillIds.has(s.skillId))
+      const candidateNewWords = candidates.candidateNewWords.filter(
+        (w) => !args.excludeSkillIds.has(encodeSkillId(`${w.lemma}|${w.pos}`, 'vocab:pl-ru')),
+      )
+
+      const plan = buildLearnQueue({
+        now,
+        dueSkills,
+        newWordsBudget: candidates.newWordsBudget,
+        candidateNewWords,
+        targetSize: candidates.targetSize,
+      })
+
+      if (!aliveRef.current) return
+      if (plan.items.length === 0) {
+        await handleEmptyPlan(args.existingSessionId, now)
+        return
+      }
+
+      materialized = []
+      for (const item of plan.items) {
+        materialized.push(await materializeQueueItem(item, cache))
+      }
     }
+
+    const hintMode = await hintModePromise
+    if (!aliveRef.current) return
 
     const sessionId = args.existingSessionId ?? (await createSession(args.mode, now))
 
-    const cache = new SessionContentCache()
     const descriptors = new Map<SkillId, SkillDescriptor>()
     const skillByInstanceId = new Map<string, SkillRecord>()
     const instances: ExerciseInstance[] = []
-    for (const item of plan.items) {
-      const { descriptor, skill } = await materializeQueueItem(item, cache)
+    for (const { descriptor, skill } of materialized) {
       descriptors.set(descriptor.skillId, descriptor)
-      const instance = generateForSkill(descriptor, skill, cache, 0, hintMode)
+      const instance = generateForSkill(descriptor, skill, cache, 0, hintMode, forceCategory)
       skillByInstanceId.set(instance.id, skill)
       instances.push(instance)
     }
@@ -190,6 +257,7 @@ export function useSessionBootstrap(scope: SessionScope) {
         attemptBySkillId,
         skillByInstanceId,
         hintMode,
+        forceCategory,
       },
     })
   }
@@ -197,14 +265,17 @@ export function useSessionBootstrap(scope: SessionScope) {
   async function startFresh() {
     setStatus({ phase: 'loading' })
     try {
-      // Task 14: the one scope that isn't a Learn queue in disguise — `SessionResultPage`'s
-      // "Разобрать ошибки" always launches `{ kind: 'mistake' }`, and that scope has no
-      // other reason to exist than starting a `mode: 'mistakes'` session (see
-      // `session-scope.ts`'s own header). Every other scope keeps today's `'learn'` default —
-      // including task 17's `{ kind: 'skill' }` (a declension-table cell click): that one
-      // must land here in `'learn'`, not `'mistakes'`, precisely so its SRS update is not
-      // suppressed (see `session-scope.ts`'s `resolveSkillScope` doc comment).
-      const mode: SessionMode = scope.kind === 'mistake' ? 'mistakes' : 'learn'
+      // Task 14: `SessionResultPage`'s "Разобрать ошибки" always launches `{ kind: 'mistake'
+      // }`, and that scope has no other reason to exist than starting a `mode: 'mistakes'`
+      // session (see `session-scope.ts`'s own header). Task 19 adds the second special case:
+      // `{ kind: 'practice' }` -> `mode: 'practice'`, the only other scope
+      // `learning/srs/policy.ts`'s Rule 2 (`capRatingForMode`/`applyPracticeDamping`, FR-112)
+      // actually fires for. Every other scope keeps `'learn'` — including task 17's `{ kind:
+      // 'skill' }` (a declension-table cell click): that one must land here in `'learn'`, not
+      // `'mistakes'`/`'practice'`, precisely so its SRS update is not suppressed/damped (see
+      // `session-scope.ts`'s `resolveSkillScope` doc comment).
+      const mode: SessionMode =
+        scope.kind === 'mistake' ? 'mistakes' : scope.kind === 'practice' ? 'practice' : 'learn'
       await buildAndStart({ mode, excludeSkillIds: new Set(), prefillFirstAnswers: new Map() })
     } catch (error: unknown) {
       if (aliveRef.current) setStatus({ phase: 'error', message: errorMessage(error) })

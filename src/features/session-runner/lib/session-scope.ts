@@ -64,6 +64,22 @@
  * yet (task 24), so every session runs at the default until one does; the word-scoped case
  * overrides both so the single word the user explicitly asked to practice is never silently
  * dropped by an unrelated daily-goal setting.
+ *
+ * A sixth scope, added by task 19 (`spec/tasks/19-practice-mode.md`, `spec/app-design.md`
+ * §23/§24, FR-111...FR-114):
+ *
+ *  - `{ config }` under `kind: 'practice'` (`features/training-setup/**`'s "Начать" button)
+ *    — the one scope that is NOT "a Learn queue in disguise" in a different sense than the
+ *    `mistake` scope above: it doesn't produce a `SessionCandidates` (`dueSkills`/
+ *    `candidateNewWords`) at all, because `buildLearnQueue`'s whole due-vs-new priority
+ *    model has no meaning here — the user picked an explicit section + dimension set, not
+ *    "whatever the scheduler thinks is due". `resolveSessionCandidates` below deliberately
+ *    does NOT handle this scope (its parameter type excludes it) — `useSessionBootstrap.ts`
+ *    branches on `scope.kind === 'practice'` before ever calling it, and calls
+ *    `resolvePracticeCandidateWords` + `learning/session/build-practice-queue.ts#buildPracticeQueue`
+ *    instead. `mode: 'practice'` (not `'learn'`) is what makes `learning/srs/policy.ts`'s
+ *    `capRatingForMode`/`applyPracticeDamping` (task 11 Rule 2, FR-112) actually kick in for
+ *    every answer in this scope.
  */
 import { ensureSkill, getDueSkills, getSkill } from '@/db/repositories/skills.repository.ts'
 import { getSkillsForWord } from '@/db/repositories/skills.repository.ts'
@@ -71,13 +87,15 @@ import { getAllWordProgress } from '@/db/repositories/words-progress.repository.
 import * as settingsRepo from '@/db/repositories/settings.repository.ts'
 import { queryWords, type WordQuery } from '@/content/query.ts'
 import { getIndexStore } from '@/content/index-store.ts'
-import { kindOfDimension } from '@/learning/skills/enumerate.ts'
+import { getParadigm } from '@/content/paradigms.ts'
+import { enumerateSkills, kindOfDimension } from '@/learning/skills/enumerate.ts'
 import {
   decodeSkillId,
   encodeWordId,
   type SkillId,
   type WordId,
 } from '@/learning/skills/skill-id.ts'
+import type { PracticeCandidateWord, PracticeConfig } from '@/learning/session/session.types.ts'
 import type { SkillRecord } from '@/types/progress.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 
@@ -87,6 +105,13 @@ export type SessionScope =
   | { readonly kind: 'filter'; readonly filter: WordQuery }
   | { readonly kind: 'mistake'; readonly skillIds: readonly SkillId[] }
   | { readonly kind: 'skill'; readonly skillIds: readonly SkillId[] }
+  | { readonly kind: 'practice'; readonly config: PracticeConfig }
+
+/** Every `SessionScope` `resolveSessionCandidates` below actually knows how to handle — see
+ *  this file's header for why `{ kind: 'practice' }` is deliberately excluded: it produces a
+ *  `PracticeQueuePlan` via a completely different pipeline (`resolvePracticeCandidateWords` +
+ *  `buildPracticeQueue`), not a `SessionCandidates`. */
+export type LearnLikeSessionScope = Exclude<SessionScope, { kind: 'practice' }>
 
 const DEFAULT_TARGET_SIZE_KEY = 'sessionTargetSize'
 const DEFAULT_NEW_WORDS_BUDGET_KEY = 'dailyNewWordsBudget'
@@ -110,10 +135,17 @@ const DUE_SKILLS_FETCH_LIMIT = 2000
  *  behavioral bug (SRS would never update, no matter how the user answers), so the two must
  *  never be reachable through the same key. `{ skillIds }` is still checked first only
  *  because it was here first (task 14 predates task 17); order between the two mutually
- *  exclusive keys otherwise doesn't matter. */
+ *  exclusive keys otherwise doesn't matter.
+ *
+ *  `{ practiceConfig }` (task 19, `features/training-setup/**`'s "Начать") is checked before
+ *  all four of the above — its own distinct router-state field, never ambiguous with the
+ *  others. */
 export function parseSessionScope(locationState: unknown): SessionScope {
   if (locationState && typeof locationState === 'object') {
     const state = locationState as Record<string, unknown>
+    if (state.practiceConfig && typeof state.practiceConfig === 'object') {
+      return { kind: 'practice', config: state.practiceConfig as PracticeConfig }
+    }
     if (Array.isArray(state.skillIds)) {
       return { kind: 'mistake', skillIds: state.skillIds as SkillId[] }
     }
@@ -225,7 +257,7 @@ async function resolveGlobalScope(now: number): Promise<SessionCandidates> {
 }
 
 export function resolveSessionCandidates(
-  scope: SessionScope,
+  scope: LearnLikeSessionScope,
   now: number,
 ): Promise<SessionCandidates> {
   switch (scope.kind) {
@@ -240,4 +272,47 @@ export function resolveSessionCandidates(
     case 'skill':
       return resolveSkillScope(scope.skillIds)
   }
+}
+
+// ---------------------------------------------------------------------------
+// Practice (task 19) — the async, content-layer half of building a Practice queue. Kept
+// deliberately separate from `learning/session/build-practice-queue.ts`'s pure matching/
+// sampling (that file's own header): recomputing *which words match the level/status/
+// frequency/section filter* and fetching each one's paradigm only has to happen when one of
+// those filters actually changes, never on a dimension-checkbox toggle.
+// ---------------------------------------------------------------------------
+
+/**
+ * Every word matching `config`'s level/status/frequency/section filter, each with its full
+ * `enumerateSkills(word, paradigm)` output already attached. `build-practice-queue.ts`'s
+ * `buildPracticeQueue` then matches/samples this list against `config.dimensionSelection`
+ * without ever touching `content/**` or `db/**` again — this function is the one (and only)
+ * place that does.
+ *
+ * Fetches every matching word's paradigm in parallel — `content/loader.ts#loadParadigmShard`
+ * already dedupes concurrent requests for the same shard (same guarantee
+ * `SessionContentCache.preload` relies on), so this never issues more than one network
+ * request per distinct shard touched by the matching words, regardless of how many of those
+ * words happen to share a shard.
+ */
+export async function resolvePracticeCandidateWords(
+  config: PracticeConfig,
+): Promise<PracticeCandidateWord[]> {
+  const progress = await getAllWordProgress()
+  const query: WordQuery = {
+    pos: [config.section],
+    upToLevel: config.upToLevel ?? undefined,
+    status: config.status.length > 0 ? config.status : undefined,
+    topN: config.topN,
+    sort: 'frequency',
+  }
+  const matchingWords = queryWords(query, progress)
+
+  return Promise.all(
+    matchingWords.map(async (word): Promise<PracticeCandidateWord> => {
+      const wordId = encodeWordId(word.lemma, word.pos)
+      const paradigm = await getParadigm(wordId)
+      return { wordId, descriptors: enumerateSkills(word, paradigm ?? undefined) }
+    }),
+  )
 }

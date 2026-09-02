@@ -103,3 +103,31 @@ describe('pickExerciseType — determinism', () => {
     expect(new Set(results).size).toBe(1)
   })
 })
+
+// ---------------------------------------------------------------------------
+// forceCategory (task 19, Practice mode's "Тип задания" restriction) — overrides the
+// state-based switch entirely, for both vocab and morphological skills, regardless of what
+// `srs` says.
+// ---------------------------------------------------------------------------
+
+describe('pickExerciseType — forceCategory (task 19)', () => {
+  it('forces recognition (choice/form-choice) even for a review-state skill', () => {
+    const record = srs({ state: 'review', reps: 10 })
+    expect(pickExerciseType(vocabSkill(), record, { forceCategory: 'recognition' })).toBe('choice')
+    expect(pickExerciseType(morphSkill(), record, { forceCategory: 'recognition' })).toBe(
+      'form-choice',
+    )
+  })
+
+  it('forces recall (input/form-input) even for a brand-new (no SkillRecord) skill', () => {
+    expect(pickExerciseType(vocabSkill(), undefined, { forceCategory: 'recall' })).toBe('input')
+    expect(pickExerciseType(morphSkill(), undefined, { forceCategory: 'recall' })).toBe(
+      'form-input',
+    )
+  })
+
+  it('undefined forceCategory falls back to the normal state-based switch', () => {
+    const record = srs({ state: 'review', reps: 10 })
+    expect(pickExerciseType(vocabSkill(), record)).toBe('input')
+  })
+})

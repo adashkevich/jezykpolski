@@ -19,12 +19,26 @@ import type { SkillRecord, SkillState } from '@/types/progress.ts'
  *  vocabulary or morphology, plus the self-assess opt-out for `review`. */
 export type PickedExerciseType = 'choice' | 'input' | 'form-choice' | 'form-input' | 'self-assess'
 
+/** The two broad categories `pickExerciseType`'s state-based switch normally chooses
+ *  between — `'recognition'` (`choice`/`form-choice`) or `'recall'` (`input`/`form-input`).
+ *  Named here for `PickerOptions.forceCategory` (task 19, `spec/tasks/19-practice-mode.md`
+ *  §1's "Тип задания" checkboxes, FR-114) — Practice mode lets the user restrict a whole
+ *  session to just one of the two, overriding whatever the skill's own SRS state would
+ *  otherwise pick. */
+export type ExerciseCategory = 'recognition' | 'recall'
+
 export interface PickerOptions {
   /** `state === 'review'` normally picks the recall type (`input`/`form-input`); when this
    *  setting is on, it picks `self-assess` instead (architecture.md §7.2: "review → input
    *  (или self-assess при настройке)"). Off by default — `self-assess` is an explicit
    *  opt-in, not the default review behavior. */
   readonly selfAssessOnReview?: boolean
+  /** Task 19's Practice "Тип задания" restriction: when set, the state-based switch below is
+   *  skipped entirely — `state`/`reps` are never read — and the result is just "the
+   *  recognition (or recall) variant for this skill's kind". `undefined` (every caller
+   *  before task 19, and a Practice config where the user left both "Выбор ответа" and
+   *  "Ввод ответа" checked) keeps today's normal SRS-state-driven behavior. */
+  readonly forceCategory?: ExerciseCategory
 }
 
 /** `vocab:*` skills use `choice`/`input`; every other `SkillKind` (noun/verb/adj/adv) is
@@ -44,9 +58,20 @@ export function pickExerciseType(
   srs: SkillRecord | undefined,
   options: PickerOptions = {},
 ): PickedExerciseType {
+  const morphological = isMorphological(skill)
+
+  if (options.forceCategory) {
+    return options.forceCategory === 'recognition'
+      ? morphological
+        ? 'form-choice'
+        : 'choice'
+      : morphological
+        ? 'form-input'
+        : 'input'
+  }
+
   const state: SkillState = srs?.state ?? 'new'
   const reps = srs?.reps ?? 0
-  const morphological = isMorphological(skill)
 
   switch (state) {
     case 'new':

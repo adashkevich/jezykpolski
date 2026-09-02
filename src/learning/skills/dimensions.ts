@@ -126,6 +126,15 @@ export const DEGREE_LABELS: Readonly<Record<DegreeValue, DimensionLabel>> = {
   superlative: { pl: 'Stopień najwyższy', ru: 'Превосходная степень' },
 }
 
+/** Added by task 19 (`spec/tasks/19-practice-mode.md` step 1) for the verb section of
+ *  `features/training-setup/**`'s "Лица" dimension group — same `{pl, ru}` shape and
+ *  construction as every other `*_LABELS` map above, keyed by `PersonValue` (1/2/3). */
+export const PERSON_LABELS: Readonly<Record<PersonValue, DimensionLabel>> = {
+  1: { pl: '1. osoba', ru: '1-е лицо' },
+  2: { pl: '2. osoba', ru: '2-е лицо' },
+  3: { pl: '3. osoba', ru: '3-е лицо' },
+}
+
 /** Covers every `GenderValue`, including the 4 ADJ aggregates and the bare `masculine`
  *  used for VERB's non-declining nom/voc-sg-style slots — not just the 5 concrete genders
  *  in `GENDER_DISPLAY_ORDER` — so any dimension actually produced by `enumerate.ts` (ADJ

@@ -138,10 +138,12 @@ function stubScrollContainerSize() {
 }
 
 /** Surfaces `location.state` as text so a test can assert on the payload `LearnFab` passes
- *  to `navigate('/session', { state: ... })` without needing the real `SessionPage`. */
-function SessionStateProbe() {
+ *  to `navigate('/practice', { state: ... })` (task 19 — "Учить" opens the training-setup
+ *  screen pre-filled with the current filter, not `/session` directly) without needing the
+ *  real `PracticeSetupPage`. */
+function PracticeStateProbe() {
   const location = useLocation()
-  return <pre data-testid="session-state">{JSON.stringify(location.state)}</pre>
+  return <pre data-testid="practice-state">{JSON.stringify(location.state)}</pre>
 }
 
 function renderWordsListPage() {
@@ -149,7 +151,7 @@ function renderWordsListPage() {
     <MemoryRouter initialEntries={['/words']}>
       <Routes>
         <Route path="/words" element={<WordsListPage />} />
-        <Route path="/session" element={<SessionStateProbe />} />
+        <Route path="/practice" element={<PracticeStateProbe />} />
         <Route path="/words/:wordId" element={<div>word detail stub</div>} />
       </Routes>
     </MemoryRouter>,
@@ -287,13 +289,13 @@ describe('WordsListPage', () => {
     await waitFor(() => expect(screen.getByText('Ничего не найдено')).toBeInTheDocument())
   })
 
-  it('"Учить" navigates to /session carrying the current filter as router state', async () => {
+  it('"Учить" navigates to /practice carrying the current filter as router state (task 19)', async () => {
     const user = userEvent.setup()
     renderWordsListPage()
     fireClickTab('Глаголы')
     await user.click(screen.getByRole('button', { name: /учить/i }))
 
-    const stateText = screen.getByTestId('session-state').textContent ?? ''
+    const stateText = screen.getByTestId('practice-state').textContent ?? ''
     const state = JSON.parse(stateText) as { filter: { pos?: string[] } }
     expect(state.filter.pos).toEqual(['VERB'])
   })

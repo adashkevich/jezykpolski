@@ -6,16 +6,23 @@
  * `lifecycle.repository.ts#openDatabase/deleteDatabase` (same convention as
  * `answer-pipeline.test.ts` / `DatabaseProvider.test.tsx`), never `db/database.ts` directly.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
 import { ensureSkill, getSkill } from '@/db/repositories/skills.repository.ts'
 import { recomputeWordProgress } from '@/db/repositories/words-progress.repository.ts'
 import * as settingsRepo from '@/db/repositories/settings.repository.ts'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
+import { __resetLoaderCachesForTest } from '@/content/loader.ts'
+import { encodeForm } from '@/content/codec.ts'
 import type { WordQuery } from '@/content/query.ts'
 import { encodeSkillId, encodeWordId } from '@/learning/skills/skill-id.ts'
+import type { PracticeConfig } from '@/learning/session/session.types.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
-import { parseSessionScope, resolveSessionCandidates } from './session-scope.ts'
+import {
+  parseSessionScope,
+  resolvePracticeCandidateWords,
+  resolveSessionCandidates,
+} from './session-scope.ts'
 
 function entry(
   overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma' | 'rank'>,
@@ -33,9 +40,11 @@ function entry(
 beforeEach(async () => {
   await openDatabase()
   __resetIndexStoreForTest()
+  __resetLoaderCachesForTest()
 })
 
 afterEach(async () => {
+  vi.unstubAllGlobals()
   await deleteDatabase()
   __resetIndexStoreForTest()
 })
@@ -91,6 +100,37 @@ describe('parseSessionScope', () => {
     expect(parseSessionScope(undefined)).toEqual({ kind: 'global' })
     expect(parseSessionScope({})).toEqual({ kind: 'global' })
     expect(parseSessionScope({ somethingElse: 42 })).toEqual({ kind: 'global' })
+  })
+
+  it('narrows { practiceConfig } router state (training-setup "Начать", task 19) to the practice scope', () => {
+    const config: PracticeConfig = {
+      section: 'NOUN',
+      upToLevel: null,
+      status: [],
+      topN: null,
+      includeTranslation: true,
+      dimensionSelection: { number: ['sg'], case: ['nominative'] },
+      exerciseTypes: { choice: true, input: true },
+      targetSize: 20,
+    }
+    expect(parseSessionScope({ practiceConfig: config })).toEqual({ kind: 'practice', config })
+  })
+
+  it('{ practiceConfig } takes priority over every other key if a caller somehow sent both', () => {
+    const config: PracticeConfig = {
+      section: 'NOUN',
+      upToLevel: null,
+      status: [],
+      topN: null,
+      includeTranslation: true,
+      dimensionSelection: {},
+      exerciseTypes: { choice: true, input: true },
+      targetSize: 20,
+    }
+    expect(parseSessionScope({ practiceConfig: config, wordId: 'b|NOUN' })).toEqual({
+      kind: 'practice',
+      config,
+    })
   })
 })
 
@@ -321,5 +361,97 @@ describe('resolveSkillScope (kind: skill)', () => {
     const candidates = await resolveSessionCandidates({ kind: 'skill', skillIds: [] }, Date.now())
     expect(candidates.dueSkills).toEqual([])
     expect(candidates.targetSize).toBe(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// resolvePracticeCandidateWords (task 19) — the async content-layer half of building a
+// Practice queue: level/status/frequency/section filtering + per-word paradigm fetch +
+// enumerateSkills, all independent of `build-practice-queue.ts`'s own pure matching.
+// ---------------------------------------------------------------------------
+
+function makeFetchMock(routes: Record<string, unknown>) {
+  return vi.fn(async (url: unknown) => {
+    const href = String(url)
+    const key = Object.keys(routes).find((k) => href.includes(k))
+    if (key === undefined) return { ok: false, status: 404, json: async () => ({}) } as Response
+    return { ok: true, json: async () => routes[key] } as Response
+  })
+}
+
+function practiceConfig(overrides: Partial<PracticeConfig> = {}): PracticeConfig {
+  return {
+    section: 'NOUN',
+    upToLevel: null,
+    status: [],
+    topN: null,
+    includeTranslation: true,
+    dimensionSelection: {},
+    exerciseTypes: { choice: true, input: true },
+    targetSize: 20,
+    ...overrides,
+  }
+}
+
+describe('resolvePracticeCandidateWords (kind: practice)', () => {
+  it('filters candidate words by section/level/frequency (WordQuery), same as /words', async () => {
+    initIndexStore([
+      entry({ lemma: 'kobieta', pos: 'NOUN', level: 'A1', rank: 1, paradigmShard: -1 }),
+      entry({ lemma: 'dom', pos: 'NOUN', level: 'B2', rank: 2, paradigmShard: -1 }),
+      entry({ lemma: 'robic', pos: 'VERB', level: 'A1', rank: 3, paradigmShard: -1 }),
+    ])
+
+    const candidates = await resolvePracticeCandidateWords(
+      practiceConfig({ section: 'NOUN', upToLevel: 'A1' }),
+    )
+
+    // "dom" excluded (B2 > A1 upToLevel); "robic" excluded (VERB, not this section).
+    expect(candidates.map((c) => c.wordId)).toEqual([encodeWordId('kobieta', 'NOUN')])
+  })
+
+  it('a word with no paradigm (paradigmShard -1) still yields its two vocab:* descriptors', async () => {
+    initIndexStore([entry({ lemma: 'kobieta', pos: 'NOUN', rank: 1, paradigmShard: -1 })])
+    const candidates = await resolvePracticeCandidateWords(practiceConfig())
+    expect(candidates).toHaveLength(1)
+    expect(candidates[0]!.descriptors.map((d) => d.dimension).sort()).toEqual([
+      'vocab:pl-ru',
+      'vocab:ru-pl',
+    ])
+  })
+
+  it('fetches the matching word\'s real paradigm and enumerates its morphological skills too', async () => {
+    initIndexStore([entry({ lemma: 'kobieta', pos: 'NOUN', rank: 1, paradigmShard: 0 })])
+    vi.stubGlobal(
+      'fetch',
+      makeFetchMock({
+        'paradigms/000.json': {
+          'kobieta|NOUN': {
+            forms: [
+              encodeForm({ form: 'kobieta', number: 'singular', case: 'nominative', gender: 'feminine' }),
+              encodeForm({ form: 'kobiety', number: 'singular', case: 'genitive', gender: 'feminine' }),
+            ],
+          },
+        },
+      }),
+    )
+
+    const candidates = await resolvePracticeCandidateWords(practiceConfig())
+    expect(candidates).toHaveLength(1)
+    const dims = candidates[0]!.descriptors.map((d) => d.dimension).sort()
+    expect(dims).toEqual(['noun:sg:genitive', 'noun:sg:nominative', 'vocab:pl-ru', 'vocab:ru-pl'])
+  })
+
+  it('a status filter narrows candidates the same way /words does', async () => {
+    initIndexStore([
+      entry({ lemma: 'kobieta', pos: 'NOUN', rank: 1, paradigmShard: -1 }),
+      entry({ lemma: 'dom', pos: 'NOUN', rank: 2, paradigmShard: -1 }),
+    ])
+    const domWordId = encodeWordId('dom', 'NOUN')
+    await ensureSkill(encodeSkillId(domWordId, 'vocab:pl-ru'), domWordId, 'vocab', 'vocab:pl-ru')
+    await recomputeWordProgress(domWordId)
+
+    const candidates = await resolvePracticeCandidateWords(practiceConfig({ status: ['new'] }))
+    // "dom" now has progress -> no longer status "new"; "kobieta" has none -> still "new".
+    expect(candidates.map((c) => c.wordId)).toEqual([encodeWordId('kobieta', 'NOUN')])
   })
 })

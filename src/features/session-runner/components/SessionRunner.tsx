@@ -292,6 +292,7 @@ function ActiveQuestion({
             runtime.cache,
             attempt,
             runtime.hintMode,
+            runtime.forceCategory,
           )
           runtime.skillByInstanceId.set(retryInstance.id, freshSkill)
           useSessionStore.getState().appendToQueue(retryInstance)

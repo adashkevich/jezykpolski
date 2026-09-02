@@ -14,9 +14,10 @@
  */
 import { enumerateSkills, type SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import { generateExercise } from '@/learning/exercises/generate.ts'
+import type { ExerciseCategory } from '@/learning/exercises/picker.ts'
 import type { ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import type { HintMode } from '@/learning/exercises/hint-mode.ts'
-import type { LearnQueueItem } from '@/learning/session/session.types.ts'
+import type { LearnQueueItem, PracticeQueueItem } from '@/learning/session/session.types.ts'
 import { ensureSkill } from '@/db/repositories/skills.repository.ts'
 import type { SkillRecord } from '@/types/progress.ts'
 import { seedFor } from './seed.ts'
@@ -65,6 +66,36 @@ export async function materializeQueueItem(
 }
 
 /**
+ * The Practice counterpart of `materializeQueueItem` above (task 19,
+ * `spec/tasks/19-practice-mode.md` §2's "новые навыки материализуются по мере показа, та же
+ * ensureSkill"). Unlike a `LearnQueueItem`, a `PracticeQueueItem` has no `'due'`/`'new'`
+ * split to preserve — `build-practice-queue.ts` already resolved *which* skill this is by
+ * matching the user's explicit dimension selection, so this always calls `ensureSkill`
+ * unconditionally, exactly like `session-scope.ts#resolveSkillScope` does for task 17's
+ * single-cell scope.
+ */
+export async function materializePracticeItem(
+  item: PracticeQueueItem,
+  cache: SessionContentCache,
+): Promise<MaterializedQueueEntry> {
+  await cache.preload(item.wordId)
+  const ctx = cache.toContentContext()
+  const wordEntry = ctx.getWordEntry(item.wordId)
+  const paradigm = ctx.getParadigm(item.wordId)
+  const descriptors = enumerateSkills(wordEntry, paradigm ?? undefined)
+
+  const descriptor = descriptors.find((d) => d.skillId === item.skillId)
+  if (!descriptor) {
+    throw new Error(
+      `materializePracticeItem: no SkillDescriptor for "${item.skillId}" — the word's ` +
+        `content no longer enumerates this dimension.`,
+    )
+  }
+  const skill = await ensureSkill(descriptor.skillId, item.wordId, descriptor.kind, descriptor.dimension)
+  return { descriptor, skill }
+}
+
+/**
  * Builds the actual `ExerciseInstance` for an already-materialized skill. Split out from
  * `materializeQueueItem` so a mistake-requeue (task text §4's damping scenario: the same
  * skill shown a second time in one session, with a bumped `attempt` so the seed — and
@@ -78,8 +109,12 @@ export function generateForSkill(
   cache: SessionContentCache,
   attempt: number,
   hintMode?: HintMode,
+  /** Task 19's Practice "Тип задания" restriction (`learning/exercises/picker.ts`'s
+   *  `PickerOptions.forceCategory`) — `undefined` for every Learn/mistake/skill-scope caller,
+   *  unchanged behavior. */
+  forceCategory?: ExerciseCategory,
 ): ExerciseInstance {
   const ctx = cache.toContentContext()
   const seed = seedFor(descriptor.skillId, attempt)
-  return generateExercise(descriptor, srsRecord, ctx, seed, { hintMode })
+  return generateExercise(descriptor, srsRecord, ctx, seed, { hintMode, forceCategory })
 }
