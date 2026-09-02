@@ -24,6 +24,7 @@ import { AdjectivesListPage } from '@/pages/adjectives/AdjectivesListPage.tsx'
 import { SessionPage } from '@/pages/session/SessionPage.tsx'
 import { SessionResultPage } from '@/pages/session/SessionResultPage.tsx'
 import { PracticeSetupPage } from '@/pages/practice/PracticeSetupPage.tsx'
+import { TablePracticePage } from '@/pages/practice/TablePracticePage.tsx'
 import { StatsPage } from '@/pages/stats/StatsPage.tsx'
 import { SettingsPage } from '@/pages/settings/SettingsPage.tsx'
 import { NotFoundPage } from '@/pages/not-found/NotFoundPage.tsx'
@@ -42,6 +43,7 @@ export function AppRouter() {
           <Route path="session" element={<SessionPage />} />
           <Route path="session/result" element={<SessionResultPage />} />
           <Route path="practice" element={<PracticeSetupPage />} />
+          <Route path="practice/table/:wordId" element={<TablePracticePage />} />
           <Route path="stats" element={<StatsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFoundPage />} />

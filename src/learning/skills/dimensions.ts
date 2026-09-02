@@ -142,3 +142,37 @@ export const GENDER_LABELS: Readonly<Record<GenderValue, DimensionLabel>> = {
   masculine_or_neuter: { pl: 'męski/nijaki', ru: 'мужской/средний' },
   masculine: { pl: 'męski', ru: 'мужской' },
 }
+
+// ---------------------------------------------------------------------------
+// describeDimension — a display-ready label pair for one concrete Dimension string, used by
+// `features/session-runner/**`'s form-exercise components (task 18,
+// `spec/tasks/18-noun-exercises.md` step 6: "польское название падежа + число — основное,
+// русское — мелким шрифтом"). Only NOUN dimensions are implemented by this task — task 18's
+// own scope is nouns only, and VERB/ADJ/ADV have no dedicated exercise UI yet (tasks 20-22).
+// A dimension kind this function doesn't yet know how to describe falls back to the raw
+// string on both sides rather than throwing, so a later task can add its own case here
+// without this module (or its callers) needing to change shape.
+// ---------------------------------------------------------------------------
+
+export interface DimensionDisplay {
+  /** The slot's most specific grammatical fact — a NOUN's case, a VERB's tense, etc. */
+  readonly primary: DimensionLabel
+  /** A secondary axis shown alongside `primary`, when the dimension has one (NOUN's
+   *  number). Absent for dimensions with only one axis. */
+  readonly secondary?: DimensionLabel
+}
+
+export function describeDimension(dimension: Dimension): DimensionDisplay {
+  const separatorIndex = dimension.indexOf(':')
+  const kind = separatorIndex === -1 ? dimension : dimension.slice(0, separatorIndex)
+
+  if (kind === 'noun') {
+    const [, numberAbbrev, caseValue] = dimension.split(':') as ['noun', NumberAbbrev, CaseValue]
+    return {
+      primary: CASE_LABELS[caseValue],
+      secondary: NUMBER_LABELS[expandNumberAbbrev(numberAbbrev)],
+    }
+  }
+
+  return { primary: { pl: dimension, ru: dimension } }
+}

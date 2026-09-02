@@ -10,11 +10,26 @@
  * `(skill, srs, ctx, seed)`. See the `buildInstanceId` comment below for why `id` is NOT
  * `crypto.randomUUID()` despite architecture.md §7.1 calling it a "uuid".
  */
-import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
-import type { SkillId } from '@/learning/skills/skill-id.ts'
+import type { CaseValue } from '@/content/codec.ts'
+import { enumerateSkills, type SkillDescriptor } from '@/learning/skills/enumerate.ts'
+import {
+  CASE_DISPLAY_ORDER,
+  NUMBER_DISPLAY_ORDER,
+  abbreviateNumber,
+  type NounDimension,
+} from '@/learning/skills/dimensions.ts'
+import type { SkillId, WordId } from '@/learning/skills/skill-id.ts'
 import type { SkillRecord } from '@/types/progress.ts'
 import { pickFormDistractors, pickVocabDistractors } from './distractors.ts'
-import type { ContentContext, Direction, Exercise, ExerciseInstance } from './exercise.types.ts'
+import type {
+  ContentContext,
+  Direction,
+  Exercise,
+  ExerciseInstance,
+  PromptMode,
+  TableCell,
+} from './exercise.types.ts'
+import { NOUN_HINT_MODE_DEFAULT, resolvePromptMode, type HintMode } from './hint-mode.ts'
 import { pickExerciseType, type PickedExerciseType, type PickerOptions } from './picker.ts'
 
 /** Total options shown on a `choice`/`form-choice` exercise (1 correct + this many
@@ -107,18 +122,28 @@ function buildSelfAssess(skill: SkillDescriptor, ctx: ContentContext): Exercise 
   return { type: 'self-assess', prompt: `${entry.lemma} — ${skill.dimension}`, answer: answer! }
 }
 
-function buildFormInput(skill: SkillDescriptor, ctx: ContentContext): Exercise {
+function buildFormInput(
+  skill: SkillDescriptor,
+  ctx: ContentContext,
+  promptMode: PromptMode,
+): Exercise {
   const entry = ctx.getWordEntry(skill.wordId)
   return {
     type: 'form-input',
     lemma: entry.lemma,
     hint: ctx.getPrimaryTranslation(skill.wordId),
+    promptMode,
     slot: skill.dimension,
     accepted: requireAcceptedAnswers(skill),
   }
 }
 
-function buildFormChoice(skill: SkillDescriptor, ctx: ContentContext, seed: number): Exercise {
+function buildFormChoice(
+  skill: SkillDescriptor,
+  ctx: ContentContext,
+  seed: number,
+  promptMode: PromptMode,
+): Exercise {
   const entry = ctx.getWordEntry(skill.wordId)
   const accepted = requireAcceptedAnswers(skill)
   const correct = accepted[0]!
@@ -138,6 +163,7 @@ function buildFormChoice(skill: SkillDescriptor, ctx: ContentContext, seed: numb
     type: 'form-choice',
     lemma: entry.lemma,
     hint: ctx.getPrimaryTranslation(skill.wordId),
+    promptMode,
     slot: skill.dimension,
     options,
     correct,
@@ -149,6 +175,7 @@ function buildExercise(
   type: PickedExerciseType,
   ctx: ContentContext,
   seed: number,
+  promptMode: PromptMode,
 ): Exercise {
   switch (type) {
     case 'choice':
@@ -158,9 +185,9 @@ function buildExercise(
     case 'self-assess':
       return buildSelfAssess(skill, ctx)
     case 'form-choice':
-      return buildFormChoice(skill, ctx, seed)
+      return buildFormChoice(skill, ctx, seed, promptMode)
     case 'form-input':
-      return buildFormInput(skill, ctx)
+      return buildFormInput(skill, ctx, promptMode)
   }
 }
 
@@ -177,18 +204,96 @@ function buildInstanceId(skillId: SkillId, seed: number): string {
   return `${skillId}::${seed}`
 }
 
+/**
+ * `PickerOptions` (task 09) plus this task's own `hintMode` — kept as one options bag rather
+ * than a second parameter so every existing call site that already passes `PickerOptions`
+ * (e.g. `{ selfAssessOnReview: true }`) keeps compiling unchanged; `hintMode` only matters
+ * for the `form-input`/`form-choice` branches `buildExercise` above dispatches to.
+ */
+export interface GenerateExerciseOptions extends PickerOptions {
+  /** `spec/tasks/18-noun-exercises.md` step 2 / `spec/app-design.md` §9's "Подсказка"
+   *  setting. Defaults to `NOUN_HINT_MODE_DEFAULT` ('lemma', the app-design mockup's
+   *  pre-selected radio) when omitted — every caller that doesn't care about this setting
+   *  (every test written before this task, any future non-noun exercise) gets Wariant A
+   *  without having to know this option exists. */
+  readonly hintMode?: HintMode
+}
+
 export function generateExercise(
   skill: SkillDescriptor,
   srs: SkillRecord | undefined,
   ctx: ContentContext,
   seed: number,
-  options: PickerOptions = {},
+  options: GenerateExerciseOptions = {},
 ): ExerciseInstance {
   const type = pickExerciseType(skill, srs, options)
-  const exercise = buildExercise(skill, type, ctx, seed)
+  const promptMode = resolvePromptMode(options.hintMode ?? NOUN_HINT_MODE_DEFAULT, seed)
+  const exercise = buildExercise(skill, type, ctx, seed, promptMode)
   return {
     id: buildInstanceId(skill.skillId, seed),
     skillId: skill.skillId,
     exercise,
   }
+}
+
+// ---------------------------------------------------------------------------
+// generateTableExercise — the `table` exercise (FR-62, task text step 4). Deliberately NOT
+// wired through `pickExerciseType`/`generateExercise`: `picker.ts`'s own header already
+// documents that `table` is "Practice-only... never returned here" — the picker only ever
+// chooses between the daily-SRS recognition/recall pair. This is a separate entry point a
+// Practice-only caller (`features/session-runner/hooks/useTablePracticeSession.ts`) calls
+// directly, once, for a whole word — not once per skill.
+//
+// Built from `enumerateSkills` (the domain layer's own paradigm -> skill-slot expansion,
+// `learning/skills/enumerate.ts`) rather than `content/paradigms.ts#buildNounTable` (the
+// content layer's read-only display shaping for `NounFormsTable`): `learning/exercises/**`
+// only ever talks to content through the synchronous `ContentContext` this module already
+// depends on (`exercise.types.ts`'s own contract), so pulling in a second, content-layer
+// table-building function here would cross that boundary for no benefit — `enumerateSkills`
+// already computes exactly the same per-(number,case) accepted-answer lists `buildNounTable`
+// would, just keyed by `Dimension` instead of by display row/column.
+// ---------------------------------------------------------------------------
+
+/** Every `noun:<sg|pl>:<case>` slot, in case-then-number order (matches
+ *  `spec/app-design.md` §10's "Вариант C" mockup: each case row, sg column then pl column) —
+ *  independent of whatever order `enumerateSkills` happens to produce its `Map` in. */
+function nounTableSlots(): Array<{ readonly numberAbbrev: 'sg' | 'pl'; readonly caseValue: CaseValue }> {
+  const slots: Array<{ numberAbbrev: 'sg' | 'pl'; caseValue: CaseValue }> = []
+  for (const caseValue of CASE_DISPLAY_ORDER) {
+    for (const number of NUMBER_DISPLAY_ORDER) {
+      slots.push({ numberAbbrev: abbreviateNumber(number), caseValue })
+    }
+  }
+  return slots
+}
+
+/**
+ * Builds the full case x number `table` exercise for one NOUN word. Throws if the word has
+ * no paradigm at all (mirrors `requireParadigm` above) — the caller (a "Тренировать
+ * таблицей" button, `NounFormsTable.tsx`) only ever renders for words that do.
+ */
+export function generateTableExercise(wordId: WordId, ctx: ContentContext): Exercise {
+  const entry = ctx.getWordEntry(wordId)
+  const paradigm = ctx.getParadigm(wordId)
+  if (!paradigm) {
+    throw new Error(`generateTableExercise: word "${wordId}" has no paradigm`)
+  }
+  const descriptors = enumerateSkills(entry, paradigm)
+  const acceptedByDimension = new Map(
+    descriptors.filter((d) => d.kind === 'noun').map((d) => [d.dimension, d.acceptedAnswers]),
+  )
+
+  const cells: TableCell[] = nounTableSlots().map(({ numberAbbrev, caseValue }) => {
+    const dimension: NounDimension = `noun:${numberAbbrev}:${caseValue}`
+    return {
+      slot: dimension,
+      // "Первая строка (Mianownik) предзаполнена как опора" (task text step 4) — both the
+      // sg and the pl nominative cell, per `spec/app-design.md` §10's mockup ("M. kobieta
+      // kobiety", neither in an input box).
+      prefilled: caseValue === 'nominative',
+      accepted: acceptedByDimension.get(dimension) ?? [],
+    }
+  })
+
+  return { type: 'table', lemma: entry.lemma, cells }
 }

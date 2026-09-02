@@ -34,6 +34,27 @@ export type Direction = 'pl-ru' | 'ru-pl'
 export type SlotLabel = Dimension
 
 /**
+ * Which of a form exercise's two word-facing fields (`lemma` vs `hint`) is shown as the
+ * *main* prompt (`spec/tasks/18-noun-exercises.md` steps 1-2, `spec/app-design.md` §9/§10's
+ * "Вариант A — от польской леммы" / "Вариант B — от русского перевода").
+ *
+ * Deviation from `spec/architecture.md` §7.1's literal `{ lemma: string; hint: string }`
+ * shape, recorded here per this task's own instruction to document it: that shape has no
+ * field for "which one is the question and which one is scratch info", yet FR-60/FR-61 are
+ * two *different* exercises built from the exact same two facts (a word's Polish lemma and
+ * its Russian translation) — the harder one (FR-61) specifically because the lemma is
+ * withheld until after the user answers. Adding `promptMode` (rather than renaming/dropping
+ * either existing field, which would break every consumer of `exercise.lemma`/`.hint`
+ * `spec/architecture.md` §7.1 already promises) keeps both fields present and unambiguous:
+ * `lemma` is always the Polish citation form, `hint` is always the primary translation,
+ * `promptMode` says which one the UI shows *before* the user answers. The UI component
+ * (`FormInputExercise`/`FormChoiceExercise`, `features/session-runner/**`) reveals the other
+ * one only after grading — never before, since showing the lemma up front on a Wariant B
+ * question would defeat FR-61's entire point ("нужно сначала вспомнить лемму").
+ */
+export type PromptMode = 'lemma' | 'translation'
+
+/**
  * One cell of a `table` exercise (`spec/tasks/18-noun-exercises.md` step 4 / `spec/app-design.md`
  * §8's case×number grid). `TableCell` is referenced by `spec/architecture.md` §7.1 but never
  * defined there either — this task designs it: the citation row (nominative) is shown
@@ -55,11 +76,19 @@ export type Exercise =
   | { type: 'choice'; direction: Direction; prompt: string; options: string[]; correct: string }
   | { type: 'input'; direction: Direction; prompt: string; accepted: string[] }
   | { type: 'self-assess'; prompt: string; answer: string }
-  | { type: 'form-input'; lemma: string; hint: string; slot: SlotLabel; accepted: string[] }
+  | {
+      type: 'form-input'
+      lemma: string
+      hint: string
+      promptMode: PromptMode
+      slot: SlotLabel
+      accepted: string[]
+    }
   | {
       type: 'form-choice'
       lemma: string
       hint: string
+      promptMode: PromptMode
       slot: SlotLabel
       options: string[]
       correct: string

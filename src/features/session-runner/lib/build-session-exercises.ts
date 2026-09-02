@@ -15,6 +15,7 @@
 import { enumerateSkills, type SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import { generateExercise } from '@/learning/exercises/generate.ts'
 import type { ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
+import type { HintMode } from '@/learning/exercises/hint-mode.ts'
 import type { LearnQueueItem } from '@/learning/session/session.types.ts'
 import { ensureSkill } from '@/db/repositories/skills.repository.ts'
 import type { SkillRecord } from '@/types/progress.ts'
@@ -76,8 +77,9 @@ export function generateForSkill(
   srsRecord: SkillRecord,
   cache: SessionContentCache,
   attempt: number,
+  hintMode?: HintMode,
 ): ExerciseInstance {
   const ctx = cache.toContentContext()
   const seed = seedFor(descriptor.skillId, attempt)
-  return generateExercise(descriptor, srsRecord, ctx, seed)
+  return generateExercise(descriptor, srsRecord, ctx, seed, { hintMode })
 }

@@ -19,11 +19,17 @@ import {
   getSession,
 } from '@/db/repositories/sessions.repository.ts'
 import { getLogsForSession } from '@/db/repositories/reviews.repository.ts'
+import * as settingsRepo from '@/db/repositories/settings.repository.ts'
 import { encodeSkillId } from '@/learning/skills/skill-id.ts'
 import type { SkillId } from '@/learning/skills/skill-id.ts'
 import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import { buildLearnQueue } from '@/learning/session/build-learn-queue.ts'
 import type { ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
+import {
+  NOUN_HINT_MODE_DEFAULT,
+  NOUN_HINT_MODE_SETTING_KEY,
+  type HintMode,
+} from '@/learning/exercises/hint-mode.ts'
 import type { Rating, SessionMode, SkillRecord } from '@/types/progress.ts'
 import { getIncompleteSession } from '@/db/repositories/sessions.repository.ts'
 import { useSessionStore } from '@/stores/session.store.ts'
@@ -49,6 +55,12 @@ export interface SessionRuntime {
    *  a retry is a *different* instance of the same skill with a possibly-different
    *  `SkillRecord` snapshot (the first attempt already updated it). */
   readonly skillByInstanceId: Map<string, SkillRecord>
+  /** The noun form-exercise hint-mode setting (task 18, `learning/exercises/hint-mode.ts`),
+   *  read once per session bootstrap (same convention as `targetSize`/`newWordsBudget` in
+   *  `session-scope.ts`) and reused by every `generateForSkill` call this session makes —
+   *  including `SessionRunner.tsx`'s mistake-requeue path, which reads it back off this
+   *  runtime rather than re-reading `settings` a second time mid-session. */
+  readonly hintMode: HintMode
 }
 
 export type BootstrapStatus =
@@ -117,7 +129,10 @@ export function useSessionBootstrap(scope: SessionScope) {
     prefillFirstAnswers: ReadonlyMap<SkillId, Rating>
   }) {
     const now = Date.now()
-    const candidates = await resolveSessionCandidates(scope, now)
+    const [candidates, hintMode] = await Promise.all([
+      resolveSessionCandidates(scope, now),
+      settingsRepo.get<HintMode>(NOUN_HINT_MODE_SETTING_KEY, NOUN_HINT_MODE_DEFAULT),
+    ])
 
     const dueSkills = candidates.dueSkills.filter((s) => !args.excludeSkillIds.has(s.skillId))
     const candidateNewWords = candidates.candidateNewWords.filter(
@@ -151,7 +166,7 @@ export function useSessionBootstrap(scope: SessionScope) {
     for (const item of plan.items) {
       const { descriptor, skill } = await materializeQueueItem(item, cache)
       descriptors.set(descriptor.skillId, descriptor)
-      const instance = generateForSkill(descriptor, skill, cache, 0)
+      const instance = generateForSkill(descriptor, skill, cache, 0, hintMode)
       skillByInstanceId.set(instance.id, skill)
       instances.push(instance)
     }
@@ -174,6 +189,7 @@ export function useSessionBootstrap(scope: SessionScope) {
         descriptors,
         attemptBySkillId,
         skillByInstanceId,
+        hintMode,
       },
     })
   }

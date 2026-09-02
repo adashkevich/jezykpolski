@@ -18,10 +18,28 @@
  * resulting object satisfies `ExerciseComponentRegistry` without any cast. Every other slot
  * (`choice`/`input`, and any future type whose component already matches `ExerciseProps<E>`
  * exactly) is still the literal one-line mapping rule 8 asks for.
+ *
+ * `form-input`/`form-choice` (task 18, `spec/tasks/18-noun-exercises.md`) both DO conform to
+ * the plain `ExerciseProps<E>` contract (no extra props needed — `FormInputExercise.tsx`/
+ * `FormChoiceExercise.tsx` read prompt/slot display straight off `exercise` itself), so they
+ * slot in as literal one-line mappings, same as `choice`/`input`. This is also what actually
+ * closes the gap task 17 left open: `NounFormsTable`'s cell click already sent a real
+ * `targetSkillIds` scope through `/session` (`resolveSkillScope`), and `generateExercise`
+ * already produced a `form-choice`/`form-input` instance for it — the only missing piece was
+ * a registered component, without which `SessionRunner.tsx`'s `SkippedExerciseNotice`
+ * fallback silently skipped the question. `table` is intentionally NOT registered here: it
+ * is Practice-only (FR-62, `picker.ts`'s own header: "table... never returned here") and,
+ * unlike every other type, is a whole-word multi-cell screen rather than a single
+ * one-`onAnswer` question — it does not fit `ExerciseProps<E>` at all (no single "the"
+ * answer to report), so it never goes through `SessionRunner`'s queue/registry path. See
+ * `features/session-runner/hooks/useTablePracticeSession.ts` and
+ * `features/session-runner/components/TableExercise.tsx` for its own, separate entry point.
  */
 import type { SrsState } from '@/learning/srs/srs.types.ts'
 import { ChoiceExercise } from './ChoiceExercise.tsx'
 import { InputExercise } from './InputExercise.tsx'
+import { FormInputExercise } from './FormInputExercise.tsx'
+import { FormChoiceExercise } from './FormChoiceExercise.tsx'
 import { SelfAssessExercise } from './SelfAssessExercise.tsx'
 import type {
   ExerciseComponentRegistry,
@@ -40,6 +58,8 @@ export function createExerciseComponentRegistry(current: {
   return {
     choice: ChoiceExercise,
     input: InputExercise,
+    'form-input': FormInputExercise,
+    'form-choice': FormChoiceExercise,
     'self-assess': SelfAssessSlot,
   }
 }

@@ -13,6 +13,7 @@ describe('grade — whitespace collapsing (acceptance)', () => {
     type: 'form-input',
     lemma: 'robić',
     hint: 'делать',
+    promptMode: 'lemma',
     slot: 'verb:future:1:pl',
     accepted: ['będziemy robić'],
   }
@@ -46,6 +47,7 @@ describe('grade — multi-form slot: aborcja|NOUN plural genitive (acceptance)',
     type: 'form-input',
     lemma: 'aborcja',
     hint: 'аборт',
+    promptMode: 'lemma',
     slot: 'noun:pl:genitive',
     accepted: ['aborcyj', 'aborcji'],
   }
@@ -76,6 +78,7 @@ describe('grade — Polish diacritics near-miss (acceptance)', () => {
     type: 'form-input',
     lemma: 'żółty',
     hint: 'жёлтый',
+    promptMode: 'lemma',
     slot: 'adj:degree:positive',
     accepted: ['żółty'],
   }
@@ -111,6 +114,7 @@ describe('grade — Polish diacritics near-miss (acceptance)', () => {
       type: 'form-input',
       lemma: 'żółty',
       hint: 'жёлтый',
+      promptMode: 'lemma',
       slot: 'adj:degree:comparative',
       accepted: ['żółciejszy'],
     }
@@ -186,6 +190,7 @@ describe('grade — choice / form-choice / self-assess', () => {
       type: 'form-choice',
       lemma: 'kobieta',
       hint: 'женщина',
+      promptMode: 'lemma',
       slot: 'noun:sg:genitive',
       options: ['kobiety', 'kobiecie', 'kobietę'],
       correct: 'kobiety',

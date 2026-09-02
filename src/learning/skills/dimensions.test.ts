@@ -4,6 +4,7 @@ import {
   abbreviateNumber,
   CASE_DISPLAY_ORDER,
   CASE_LABELS,
+  describeDimension,
   DEGREE_DISPLAY_ORDER,
   DEGREE_LABELS,
   expandNumberAbbrev,
@@ -98,5 +99,34 @@ describe('bilingual labels', () => {
   it('NUMBER_LABELS covers both values', () => {
     expect(NUMBER_LABELS.singular.pl.length).toBeGreaterThan(0)
     expect(NUMBER_LABELS.plural.pl.length).toBeGreaterThan(0)
+  })
+})
+
+describe('describeDimension (task 18, spec/tasks/18-noun-exercises.md step 6)', () => {
+  it('a NOUN dimension resolves to case (primary) + number (secondary)', () => {
+    expect(describeDimension('noun:sg:genitive')).toEqual({
+      primary: { pl: 'Dopełniacz', ru: 'Родительный' },
+      secondary: { pl: 'Liczba pojedyncza', ru: 'Единственное число' },
+    })
+    expect(describeDimension('noun:pl:instrumental')).toEqual({
+      primary: { pl: 'Narzędnik', ru: 'Творительный' },
+      secondary: { pl: 'Liczba mnoga', ru: 'Множественное число' },
+    })
+  })
+
+  it('every noun case x number combination resolves without throwing', () => {
+    for (const numberAbbrev of ['sg', 'pl'] as const) {
+      for (const caseValue of CASE_DISPLAY_ORDER) {
+        const dimension = `noun:${numberAbbrev}:${caseValue}` as const
+        expect(() => describeDimension(dimension)).not.toThrow()
+        expect(describeDimension(dimension).primary.pl).toBe(CASE_LABELS[caseValue].pl)
+      }
+    }
+  })
+
+  it('a not-yet-implemented dimension kind falls back to the raw string rather than throwing', () => {
+    const display = describeDimension('vocab:pl-ru')
+    expect(display.primary).toEqual({ pl: 'vocab:pl-ru', ru: 'vocab:pl-ru' })
+    expect(display.secondary).toBeUndefined()
   })
 })

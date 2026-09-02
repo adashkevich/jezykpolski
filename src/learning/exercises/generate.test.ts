@@ -217,6 +217,62 @@ describe('generateExercise — morphology (form-choice / form-input)', () => {
   })
 })
 
+// ---------------------------------------------------------------------------
+// Task 18 (`spec/tasks/18-noun-exercises.md` steps 1/2): the `hintMode` option, threaded
+// into `form-input`/`form-choice`'s `promptMode`. Acceptance: "Оба направления подсказки
+// (лемма / перевод) работают на одном навыке" + "Настройка `случайно` действительно
+// чередует подсказки".
+// ---------------------------------------------------------------------------
+
+describe('generateExercise — hintMode / promptMode (task 18 acceptance)', () => {
+  it('defaults to promptMode "lemma" when hintMode is omitted', () => {
+    const ctx = makeContext()
+    const { exercise } = generateExercise(NOUN_SKILL, undefined, ctx, 9)
+    if (exercise.type !== 'form-choice') throw new Error('unreachable')
+    expect(exercise.promptMode).toBe('lemma')
+  })
+
+  it('the SAME skill produces both promptMode "lemma" and "translation", per hintMode', () => {
+    const ctx = makeContext()
+    const lemmaVariant = generateExercise(NOUN_SKILL, srs('review'), ctx, 9, { hintMode: 'lemma' })
+    const translationVariant = generateExercise(NOUN_SKILL, srs('review'), ctx, 9, {
+      hintMode: 'translation',
+    })
+    if (lemmaVariant.exercise.type !== 'form-input') throw new Error('unreachable')
+    if (translationVariant.exercise.type !== 'form-input') throw new Error('unreachable')
+
+    expect(lemmaVariant.skillId).toBe(translationVariant.skillId)
+    expect(lemmaVariant.exercise.promptMode).toBe('lemma')
+    expect(translationVariant.exercise.promptMode).toBe('translation')
+    // Both fields are always present regardless of promptMode — only which one the UI shows
+    // first differs (`FormInputExercise.tsx`'s own job, not this module's).
+    expect(lemmaVariant.exercise.lemma).toBe('kobieta')
+    expect(lemmaVariant.exercise.hint).toBe('женщина')
+    expect(translationVariant.exercise.lemma).toBe('kobieta')
+    expect(translationVariant.exercise.hint).toBe('женщина')
+  })
+
+  it('hintMode "random" alternates promptMode deterministically across seeds', () => {
+    const ctx = makeContext()
+    const modes = new Set<string>()
+    for (let seed = 0; seed < 20; seed++) {
+      const { exercise } = generateExercise(NOUN_SKILL, srs('review'), ctx, seed, {
+        hintMode: 'random',
+      })
+      if (exercise.type !== 'form-input') throw new Error('unreachable')
+      modes.add(exercise.promptMode)
+    }
+    expect(modes).toEqual(new Set(['lemma', 'translation']))
+  })
+
+  it('hintMode "random" is still reproducible for the same seed (determinism acceptance)', () => {
+    const ctx = makeContext()
+    const a = generateExercise(NOUN_SKILL, srs('review'), ctx, 42, { hintMode: 'random' })
+    const b = generateExercise(NOUN_SKILL, srs('review'), ctx, 42, { hintMode: 'random' })
+    expect(a).toEqual(b)
+  })
+})
+
 describe('generateExercise — self-assess', () => {
   it('vocab: prompt/answer are lemma/translation per direction', () => {
     const ctx = makeContext()

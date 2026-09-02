@@ -286,7 +286,13 @@ function ActiveQuestion({
         if (freshSkill) {
           const attempt = (runtime.attemptBySkillId.get(skillId) ?? 0) + 1
           runtime.attemptBySkillId.set(skillId, attempt)
-          const retryInstance = generateForSkill(descriptor, freshSkill, runtime.cache, attempt)
+          const retryInstance = generateForSkill(
+            descriptor,
+            freshSkill,
+            runtime.cache,
+            attempt,
+            runtime.hintMode,
+          )
           runtime.skillByInstanceId.set(retryInstance.id, freshSkill)
           useSessionStore.getState().appendToQueue(retryInstance)
         }

@@ -28,9 +28,19 @@
  * other case — task 17 §6's "по умолчанию исключён из тренировки" is a queue-building
  * concern (`learning/skills/training-defaults.ts`, read by tasks 18/19), not a table-display
  * one: "доступен в таблице и включаем вручную" is precisely this table staying fully live.
+ *
+ * Task 18 (`spec/tasks/18-noun-exercises.md` step 4, FR-62) adds the "Тренировать таблицей"
+ * button below the table — a SEPARATE entry point from the per-cell click above: a cell click
+ * launches a single-skill Learn session (`targetSkillIds`), while this button launches a
+ * whole-paradigm Practice session (`/practice/table/:wordId`,
+ * `features/session-runner/hooks/useTablePracticeSession.ts`) that fills in every cell at
+ * once with practice-damped SRS credit. The two are deliberately not unified into one click
+ * handler — "train one form now" and "drill the whole table" are different user intents with
+ * different session semantics (Learn vs Practice, single skill vs ~12).
  */
 import { useNavigate } from 'react-router'
 import { buildNounTable } from '@/content/paradigms.ts'
+import { Button } from '@/components/ui/button.tsx'
 import { MASTERED_THRESHOLD, skillMaturity } from '@/learning/progress/aggregate.ts'
 import { CASE_LABELS, type NounDimension } from '@/learning/skills/dimensions.ts'
 import { encodeSkillId, type SkillId, type WordId } from '@/learning/skills/skill-id.ts'
@@ -117,52 +127,63 @@ export function NounFormsTable({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[420px] border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-border text-left text-muted-foreground">
-            <th scope="col" className="py-1.5 pr-3 font-medium">
-              Падеж
-            </th>
-            <th scope="col" className="py-1.5 pr-3 font-medium">
-              Ед. число
-            </th>
-            <th scope="col" className="py-1.5 font-medium">
-              Мн. число
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {table.rows.map((row) => (
-            <tr key={row.case} className="border-b border-border/60 last:border-0">
-              <th scope="row" className="py-1.5 pr-3 text-left font-medium text-foreground">
-                {CASE_LABELS[row.case].pl}
-                <span className="block text-xs font-normal text-muted-foreground">
-                  {CASE_LABELS[row.case].ru}
-                </span>
+    <div className="flex flex-col gap-3">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[420px] border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-muted-foreground">
+              <th scope="col" className="py-1.5 pr-3 font-medium">
+                Падеж
               </th>
-              <NounFormsCell
-                wordId={wordId}
-                numberAbbrev="sg"
-                numberLabel="liczba pojedyncza"
-                caseValue={row.case}
-                forms={row.singular}
-                known={known}
-                onTrain={handleTrain}
-              />
-              <NounFormsCell
-                wordId={wordId}
-                numberAbbrev="pl"
-                numberLabel="liczba mnoga"
-                caseValue={row.case}
-                forms={row.plural}
-                known={known}
-                onTrain={handleTrain}
-              />
+              <th scope="col" className="py-1.5 pr-3 font-medium">
+                Ед. число
+              </th>
+              <th scope="col" className="py-1.5 font-medium">
+                Мн. число
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {table.rows.map((row) => (
+              <tr key={row.case} className="border-b border-border/60 last:border-0">
+                <th scope="row" className="py-1.5 pr-3 text-left font-medium text-foreground">
+                  {CASE_LABELS[row.case].pl}
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    {CASE_LABELS[row.case].ru}
+                  </span>
+                </th>
+                <NounFormsCell
+                  wordId={wordId}
+                  numberAbbrev="sg"
+                  numberLabel="liczba pojedyncza"
+                  caseValue={row.case}
+                  forms={row.singular}
+                  known={known}
+                  onTrain={handleTrain}
+                />
+                <NounFormsCell
+                  wordId={wordId}
+                  numberAbbrev="pl"
+                  numberLabel="liczba mnoga"
+                  caseValue={row.case}
+                  forms={row.plural}
+                  known={known}
+                  onTrain={handleTrain}
+                />
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => navigate(`/practice/table/${encodeURIComponent(wordId)}`)}
+        className="min-h-11 self-start"
+      >
+        Тренировать таблицей
+      </Button>
     </div>
   )
 }

@@ -16,7 +16,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
+import { MemoryRouter, Route, Routes, useLocation, useParams } from 'react-router'
 import { decodeForm, type EncodedForm } from '@/content/codec.ts'
 import { encodeSkillId, encodeWordId } from '@/learning/skills/skill-id.ts'
 import type { Paradigm } from '@/types/content.ts'
@@ -85,6 +85,12 @@ function SessionStateProbe() {
   return <pre data-testid="session-state">{JSON.stringify(location.state)}</pre>
 }
 
+/** Surfaces the matched `:wordId` param for the "Тренировать таблицей" route (task 18). */
+function TablePracticeProbe() {
+  const { wordId } = useParams<{ wordId: string }>()
+  return <pre data-testid="table-practice-word-id">{wordId}</pre>
+}
+
 function renderTable(
   wordId: string,
   paradigm: Paradigm,
@@ -98,6 +104,7 @@ function renderTable(
           element={<NounFormsTable wordId={wordId} paradigm={paradigm} skills={skills} />}
         />
         <Route path="/session" element={<SessionStateProbe />} />
+        <Route path="/practice/table/:wordId" element={<TablePracticeProbe />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -202,5 +209,20 @@ describe('horizontal scroll wrapper (acceptance: scrolls on 320px, page never do
     const table = screen.getByRole('table')
     expect(table.className).toContain('min-w-')
     expect(table.parentElement?.className).toContain('overflow-x-auto')
+  })
+})
+
+describe('"Тренировать таблицей" button (task 18, FR-62)', () => {
+  it('navigates to /practice/table/:wordId — a separate route from the per-cell Learn scope', async () => {
+    const user = userEvent.setup()
+    renderTable(KOBIETA_ID, kobietaParadigm)
+
+    await user.click(screen.getByRole('button', { name: 'Тренировать таблицей' }))
+
+    // React Router decodes the param automatically — the raw URL segment was the
+    // %-encoded form, matching `useParams` matches `parseWordParam`'s own expectation.
+    expect(screen.getByTestId('table-practice-word-id').textContent).toBe(KOBIETA_ID)
+    // Never /session — a cell click uses that route (targetSkillIds), this button doesn't.
+    expect(screen.queryByTestId('session-state')).not.toBeInTheDocument()
   })
 })

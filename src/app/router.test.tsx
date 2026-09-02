@@ -126,6 +126,47 @@ describe('AppRouter', () => {
     expect(screen.getByRole('heading', { name: 'żółty' })).toBeInTheDocument()
   })
 
+  it('renders the "Тренировать таблицей" table-practice route (task 18, FR-62)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: unknown) => {
+        const href = String(url)
+        if (href.includes('senses/000.json')) return { ok: true, json: async () => ({}) } as Response
+        if (href.includes('paradigms/000.json')) {
+          return {
+            ok: true,
+            json: async () => ({
+              'kobieta|NOUN': {
+                forms: [
+                  ['kobieta', 1, 1, 1, 0, 0, 0, 0, 0, 0],
+                  ['kobiety', 1, 2, 1, 0, 0, 0, 0, 0, 0],
+                ],
+              },
+            }),
+          } as Response
+        }
+        return { ok: false, status: 404, json: async () => ({}) } as Response
+      }),
+    )
+    const wordId = encodeWordId('kobieta', 'NOUN')
+    initIndexStore([
+      {
+        lemma: 'kobieta',
+        pos: 'NOUN',
+        rank: 95,
+        level: 'A1',
+        primaryRu: 'женщина',
+        sensesShard: 0,
+        paradigmShard: 0,
+      },
+    ])
+    renderAt(`/practice/table/${encodeURIComponent(wordId)}`)
+    expect(await screen.findByRole('heading', { name: 'Таблица склонения' })).toBeInTheDocument()
+    // Only the pre-filled Mianownik row shows before the paradigm-derived exercise resolves;
+    // once it does, the lemma itself renders as the table's own heading too.
+    expect(await screen.findByText('kobieta', { selector: 'h2' })).toBeInTheDocument()
+  })
+
   it('renders NotFoundPage for an unknown path instead of a blank screen', () => {
     // NotFoundPage's message comes from the shared EmptyState component (deliberately a <p>,
     // not an <h1> — EmptyState is also used for in-page "no results" states where it must
