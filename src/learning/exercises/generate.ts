@@ -10,12 +10,14 @@
  * `(skill, srs, ctx, seed)`. See the `buildInstanceId` comment below for why `id` is NOT
  * `crypto.randomUUID()` despite architecture.md §7.1 calling it a "uuid".
  */
-import type { CaseValue } from '@/content/codec.ts'
+import type { CaseValue, GenderValue } from '@/content/codec.ts'
 import { enumerateSkills, type SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import {
   CASE_DISPLAY_ORDER,
   NUMBER_DISPLAY_ORDER,
+  PERSON_DISPLAY_ORDER,
   abbreviateNumber,
+  type Dimension,
   type NounDimension,
 } from '@/learning/skills/dimensions.ts'
 import type { SkillId, WordId } from '@/learning/skills/skill-id.ts'
@@ -294,6 +296,111 @@ export function generateTableExercise(wordId: WordId, ctx: ContentContext): Exer
       accepted: acceptedByDimension.get(dimension) ?? [],
     }
   })
+
+  return { type: 'table', lemma: entry.lemma, cells }
+}
+
+// ---------------------------------------------------------------------------
+// generateVerbTableExercise — task 21 (`spec/tasks/21-verb-exercises.md` step 5): the VERB
+// analogue of `generateTableExercise` above, but for ONE tense/mood at a time
+// (`spec/app-design.md` §13's mockup — "robić · czas teraźniejszy" with 6 rows,
+// person x number — not the whole paradigm at once the way NOUN's table covers every case x
+// number in one grid). One tense at a time matches `VerbFormsTable.tsx`'s own tab split
+// (task 20): each tab already IS one tense/mood, so "Тренировать таблицей" on a tab trains
+// exactly that tab's slots.
+//
+// No `prefilled` anchor cell here (deliberate difference from `nounTableSlots`'s nominative
+// row): NOUN's citation form is a genuinely free fact — the lemma itself is (at or near) the
+// nominative singular, so showing it costs nothing. A VERB's lemma is the *infinitive*, which
+// is not any conjugated form at all (task 03/04's own rule: `vocab:*` already covers the
+// infinitive; conjugated slots start from zero) — there is no slot here that's already "given
+// away" by the word's citation form, so every cell is left blank. `spec/app-design.md` §13's
+// own mockup shows "ja [ robię ]" filled in, unlike `spec/tasks/18-noun-exercises.md`'s
+// explicit "первая строка предзаполнена как опора" instruction for nouns — no equivalent
+// sentence exists for the verb table in this task's text, so that reads as an illustration of
+// mid-use state, not a prefill requirement; this task's own decision, recorded for the log.
+// ---------------------------------------------------------------------------
+
+export type VerbTableTense = 'present' | 'future' | 'imperative' | 'past'
+
+/** `present`/`future`/`imperative` share one row shape (`verb:<tense|imperative>:<person>:
+ *  <sg|pl>`) — ordered exactly as `spec/app-design.md` §13's mockup lists them (ja, ty, on,
+ *  my, wy, oni): singular block first (by person), then the plural block (by person), not
+ *  person-then-number interleaved. */
+function personNumberVerbTableSlots(): Array<{
+  readonly person: (typeof PERSON_DISPLAY_ORDER)[number]
+  readonly numberAbbrev: 'sg' | 'pl'
+}> {
+  const slots: Array<{ person: (typeof PERSON_DISPLAY_ORDER)[number]; numberAbbrev: 'sg' | 'pl' }> = []
+  for (const numberAbbrev of ['sg', 'pl'] as const) {
+    for (const person of PERSON_DISPLAY_ORDER) {
+      slots.push({ person, numberAbbrev })
+    }
+  }
+  return slots
+}
+
+/** VERB `past`'s 5 real terminal (number, gender) combinations — same set
+ *  `VerbFormsTable.tsx`'s `PAST_COLUMNS` and `learning/skills/dimensions.ts`'s
+ *  `PAST_SUBJECT_LABELS` already use (singular masculine/feminine/neuter, plural
+ *  masculine_personal/non_masculine_personal). Rows are grouped by person (outer), then by
+ *  this column list (inner) — mirrors `VerbFormsTable.tsx`'s own `PastTenseTable` grid, whose
+ *  rows are also one person spanning all 5 gender columns, just flattened here into one
+ *  vertical list of single-input rows instead of a 5-wide grid. */
+const PAST_VERB_TABLE_COLUMNS: ReadonlyArray<{ readonly numberAbbrev: 'sg' | 'pl'; readonly gender: GenderValue }> = [
+  { numberAbbrev: 'sg', gender: 'masculine' },
+  { numberAbbrev: 'sg', gender: 'feminine' },
+  { numberAbbrev: 'sg', gender: 'neuter' },
+  { numberAbbrev: 'pl', gender: 'masculine_personal' },
+  { numberAbbrev: 'pl', gender: 'non_masculine_personal' },
+]
+
+function verbTableDimensions(tense: VerbTableTense): Dimension[] {
+  if (tense === 'past') {
+    return PERSON_DISPLAY_ORDER.flatMap((person) =>
+      PAST_VERB_TABLE_COLUMNS.map(
+        ({ numberAbbrev, gender }) => `verb:past:${person}:${numberAbbrev}:${gender}` as Dimension,
+      ),
+    )
+  }
+  return personNumberVerbTableSlots().map(({ person, numberAbbrev }) =>
+    (tense === 'imperative'
+      ? `verb:imperative:${person}:${numberAbbrev}`
+      : `verb:${tense}:${person}:${numberAbbrev}`) as Dimension,
+  )
+}
+
+/**
+ * Builds the person x number (or, for `past`, person x number x gender) `table` exercise for
+ * ONE tense/mood of one VERB word. Throws if the word has no paradigm at all (mirrors
+ * `generateTableExercise`'s same guard) — the caller (a "Тренировать таблицей" button on one
+ * `VerbFormsTable.tsx` tab) only ever renders for a tab that already has rows, i.e. a
+ * paradigm that exists. A slot missing from this verb's own paradigm (e.g. a defective verb
+ * with no imperative, `VerbFormsTable.tsx`'s own documented case) is simply not included in
+ * `cells` — same "absent, not empty" convention that component's tabs already use.
+ */
+export function generateVerbTableExercise(
+  wordId: WordId,
+  tense: VerbTableTense,
+  ctx: ContentContext,
+): Exercise {
+  const entry = ctx.getWordEntry(wordId)
+  const paradigm = ctx.getParadigm(wordId)
+  if (!paradigm) {
+    throw new Error(`generateVerbTableExercise: word "${wordId}" has no paradigm`)
+  }
+  const descriptors = enumerateSkills(entry, paradigm)
+  const acceptedByDimension = new Map(
+    descriptors.filter((d) => d.kind === 'verb').map((d) => [d.dimension, d.acceptedAnswers]),
+  )
+
+  const cells: TableCell[] = verbTableDimensions(tense)
+    .filter((dimension) => acceptedByDimension.has(dimension))
+    .map((dimension) => ({
+      slot: dimension,
+      prefilled: false,
+      accepted: acceptedByDimension.get(dimension)!,
+    }))
 
   return { type: 'table', lemma: entry.lemma, cells }
 }

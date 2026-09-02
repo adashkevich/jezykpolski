@@ -152,6 +152,84 @@ export const GENDER_LABELS: Readonly<Record<GenderValue, DimensionLabel>> = {
   masculine: { pl: 'męski', ru: 'мужской' },
 }
 
+/** `spec/tasks/21-verb-exercises.md`'s own scope: VERB's `imperative` mood has no `TenseValue`
+ *  (`content/codec.ts`'s `TENSE_VALUES` is `present`/`past`/`future` only — mood and tense are
+ *  separate axes there), so it needs its own label rather than a `TENSE_LABELS` entry. Also
+ *  reused by `features/session-results/lib/dimension-group.ts` (task 14, predates this one)
+ *  instead of that module's own copy, so the two "Tryb rozkazujący" strings shown across the
+ *  app (session-results breakdown, verb exercise prompt) can never drift apart. */
+export const IMPERATIVE_LABEL: DimensionLabel = {
+  pl: 'Tryb rozkazujący',
+  ru: 'Повелительное наклонение',
+}
+
+/**
+ * Bilingual pronoun for one (person, number) pair — `spec/app-design.md` §13's exercise
+ * mockups show the pronoun itself as the prompt's first line ("ty", "my"), not a generic
+ * "2. osoba" (that generic form is `PERSON_LABELS` above, used by
+ * `features/training-setup/**`'s filter checkboxes, a different UI with a different need).
+ * 3rd person singular/plural have no single Polish pronoun without knowing gender too
+ * (`on`/`ona`/`ono`, `oni`/`one`) — `present`/`future`/`imperative` dimensions carry no
+ * gender at all (only VERB `past` does), so those two cells combine all the candidates,
+ * matching the exact convention `word-detail/components/forms/VerbFormsTable.tsx`'s own
+ * (undecoupled, plain-string) `PERSON_PRONOUNS` table already uses for the same ambiguity in
+ * its table headers ("on · ona · ono").
+ */
+const PERSON_PRONOUN_LABELS: Readonly<Record<PersonValue, { sg: DimensionLabel; pl: DimensionLabel }>> = {
+  1: { sg: { pl: 'ja', ru: 'я' }, pl: { pl: 'my', ru: 'мы' } },
+  2: { sg: { pl: 'ty', ru: 'ты' }, pl: { pl: 'wy', ru: 'вы' } },
+  3: {
+    sg: { pl: 'on · ona · ono', ru: 'он · она · оно' },
+    pl: { pl: 'oni · one', ru: 'они' },
+  },
+}
+
+/**
+ * VERB `past`'s 5 real terminal genders (`enumerate.ts`'s own doc comment: masculine /
+ * feminine / neuter in singular, masculine_personal / non_masculine_personal in plural) each
+ * resolve to a concrete 3rd-person pronoun, *unlike* the ambiguous combined forms above —
+ * `past` dimensions always carry gender, so `on`/`ona`/`ono`/`oni`/`one` is exactly
+ * determined. `person` 1/2 never varies by gender in Polish (`ja`/`ty`/`my`/`wy` regardless
+ * of the speaker's gender — only the *verb form itself* differs, e.g. `robiłem`/`robiłam`),
+ * so those two persons just reuse `PERSON_PRONOUN_LABELS` above.
+ */
+function pastPronounLabel(person: PersonValue, number: NumberValue, gender: GenderValue): DimensionLabel {
+  if (person !== 3) return PERSON_PRONOUN_LABELS[person][number === 'singular' ? 'sg' : 'pl']
+  if (number === 'singular') {
+    if (gender === 'masculine') return { pl: 'on', ru: 'он' }
+    if (gender === 'feminine') return { pl: 'ona', ru: 'она' }
+    if (gender === 'neuter') return { pl: 'ono', ru: 'оно' }
+  } else {
+    if (gender === 'masculine_personal') return { pl: 'oni', ru: 'они' }
+    if (gender === 'non_masculine_personal') return { pl: 'one', ru: 'они' }
+  }
+  // Unreachable for any `verb:past:*` dimension `enumerate.ts` actually produces (its own
+  // doc comment: those are the only 5 gender values past tense ever carries) — falls back to
+  // the ambiguous combined form rather than throwing, same defensive posture as
+  // `describeDimension`'s own top-level fallback.
+  return PERSON_PRONOUN_LABELS[person][number === 'singular' ? 'sg' : 'pl']
+}
+
+/**
+ * FR-66 requires the past-tense prompt to show *which* gender is being asked for
+ * ("`ja + mężczyzna → robiłem`", `spec/app-design.md` §13's exact mockup: "ja / mężczyzna /
+ * czas przeszły"), as a natural human noun — not `GENDER_LABELS`' grammatical adjective
+ * ("męski"), which is what the word-detail table's column headers use instead
+ * (`VerbFormsTable.tsx`'s `PastTenseTable`, a different, already-shipped UI with a different
+ * job: labelling a whole column of forms, not restating "who is speaking" as a question
+ * prompt). Neuter/plural have no literal "biological gender" reading (Polish past-tense
+ * neuter/non-masculine-personal are grammatical agreement classes, not people) — `dziecko`/
+ * `kobiety` are this task's own choice of a natural representative noun for each class,
+ * recorded here for the decision log rather than invented silently.
+ */
+const PAST_SUBJECT_LABELS: Readonly<Record<'masculine' | 'feminine' | 'neuter' | 'masculine_personal' | 'non_masculine_personal', DimensionLabel>> = {
+  masculine: { pl: 'mężczyzna', ru: 'мужчина' },
+  feminine: { pl: 'kobieta', ru: 'женщина' },
+  neuter: { pl: 'dziecko', ru: 'ребёнок' },
+  masculine_personal: { pl: 'mężczyźni', ru: 'мужчины' },
+  non_masculine_personal: { pl: 'kobiety', ru: 'женщины' },
+}
+
 // ---------------------------------------------------------------------------
 // describeDimension — a display-ready label pair for one concrete Dimension string, used by
 // `features/session-runner/**`'s form-exercise components (task 18,
@@ -164,11 +242,20 @@ export const GENDER_LABELS: Readonly<Record<GenderValue, DimensionLabel>> = {
 // ---------------------------------------------------------------------------
 
 export interface DimensionDisplay {
-  /** The slot's most specific grammatical fact — a NOUN's case, a VERB's tense, etc. */
+  /** The slot's most specific grammatical fact — a NOUN's case, a VERB's pronoun, etc. */
   readonly primary: DimensionLabel
   /** A secondary axis shown alongside `primary`, when the dimension has one (NOUN's
-   *  number). Absent for dimensions with only one axis. */
+   *  number, VERB present/future's tense). Absent for dimensions with only one axis. */
   readonly secondary?: DimensionLabel
+  /**
+   * A third axis, present only for VERB `past` (FR-66: person + gender + tense is 3
+   * independent facts, not 2 — `spec/app-design.md` §13's mockup literally stacks 3 lines,
+   * "ja / mężczyzna / czas przeszły"). Added by this task rather than repurposing
+   * `secondary` for one of the two axes, so every existing `primary`/`secondary` caller
+   * (`FormInputExercise.tsx`/`FormChoiceExercise.tsx`'s NOUN rendering, task 18) keeps
+   * compiling and rendering unchanged — `tertiary` is additive, never required.
+   */
+  readonly tertiary?: DimensionLabel
 }
 
 export function describeDimension(dimension: Dimension): DimensionDisplay {
@@ -180,6 +267,43 @@ export function describeDimension(dimension: Dimension): DimensionDisplay {
     return {
       primary: CASE_LABELS[caseValue],
       secondary: NUMBER_LABELS[expandNumberAbbrev(numberAbbrev)],
+    }
+  }
+
+  if (kind === 'verb') {
+    const parts = dimension.split(':')
+
+    if (parts[1] === 'past') {
+      // verb:past:<person>:<sg|pl>:<gender>
+      const person = Number(parts[2]) as PersonValue
+      const number = expandNumberAbbrev(parts[3] as NumberAbbrev)
+      const gender = parts[4] as GenderValue
+      const pastGenderLabel =
+        PAST_SUBJECT_LABELS[gender as keyof typeof PAST_SUBJECT_LABELS] ?? GENDER_LABELS[gender]
+      return {
+        primary: pastPronounLabel(person, number, gender),
+        secondary: pastGenderLabel,
+        tertiary: TENSE_LABELS.past,
+      }
+    }
+
+    if (parts[1] === 'imperative') {
+      // verb:imperative:<person>:<sg|pl>
+      const person = Number(parts[2]) as PersonValue
+      const numberAbbrev = parts[3] as NumberAbbrev
+      return {
+        primary: PERSON_PRONOUN_LABELS[person][numberAbbrev],
+        secondary: IMPERATIVE_LABEL,
+      }
+    }
+
+    // verb:<present|future>:<person>:<sg|pl>
+    const tense = parts[1] as TenseValue
+    const person = Number(parts[2]) as PersonValue
+    const numberAbbrev = parts[3] as NumberAbbrev
+    return {
+      primary: PERSON_PRONOUN_LABELS[person][numberAbbrev],
+      secondary: TENSE_LABELS[tense],
     }
   }
 

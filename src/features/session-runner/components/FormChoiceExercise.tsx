@@ -87,9 +87,13 @@ export function FormChoiceExercise({
         {dimension.secondary && (
           <p className="text-base font-medium text-foreground">{dimension.secondary.pl}</p>
         )}
+        {dimension.tertiary && (
+          <p className="text-base font-medium text-foreground">{dimension.tertiary.pl}</p>
+        )}
         <p className="text-xs text-muted-foreground">
           {dimension.primary.ru}
           {dimension.secondary ? `, ${dimension.secondary.ru.toLowerCase()}` : ''}
+          {dimension.tertiary ? `, ${dimension.tertiary.ru.toLowerCase()}` : ''}
         </p>
       </div>
 

@@ -29,6 +29,7 @@
 import {
   CASE_LABELS,
   DEGREE_LABELS,
+  IMPERATIVE_LABEL,
   TENSE_LABELS,
   type DimensionLabel,
 } from '@/learning/skills/dimensions.ts'
@@ -46,10 +47,10 @@ const VOCAB_LABELS: Readonly<Record<string, DimensionLabel>> = {
   'vocab:ru-pl': { pl: 'Przekład RU→PL', ru: 'Перевод RU→PL' },
 }
 
-const IMPERATIVE_LABEL: DimensionLabel = {
-  pl: 'Tryb rozkazujący',
-  ru: 'Повелительное наклонение',
-}
+// `IMPERATIVE_LABEL` now lives in `learning/skills/dimensions.ts` (added by task 21, which
+// needed the exact same "verb:imperative has no TenseValue" label for its own
+// `describeDimension` extension) — imported from there instead of duplicated here, so the
+// two "Tryb rozkazujący" strings shown across the app can never drift apart.
 
 /**
  * `dimension`'s segments (`"<kind>:<...>"`, `learning/skills/skill-id.ts#decodeSkillId`) tell

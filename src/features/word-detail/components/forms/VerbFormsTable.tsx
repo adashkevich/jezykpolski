@@ -38,6 +38,7 @@
 import { useMemo, useState } from 'react'
 import { Tabs } from 'radix-ui'
 import { useNavigate } from 'react-router'
+import { Button } from '@/components/ui/button.tsx'
 import { buildVerbTable, type VerbConjugationRow } from '@/content/paradigms.ts'
 import { MASTERED_THRESHOLD, skillMaturity } from '@/learning/progress/aggregate.ts'
 import {
@@ -383,7 +384,7 @@ export function VerbFormsTable({
         ))}
       </Tabs.List>
       {tabs.map((tab) => (
-        <Tabs.Content key={tab.key} value={tab.key} className="pt-3">
+        <Tabs.Content key={tab.key} value={tab.key} className="flex flex-col gap-3 pt-3">
           {tab.key === 'past' ? (
             <PastTenseTable rows={tab.rows} wordId={wordId} known={known} onTrain={handleTrain} />
           ) : (
@@ -396,6 +397,15 @@ export function VerbFormsTable({
               onTrain={handleTrain}
             />
           )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/practice/verb-table/${encodeURIComponent(wordId)}/${tab.key}`)}
+            className="min-h-11 self-start"
+          >
+            Тренировать таблицей
+          </Button>
         </Tabs.Content>
       ))}
     </Tabs.Root>

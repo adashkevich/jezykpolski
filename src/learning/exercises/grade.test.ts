@@ -35,6 +35,53 @@ describe('grade — whitespace collapsing (acceptance)', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Task 21 acceptance: "`robiłem` не засчитывается за `robiłam` и наоборот" (FR-66). The two
+// `accepted` lists below are exactly what `enumerateSkills` produces for real `robić|VERB`
+// data (verified against `public/content/paradigms/057.json` and pinned by
+// `generate-verb-table.test.ts`'s own past-tense test) — `verb:past:1:sg:masculine` ->
+// `['robiłem']`, `verb:past:1:sg:feminine` -> `['robiłam']`. Two different `SkillId`s
+// (different `Dimension`, per `enumerate.ts`'s gender-in-key rule), hence two different
+// `Exercise.accepted` lists — `grade` never sees the other gender's form as a candidate at
+// all, so this is really testing that the two skills stay genuinely separate end to end, not
+// just that `grade`'s string comparison itself is case/diacritic-correct (already covered
+// above).
+// ---------------------------------------------------------------------------
+
+describe('grade — "robiłem" vs "robiłam" (task 21, FR-66, real robić|VERB data)', () => {
+  const masculineExercise: Exercise = {
+    type: 'form-input',
+    lemma: 'robić',
+    hint: 'делать',
+    promptMode: 'lemma',
+    slot: 'verb:past:1:sg:masculine',
+    accepted: ['robiłem'],
+  }
+  const feminineExercise: Exercise = {
+    type: 'form-input',
+    lemma: 'robić',
+    hint: 'делать',
+    promptMode: 'lemma',
+    slot: 'verb:past:1:sg:feminine',
+    accepted: ['robiłam'],
+  }
+
+  it('"robiłem" is correct for the masculine skill, but not the feminine one', () => {
+    expect(grade(masculineExercise, 'robiłem').correct).toBe(true)
+    expect(grade(feminineExercise, 'robiłem').correct).toBe(false)
+  })
+
+  it('"robiłam" is correct for the feminine skill, but not the masculine one', () => {
+    expect(grade(feminineExercise, 'robiłam').correct).toBe(true)
+    expect(grade(masculineExercise, 'robiłam').correct).toBe(false)
+  })
+
+  it('the cross-gender mismatch is not even a near-miss — the words differ by more than diacritics', () => {
+    expect(grade(feminineExercise, 'robiłem').nearMiss).toBe(false)
+    expect(grade(masculineExercise, 'robiłam').nearMiss).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Acceptance (as resolved by this task's supervisor — see task 09's file-header decision
 // log in generate.ts/grade.ts and `enumerate.test.ts`'s own note): the real multi-spelling
 // slot for `aborcja|NOUN` is plural genitive (`noun:pl:genitive`), not singular — verified

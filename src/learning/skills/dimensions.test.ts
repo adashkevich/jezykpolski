@@ -130,3 +130,106 @@ describe('describeDimension (task 18, spec/tasks/18-noun-exercises.md step 6)', 
     expect(display.secondary).toBeUndefined()
   })
 })
+
+describe('describeDimension — VERB (task 21, spec/tasks/21-verb-exercises.md)', () => {
+  it('present/future resolve to pronoun (primary) + tense (secondary), no tertiary', () => {
+    expect(describeDimension('verb:present:2:sg')).toEqual({
+      primary: { pl: 'ty', ru: 'ты' },
+      secondary: { pl: 'Czas teraźniejszy', ru: 'Настоящее время' },
+    })
+    expect(describeDimension('verb:present:1:pl')).toEqual({
+      primary: { pl: 'my', ru: 'мы' },
+      secondary: { pl: 'Czas teraźniejszy', ru: 'Настоящее время' },
+    })
+    expect(describeDimension('verb:future:1:pl').primary).toEqual({ pl: 'my', ru: 'мы' })
+    expect(describeDimension('verb:future:1:pl').secondary).toEqual({
+      pl: 'Czas przyszły',
+      ru: 'Будущее время',
+    })
+    expect(describeDimension('verb:present:2:sg').tertiary).toBeUndefined()
+  })
+
+  it('3rd person present/future has no gender to disambiguate, so pronoun is a combined form', () => {
+    expect(describeDimension('verb:present:3:sg').primary).toEqual({
+      pl: 'on · ona · ono',
+      ru: 'он · она · оно',
+    })
+    expect(describeDimension('verb:present:3:pl').primary).toEqual({
+      pl: 'oni · one',
+      ru: 'они',
+    })
+  })
+
+  it('imperative resolves to pronoun (primary) + mood (secondary)', () => {
+    expect(describeDimension('verb:imperative:2:sg')).toEqual({
+      primary: { pl: 'ty', ru: 'ты' },
+      secondary: { pl: 'Tryb rozkazujący', ru: 'Повелительное наклонение' },
+    })
+  })
+
+  it('past ALWAYS resolves to 3 components — pronoun, gender, tense (FR-66)', () => {
+    // The task text's own example: "ja + mężczyzna → robiłem".
+    expect(describeDimension('verb:past:1:sg:masculine')).toEqual({
+      primary: { pl: 'ja', ru: 'я' },
+      secondary: { pl: 'mężczyzna', ru: 'мужчина' },
+      tertiary: { pl: 'Czas przeszły', ru: 'Прошедшее время' },
+    })
+    // And its "or": "ja + kobieta → robiłam".
+    expect(describeDimension('verb:past:1:sg:feminine')).toEqual({
+      primary: { pl: 'ja', ru: 'я' },
+      secondary: { pl: 'kobieta', ru: 'женщина' },
+      tertiary: { pl: 'Czas przeszły', ru: 'Прошедшее время' },
+    })
+  })
+
+  it('past 3rd person resolves the exact pronoun from gender, unlike present/future', () => {
+    expect(describeDimension('verb:past:3:sg:masculine').primary).toEqual({ pl: 'on', ru: 'он' })
+    expect(describeDimension('verb:past:3:sg:feminine').primary).toEqual({ pl: 'ona', ru: 'она' })
+    expect(describeDimension('verb:past:3:sg:neuter').primary).toEqual({ pl: 'ono', ru: 'оно' })
+    expect(describeDimension('verb:past:3:pl:masculine_personal').primary).toEqual({
+      pl: 'oni',
+      ru: 'они',
+    })
+    expect(describeDimension('verb:past:3:pl:non_masculine_personal').primary).toEqual({
+      pl: 'one',
+      ru: 'они',
+    })
+  })
+
+  it('past 1st/2nd person pronoun never varies by gender (only the verb form itself does)', () => {
+    for (const gender of ['masculine', 'feminine', 'neuter'] as const) {
+      expect(describeDimension(`verb:past:1:sg:${gender}`).primary).toEqual({ pl: 'ja', ru: 'я' })
+      expect(describeDimension(`verb:past:2:sg:${gender}`).primary).toEqual({ pl: 'ty', ru: 'ты' })
+    }
+  })
+
+  it('every real VERB dimension shape resolves without throwing', () => {
+    for (const tense of ['present', 'future'] as const) {
+      for (const person of [1, 2, 3] as const) {
+        for (const numberAbbrev of ['sg', 'pl'] as const) {
+          const dimension = `verb:${tense}:${person}:${numberAbbrev}` as const
+          expect(() => describeDimension(dimension)).not.toThrow()
+        }
+      }
+    }
+    for (const person of [1, 2, 3] as const) {
+      for (const numberAbbrev of ['sg', 'pl'] as const) {
+        expect(() => describeDimension(`verb:imperative:${person}:${numberAbbrev}`)).not.toThrow()
+      }
+    }
+    const pastCombos = [
+      ['sg', 'masculine'],
+      ['sg', 'feminine'],
+      ['sg', 'neuter'],
+      ['pl', 'masculine_personal'],
+      ['pl', 'non_masculine_personal'],
+    ] as const
+    for (const person of [1, 2, 3] as const) {
+      for (const [numberAbbrev, gender] of pastCombos) {
+        expect(() =>
+          describeDimension(`verb:past:${person}:${numberAbbrev}:${gender}`),
+        ).not.toThrow()
+      }
+    }
+  })
+})
