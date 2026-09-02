@@ -202,7 +202,9 @@ export function WordRow({
         onPointerCancel={endDrag}
         onClickCapture={handleClickCapture}
         className={`relative flex h-full touch-pan-y items-center bg-background ${
-          settling ? 'motion-safe:transition-transform motion-safe:duration-200 motion-reduce:transition-none' : ''
+          settling
+            ? 'motion-safe:transition-transform motion-safe:duration-200 motion-reduce:transition-none'
+            : ''
         }`}
         style={{ transform: `translateX(${dragX}px)` }}
       >

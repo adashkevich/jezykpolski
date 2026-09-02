@@ -126,9 +126,7 @@ describe('HomePage', () => {
     renderHomePage()
 
     // Two due skills (vocab:pl-ru + vocab:ru-pl), not two words — countDue counts skills.
-    await waitFor(() =>
-      expect(screen.getByText(/2 слова готовы к повторению/)).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByText(/2 слова готовы к повторению/)).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Продолжить обучение' })).toBeInTheDocument()
   })
 
@@ -137,7 +135,9 @@ describe('HomePage', () => {
     await openDatabase()
 
     const { container } = renderHomePage()
-    await waitFor(() => expect(screen.getByRole('button', { name: /обучение/ })).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /обучение/ })).toBeInTheDocument(),
+    )
 
     expect(container.querySelectorAll('[data-size="lg"]')).toHaveLength(1)
   })

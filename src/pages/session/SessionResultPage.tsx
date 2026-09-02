@@ -81,7 +81,11 @@ export function SessionResultPage() {
     return (
       <PageContainer>
         <PageHeader title="Результаты сессии" />
-        <p role="status" aria-live="polite" className="py-8 text-center text-sm text-muted-foreground">
+        <p
+          role="status"
+          aria-live="polite"
+          className="py-8 text-center text-sm text-muted-foreground"
+        >
           Считаем итоги…
         </p>
       </PageContainer>

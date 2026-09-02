@@ -41,7 +41,9 @@ describe('DatabaseProvider', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
     expect(screen.queryByText('ready-content')).not.toBeInTheDocument()
     expect(screen.getByText('simulated open failure')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /zresetuj lokalną bazę danych/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /zresetuj lokalną bazę danych/i }),
+    ).toBeInTheDocument()
   })
 
   it('the reset button calls deleteDatabase and retries opening', async () => {

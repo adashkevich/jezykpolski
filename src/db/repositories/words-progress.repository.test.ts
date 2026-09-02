@@ -34,7 +34,11 @@ function entry(lemma: string, rank: number): WordIndexEntry {
   }
 }
 
-function vocabSkill(wordId: string, dim: 'vocab:pl-ru' | 'vocab:ru-pl', stability: number): SkillRecord {
+function vocabSkill(
+  wordId: string,
+  dim: 'vocab:pl-ru' | 'vocab:ru-pl',
+  stability: number,
+): SkillRecord {
   return {
     skillId: `${wordId}::${dim}`,
     wordId,
@@ -75,7 +79,7 @@ describe('computeWordProgress / recomputeWordProgress', () => {
     expect(await getWordProgress('nic|NOUN')).toBeUndefined()
   })
 
-  it('computes status/maturity from the word\'s skills against the content-derived slot count', async () => {
+  it("computes status/maturity from the word's skills against the content-derived slot count", async () => {
     initIndexStore([entry('kobieta', 1)])
     await db.skills.bulkAdd([
       vocabSkill('kobieta|NOUN', 'vocab:pl-ru', 60), // maturity 1.0 (TARGET_STABILITY_DAYS=60)

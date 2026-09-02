@@ -163,9 +163,7 @@ describe('correctAnswerOf', () => {
 
   it('throws for table/matching — no single accepted answer to report', () => {
     expect(() => correctAnswerOf({ type: 'matching', pairs: [] })).toThrow()
-    expect(() =>
-      correctAnswerOf({ type: 'table', lemma: 'kobieta', cells: [] }),
-    ).toThrow()
+    expect(() => correctAnswerOf({ type: 'table', lemma: 'kobieta', cells: [] })).toThrow()
   })
 })
 

@@ -16,7 +16,13 @@
 import { useState } from 'react'
 import { buildAdjTable, getFormsForSlot } from '@/content/paradigms.ts'
 import type { NumberValue } from '@/content/codec.ts'
-import { CASE_LABELS, DEGREE_DISPLAY_ORDER, DEGREE_LABELS, GENDER_DISPLAY_ORDER, GENDER_LABELS } from '@/learning/skills/dimensions.ts'
+import {
+  CASE_LABELS,
+  DEGREE_DISPLAY_ORDER,
+  DEGREE_LABELS,
+  GENDER_DISPLAY_ORDER,
+  GENDER_LABELS,
+} from '@/learning/skills/dimensions.ts'
 import type { Dimension } from '@/learning/skills/dimensions.ts'
 import type { Paradigm } from '@/types/content.ts'
 import { cn } from '@/lib/utils'
@@ -36,7 +42,11 @@ export function AdjFormsTable({ paradigm }: { paradigm: Paradigm }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div role="group" aria-label="Число" className="inline-flex w-fit rounded-lg border border-border p-0.5">
+      <div
+        role="group"
+        aria-label="Число"
+        className="inline-flex w-fit rounded-lg border border-border p-0.5"
+      >
         {(['singular', 'plural'] as const).map((option) => (
           <button
             key={option}

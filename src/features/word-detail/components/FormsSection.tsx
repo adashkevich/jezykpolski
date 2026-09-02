@@ -53,7 +53,10 @@ export function FormsSection({ pos, lazyParadigm }: { pos: PosValue; lazyParadig
         <span className="font-heading text-base font-medium text-foreground">Формы слова</span>
         <ChevronDown
           aria-hidden="true"
-          className={cn('size-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')}
+          className={cn(
+            'size-4 shrink-0 text-muted-foreground transition-transform',
+            open && 'rotate-180',
+          )}
         />
       </button>
 
@@ -66,7 +69,8 @@ export function FormsSection({ pos, lazyParadigm }: { pos: PosValue; lazyParadig
           {lazyParadigm.status === 'error' && (
             <div className="flex flex-col items-start gap-2">
               <p className="text-sm text-destructive">
-                Не удалось загрузить формы{lazyParadigm.error ? `: ${lazyParadigm.error.message}` : ''}.
+                Не удалось загрузить формы
+                {lazyParadigm.error ? `: ${lazyParadigm.error.message}` : ''}.
               </p>
               <Button type="button" variant="outline" size="sm" onClick={lazyParadigm.load}>
                 Повторить

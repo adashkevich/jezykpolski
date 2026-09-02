@@ -238,7 +238,13 @@ const REAL_C2_WORDS: WordIndexEntry[] = [
   entry({ lemma: 'nader', pos: 'ADV', rank: 7706, level: 'C2', primaryRu: 'чрезвычайно' }),
   entry({ lemma: 'majdan', pos: 'NOUN', rank: 7841, level: 'C2', primaryRu: 'барахло' }),
   entry({ lemma: 'opiewać', pos: 'VERB', rank: 7874, level: 'C2', primaryRu: 'воспевать' }),
-  entry({ lemma: 'orzecznictwo', pos: 'NOUN', rank: 7997, level: 'C2', primaryRu: 'судебная практика' }),
+  entry({
+    lemma: 'orzecznictwo',
+    pos: 'NOUN',
+    rank: 7997,
+    level: 'C2',
+    primaryRu: 'судебная практика',
+  }),
 ]
 
 const C2_TEST_POOL: WordIndexEntry[] = [
@@ -305,8 +311,22 @@ describe('task 10 acceptance — translation-overlap exclusion (FR-92)', () => {
   // its own) — nudged to 30 here purely so the rank filter alone can't be the reason it's
   // excluded; its level (A1) and its real translations (знать / быть знакомым с) are untouched.
   const WIEDZIEC_POOL: WordIndexEntry[] = [
-    entry({ lemma: 'wiedzieć', pos: 'VERB', rank: 27, level: 'A1', primaryRu: 'знать', sensesShard: 14 }),
-    entry({ lemma: 'znać', pos: 'VERB', rank: 30, level: 'A1', primaryRu: 'знать', sensesShard: 2 }),
+    entry({
+      lemma: 'wiedzieć',
+      pos: 'VERB',
+      rank: 27,
+      level: 'A1',
+      primaryRu: 'знать',
+      sensesShard: 14,
+    }),
+    entry({
+      lemma: 'znać',
+      pos: 'VERB',
+      rank: 30,
+      level: 'A1',
+      primaryRu: 'знать',
+      sensesShard: 2,
+    }),
     entry({ lemma: 'chcieć', pos: 'VERB', rank: 18, level: 'A1', primaryRu: 'хотеть' }),
     entry({ lemma: 'mówić', pos: 'VERB', rank: 19, level: 'A1', primaryRu: 'говорить' }),
     entry({ lemma: 'musieć', pos: 'VERB', rank: 25, level: 'A1', primaryRu: 'нужно' }),
@@ -356,8 +376,22 @@ describe('task 10 acceptance — translation-overlap exclusion (FR-92)', () => {
   // window [7,63]) purely so it's a rank/level-eligible candidate — its level (B1, matching
   // zostać's own) and its translations are real content, not adjusted.
   const ZOSTAC_POOL: WordIndexEntry[] = [
-    entry({ lemma: 'zostać', pos: 'VERB', rank: 21, level: 'B1', primaryRu: 'остаться', sensesShard: 10 }),
-    entry({ lemma: 'powstać', pos: 'VERB', rank: 24, level: 'B1', primaryRu: 'привстать', sensesShard: 11 }),
+    entry({
+      lemma: 'zostać',
+      pos: 'VERB',
+      rank: 21,
+      level: 'B1',
+      primaryRu: 'остаться',
+      sensesShard: 10,
+    }),
+    entry({
+      lemma: 'powstać',
+      pos: 'VERB',
+      rank: 24,
+      level: 'B1',
+      primaryRu: 'привстать',
+      sensesShard: 11,
+    }),
     entry({ lemma: 'stać', pos: 'VERB', rank: 41, level: 'A2', primaryRu: 'стоять' }),
     entry({ lemma: 'zacząć', pos: 'VERB', rank: 61, level: 'A2', primaryRu: 'начать' }),
   ]
@@ -483,8 +517,22 @@ describe('task 10 acceptance — pickFormDistractors same-slot-from-similar-word
   beforeEach(() => {
     __resetIndexStoreForTest()
     initIndexStore([
-      entry({ lemma: 'bardzo', pos: 'ADV', rank: 13, level: 'A1', primaryRu: 'очень', paradigmShard: 32 }),
-      entry({ lemma: 'dobrze', pos: 'ADV', rank: 47, level: 'A1', primaryRu: 'хорошо', paradigmShard: 28 }),
+      entry({
+        lemma: 'bardzo',
+        pos: 'ADV',
+        rank: 13,
+        level: 'A1',
+        primaryRu: 'очень',
+        paradigmShard: 32,
+      }),
+      entry({
+        lemma: 'dobrze',
+        pos: 'ADV',
+        rank: 47,
+        level: 'A1',
+        primaryRu: 'хорошо',
+        paradigmShard: 28,
+      }),
     ])
   })
 

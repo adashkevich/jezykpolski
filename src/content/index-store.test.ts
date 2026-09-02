@@ -8,7 +8,9 @@ import {
 } from './index-store.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 
-function entry(overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma' | 'rank'>): WordIndexEntry {
+function entry(
+  overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma' | 'rank'>,
+): WordIndexEntry {
   return {
     pos: 'NOUN',
     level: 'A1',

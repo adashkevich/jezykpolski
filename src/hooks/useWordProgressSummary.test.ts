@@ -26,7 +26,11 @@ function entry(lemma: string, pos: PosValue, rank: number): WordIndexEntry {
   return { lemma, pos, rank, level: 'A1', primaryRu: 'x', sensesShard: 0, paradigmShard: -1 }
 }
 
-function vocabSkill(wordId: string, dim: 'vocab:pl-ru' | 'vocab:ru-pl', stability: number): SkillRecord {
+function vocabSkill(
+  wordId: string,
+  dim: 'vocab:pl-ru' | 'vocab:ru-pl',
+  stability: number,
+): SkillRecord {
   return {
     skillId: `${wordId}::${dim}`,
     wordId,
@@ -106,10 +110,12 @@ describe('useWordProgressSummary', () => {
 
     await learnWord('kobieta|NOUN', 25) // known
 
-    await waitFor(() => expect(result.current).toEqual({
-      learningTotal: 0,
-      learnedTotal: 1,
-      learnedByPos: { NOUN: 1 },
-    }))
+    await waitFor(() =>
+      expect(result.current).toEqual({
+        learningTotal: 0,
+        learnedTotal: 1,
+        learnedByPos: { NOUN: 1 },
+      }),
+    )
   })
 })

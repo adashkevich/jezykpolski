@@ -26,7 +26,12 @@
  * retroactively erase the fact that the first answer was wrong.
  */
 import { AGAIN } from '@/learning/srs/policy.ts'
-import { decodeSkillId, decodeWordId, type SkillId, type WordId } from '@/learning/skills/skill-id.ts'
+import {
+  decodeSkillId,
+  decodeWordId,
+  type SkillId,
+  type WordId,
+} from '@/learning/skills/skill-id.ts'
 import type { DimensionLabel } from '@/learning/skills/dimensions.ts'
 import type { ReviewLogRecord } from '@/types/progress.ts'
 import { dimensionGroup } from './dimension-group.ts'

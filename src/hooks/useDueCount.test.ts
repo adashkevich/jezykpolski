@@ -17,7 +17,9 @@ afterEach(async () => {
   await deleteDatabase()
 })
 
-function skill(overrides: Partial<SkillRecord> & Pick<SkillRecord, 'skillId' | 'wordId' | 'due'>): SkillRecord {
+function skill(
+  overrides: Partial<SkillRecord> & Pick<SkillRecord, 'skillId' | 'wordId' | 'due'>,
+): SkillRecord {
   return {
     kind: 'vocab',
     dimension: 'vocab:pl-ru',

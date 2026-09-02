@@ -29,7 +29,12 @@
 import { db } from '../database.ts'
 import { toLocalDateKey } from '@/lib/dates.ts'
 import type { SkillId, WordId } from '@/learning/skills/skill-id.ts'
-import type { ReviewLogRecord, SkillKind, SkillRecord, WordProgressRecord } from '@/types/progress.ts'
+import type {
+  ReviewLogRecord,
+  SkillKind,
+  SkillRecord,
+  WordProgressRecord,
+} from '@/types/progress.ts'
 
 export interface AnswerInput {
   readonly skillId: SkillId
@@ -71,53 +76,46 @@ export interface AnswerInput {
  * to create one (architecture.md §5.2), and it must have already run before `applyAnswer`.
  */
 export async function applyAnswer(input: AnswerInput): Promise<void> {
-  await db.transaction(
-    'rw',
-    db.skills,
-    db.reviewLogs,
-    db.wordProgress,
-    db.dailyStats,
-    async () => {
-      const skill = await db.skills.get(input.skillId)
-      if (!skill) {
-        throw new Error(
-          `applyAnswer: no SkillRecord for "${input.skillId}" — call ensureSkill() before applyAnswer().`,
-        )
-      }
+  await db.transaction('rw', db.skills, db.reviewLogs, db.wordProgress, db.dailyStats, async () => {
+    const skill = await db.skills.get(input.skillId)
+    if (!skill) {
+      throw new Error(
+        `applyAnswer: no SkillRecord for "${input.skillId}" — call ensureSkill() before applyAnswer().`,
+      )
+    }
 
-      const correct = input.reviewLog.correct
-      const updatedSkill: SkillRecord = {
-        ...skill,
-        ...(input.reviewLog.srsApplied ? input.nextSrsState : {}),
-        correct: skill.correct + (correct ? 1 : 0),
-        incorrect: skill.incorrect + (correct ? 0 : 1),
-        updatedAt: input.reviewLog.reviewedAt,
-      }
-      await db.skills.put(updatedSkill)
+    const correct = input.reviewLog.correct
+    const updatedSkill: SkillRecord = {
+      ...skill,
+      ...(input.reviewLog.srsApplied ? input.nextSrsState : {}),
+      correct: skill.correct + (correct ? 1 : 0),
+      incorrect: skill.incorrect + (correct ? 0 : 1),
+      updatedAt: input.reviewLog.reviewedAt,
+    }
+    await db.skills.put(updatedSkill)
 
-      await db.reviewLogs.add(input.reviewLog)
+    await db.reviewLogs.add(input.reviewLog)
 
-      await db.wordProgress.put(input.nextWordProgress)
+    await db.wordProgress.put(input.nextWordProgress)
 
-      const date = toLocalDateKey(input.reviewLog.reviewedAt)
-      const existingStats = await db.dailyStats.get(date)
-      const base = existingStats ?? {
-        date,
-        reviewsCount: 0,
-        correctCount: 0,
-        newSkillsStarted: 0,
-        sessionsCount: 0,
-        timeSpentMs: 0,
-        updatedAt: input.reviewLog.reviewedAt,
-      }
-      await db.dailyStats.put({
-        ...base,
-        reviewsCount: base.reviewsCount + 1,
-        correctCount: base.correctCount + (correct ? 1 : 0),
-        newSkillsStarted: base.newSkillsStarted + (input.isNewSkill ? 1 : 0),
-        timeSpentMs: base.timeSpentMs + input.reviewLog.elapsedMs,
-        updatedAt: input.reviewLog.reviewedAt,
-      })
-    },
-  )
+    const date = toLocalDateKey(input.reviewLog.reviewedAt)
+    const existingStats = await db.dailyStats.get(date)
+    const base = existingStats ?? {
+      date,
+      reviewsCount: 0,
+      correctCount: 0,
+      newSkillsStarted: 0,
+      sessionsCount: 0,
+      timeSpentMs: 0,
+      updatedAt: input.reviewLog.reviewedAt,
+    }
+    await db.dailyStats.put({
+      ...base,
+      reviewsCount: base.reviewsCount + 1,
+      correctCount: base.correctCount + (correct ? 1 : 0),
+      newSkillsStarted: base.newSkillsStarted + (input.isNewSkill ? 1 : 0),
+      timeSpentMs: base.timeSpentMs + input.reviewLog.elapsedMs,
+      updatedAt: input.reviewLog.reviewedAt,
+    })
+  })
 }

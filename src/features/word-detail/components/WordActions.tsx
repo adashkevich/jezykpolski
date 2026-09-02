@@ -61,7 +61,9 @@ export function WordActions({ wordId, lemma }: { wordId: WordId; lemma: string }
       setDialogOpen(false)
     } catch (error: unknown) {
       setResetError(
-        error instanceof Error ? error.message : 'Не удалось сбросить прогресс. Попробуйте ещё раз.',
+        error instanceof Error
+          ? error.message
+          : 'Не удалось сбросить прогресс. Попробуйте ещё раз.',
       )
     } finally {
       setIsResetting(false)
@@ -90,7 +92,12 @@ export function WordActions({ wordId, lemma }: { wordId: WordId; lemma: string }
           <X aria-hidden="true" className="size-4" />
           Не знаю
         </Button>
-        <Button type="button" variant="secondary" onClick={handleMarkKnown} className="min-h-11 flex-1">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={handleMarkKnown}
+          className="min-h-11 flex-1"
+        >
           <Check aria-hidden="true" className="size-4" />
           Знаю
         </Button>

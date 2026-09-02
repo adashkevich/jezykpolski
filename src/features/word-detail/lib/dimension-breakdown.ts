@@ -63,7 +63,8 @@ const byImperativeKey: DimensionGroupKey = (d) =>
 const byAdjDegreeKey: DimensionGroupKey = (d) =>
   d.kind === 'adj' && d.dimension.startsWith('adj:degree:') ? d.dimension.split(':')[2] : undefined
 
-const byAdvDegreeKey: DimensionGroupKey = (d) => (d.kind === 'adv' ? d.dimension.split(':')[2] : undefined)
+const byAdvDegreeKey: DimensionGroupKey = (d) =>
+  d.kind === 'adv' ? d.dimension.split(':')[2] : undefined
 
 /** `byNumberKey` groups by the literal `sg`/`pl` abbreviation baked into the dimension
  *  string (`aggregate.ts`'s own `NounDimension`/`AdjDimension` shape), not the expanded
@@ -157,11 +158,20 @@ export function buildDimensionBreakdown(
   if (pos === 'VERB') {
     const byTense = aggregateByDimension(descriptors, known, byTenseKey)
     const tenseRows = rowsFrom(TENSE_DISPLAY_ORDER, labelLookup(TENSE_LABELS), byTense)
-    const imperativeValue = aggregateByDimension(descriptors, known, byImperativeKey).get('imperative')
+    const imperativeValue = aggregateByDimension(descriptors, known, byImperativeKey).get(
+      'imperative',
+    )
     const moodRows =
       imperativeValue === undefined
         ? tenseRows
-        : [...tenseRows, { key: 'imperative', label: 'Tryb rozkazujący (повелительное)', value: imperativeValue }]
+        : [
+            ...tenseRows,
+            {
+              key: 'imperative',
+              label: 'Tryb rozkazujący (повелительное)',
+              value: imperativeValue,
+            },
+          ]
     if (moodRows.length > 0) groups.push({ title: 'По временам и наклонению', rows: moodRows })
 
     const genderRows = rowsFrom(

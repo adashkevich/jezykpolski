@@ -29,7 +29,13 @@ import type { SkillId, WordId } from '@/learning/skills/skill-id.ts'
 import { applyAnswer } from '@/db/repositories/answer.repository.ts'
 import { getSkill, getSkillsForWord } from '@/db/repositories/skills.repository.ts'
 import { computeWordProgress } from '@/db/repositories/words-progress.repository.ts'
-import type { Rating, ReviewLogRecord, SessionMode, SkillKind, SkillRecord } from '@/types/progress.ts'
+import type {
+  Rating,
+  ReviewLogRecord,
+  SessionMode,
+  SkillKind,
+  SkillRecord,
+} from '@/types/progress.ts'
 
 export interface SubmitAnswerInput {
   readonly sessionId: number
@@ -109,7 +115,10 @@ export function correctAnswerOf(exercise: Exercise): string {
  *  (the word itself), which a `'1'|'2'|'3'` rating string would never match. "Correct" here
  *  means "rated better than Again" (Hard still counts — the user did recall it, just with
  *  difficulty), matching the 3-button `Не знаю / Трудно / Знаю` semantics in app-design §6. */
-function selfAssessGradeResult(exercise: Extract<Exercise, { type: 'self-assess' }>, rating: Rating): GradeResult {
+function selfAssessGradeResult(
+  exercise: Extract<Exercise, { type: 'self-assess' }>,
+  rating: Rating,
+): GradeResult {
   return { correct: rating !== AGAIN, nearMiss: false, matched: exercise.answer }
 }
 
@@ -168,7 +177,9 @@ export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnsw
     // Unreachable in practice — `updatedSkillForProgress` alone guarantees a non-empty
     // skill set for `wordId` (see `computeWordProgress`'s own doc comment) — but narrowing
     // explicitly here is cheaper than an assertion the type checker can't verify itself.
-    throw new Error(`submitAnswer: computeWordProgress("${wordId}") unexpectedly returned undefined`)
+    throw new Error(
+      `submitAnswer: computeWordProgress("${wordId}") unexpectedly returned undefined`,
+    )
   }
 
   const correctAnswer = correctAnswerOf(exercise)

@@ -142,7 +142,7 @@ describe('initialDifficultyFor (task 16, swipe-triage)', () => {
     expect(viaHelper).toBe(viaRealReview)
   })
 
-  it('is within FSRS\'s documented difficulty range [1, 10]', () => {
+  it("is within FSRS's documented difficulty range [1, 10]", () => {
     expect(initialDifficultyFor(GOOD, NOW)).toBeGreaterThanOrEqual(1)
     expect(initialDifficultyFor(GOOD, NOW)).toBeLessThanOrEqual(10)
   })

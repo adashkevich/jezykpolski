@@ -52,7 +52,10 @@ interface SkillPatch {
   readonly srsState: SrsState
 }
 
-async function applyTriage(wordId: WordId, patches: readonly SkillPatch[]): Promise<TriageSnapshot> {
+async function applyTriage(
+  wordId: WordId,
+  patches: readonly SkillPatch[],
+): Promise<TriageSnapshot> {
   const currentSkills = await getSkillsForWord(wordId)
   const currentBySkillId = new Map(currentSkills.map((s) => [s.skillId, s]))
 

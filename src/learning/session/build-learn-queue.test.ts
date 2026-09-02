@@ -3,7 +3,9 @@ import type { SkillRecord } from '@/types/progress.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import { buildLearnQueue } from './build-learn-queue.ts'
 
-function skill(overrides: Partial<SkillRecord> & Pick<SkillRecord, 'skillId' | 'due'>): SkillRecord {
+function skill(
+  overrides: Partial<SkillRecord> & Pick<SkillRecord, 'skillId' | 'due'>,
+): SkillRecord {
   return {
     wordId: overrides.skillId.split('::')[0]!,
     kind: 'vocab',
@@ -21,7 +23,9 @@ function skill(overrides: Partial<SkillRecord> & Pick<SkillRecord, 'skillId' | '
   }
 }
 
-function word(overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma' | 'rank'>): WordIndexEntry {
+function word(
+  overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma' | 'rank'>,
+): WordIndexEntry {
   return {
     pos: 'NOUN',
     level: 'A1',

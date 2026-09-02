@@ -104,10 +104,7 @@ describe('queryWords: status filter (requires an externally supplied progress ma
     const wordId = encodeWordId('kobieta', 'NOUN')
     const makeProgress = (status: WordStatus) =>
       new Map<WordId, WordProgressRecord>([
-        [
-          wordId,
-          { wordId, status, vocabMaturity: 0, morphMaturity: 0, updatedAt: Date.now() },
-        ],
+        [wordId, { wordId, status, vocabMaturity: 0, morphMaturity: 0, updatedAt: Date.now() }],
       ])
     const q = { sort: 'frequency' as const, status: ['known' as WordStatus] }
     const first = queryWords(q, makeProgress('known'), smallIndex)
@@ -170,9 +167,7 @@ describe('queryWords: "up to level" filter (acceptance)', () => {
     const index = buildFullScaleIndex()
     const result = queryWords({ sort: 'frequency', upToLevel: 'B1' }, new Map(), index)
     expect(result).toHaveLength(3903)
-    expect(result.every((e) => e.level === 'A1' || e.level === 'A2' || e.level === 'B1')).toBe(
-      true,
-    )
+    expect(result.every((e) => e.level === 'A1' || e.level === 'A2' || e.level === 'B1')).toBe(true)
   })
 })
 
@@ -193,7 +188,9 @@ describe('queryWords: performance (acceptance, budget 16ms per call)', () => {
       timings.push(performance.now() - start)
     }
 
-    console.log(`[perf] queryWords over 7998 words, per-call ms: ${timings.map((t) => t.toFixed(3)).join(', ')}`)
+    console.log(
+      `[perf] queryWords over 7998 words, per-call ms: ${timings.map((t) => t.toFixed(3)).join(', ')}`,
+    )
     // Budget is 16ms; a generous margin is asserted here since CI machines vary — the real
     // measured numbers on this machine are logged above for the task report.
     for (const t of timings) {

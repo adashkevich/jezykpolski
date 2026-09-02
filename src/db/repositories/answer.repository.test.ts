@@ -73,7 +73,15 @@ function makeInput(overrides: Partial<AnswerInput> = {}): AnswerInput {
     skillId: SKILL_ID,
     wordId: WORD_ID,
     kind: 'vocab',
-    nextSrsState: { state: 'review', stability: 5, difficulty: 4, due: 6000, reps: 1, lapses: 0, lastReviewAt: REVIEWED_AT },
+    nextSrsState: {
+      state: 'review',
+      stability: 5,
+      difficulty: 4,
+      due: 6000,
+      reps: 1,
+      lapses: 0,
+      lastReviewAt: REVIEWED_AT,
+    },
     reviewLog,
     isNewSkill: true,
     nextWordProgress,
@@ -113,7 +121,7 @@ describe('applyAnswer', () => {
     expect(stats?.timeSpentMs).toBe(1200)
   })
 
-  it('srsApplied: false leaves the skill\'s SRS-facing fields untouched but still logs and counts', async () => {
+  it("srsApplied: false leaves the skill's SRS-facing fields untouched but still logs and counts", async () => {
     await db.skills.add(BASE_SKILL)
 
     await applyAnswer(

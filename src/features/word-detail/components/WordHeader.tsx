@@ -51,8 +51,7 @@ export function WordHeader({
    *  both cases, only rendered once a real `Paradigm` is in hand. */
   paradigm: Paradigm | null | undefined
 }) {
-  const gender =
-    entry.pos === 'NOUN' && paradigm ? resolveHeaderGender(paradigm) : undefined
+  const gender = entry.pos === 'NOUN' && paradigm ? resolveHeaderGender(paradigm) : undefined
 
   return (
     <header className="flex flex-col gap-1.5">

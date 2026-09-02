@@ -23,7 +23,11 @@ import type { SrsState } from '@/learning/srs/srs.types.ts'
 import { ChoiceExercise } from './ChoiceExercise.tsx'
 import { InputExercise } from './InputExercise.tsx'
 import { SelfAssessExercise } from './SelfAssessExercise.tsx'
-import type { ExerciseComponentRegistry, ExerciseOfType, ExerciseProps } from './exercise-props.types.ts'
+import type {
+  ExerciseComponentRegistry,
+  ExerciseOfType,
+  ExerciseProps,
+} from './exercise-props.types.ts'
 
 export function createExerciseComponentRegistry(current: {
   readonly srsState: SrsState

@@ -13,7 +13,11 @@
  * by `content/loader.ts`'s per-shard cache, well within one screen's loading budget.
  */
 import { useEffect, useRef, useState } from 'react'
-import { completeSession, createSession, getSession } from '@/db/repositories/sessions.repository.ts'
+import {
+  completeSession,
+  createSession,
+  getSession,
+} from '@/db/repositories/sessions.repository.ts'
 import { getLogsForSession } from '@/db/repositories/reviews.repository.ts'
 import { encodeSkillId } from '@/learning/skills/skill-id.ts'
 import type { SkillId } from '@/learning/skills/skill-id.ts'
@@ -49,7 +53,11 @@ export interface SessionRuntime {
 
 export type BootstrapStatus =
   | { readonly phase: 'loading' }
-  | { readonly phase: 'resume-prompt'; readonly incompleteSessionId: number; readonly answeredCount: number }
+  | {
+      readonly phase: 'resume-prompt'
+      readonly incompleteSessionId: number
+      readonly answeredCount: number
+    }
   | { readonly phase: 'empty' }
   | { readonly phase: 'ready'; readonly runtime: SessionRuntime }
   | { readonly phase: 'error'; readonly message: string }
@@ -64,10 +72,13 @@ function errorMessage(error: unknown): string {
  *  see `answer-pipeline.ts`'s own header on why that flag only exists transiently at
  *  answer-time), so it's reported as `0` here. The natural-completion path in
  *  `SessionRunner.tsx` tracks it live instead and does not go through this function. */
-function summarizeLogsForAbandonedSession(logs: { skillId: SkillId; correct: boolean; reviewedAt: number }[]) {
+function summarizeLogsForAbandonedSession(
+  logs: { skillId: SkillId; correct: boolean; reviewedAt: number }[],
+) {
   const firstLogBySkill = new Map<SkillId, { correct: boolean }>()
   for (const log of [...logs].sort((a, b) => a.reviewedAt - b.reviewedAt)) {
-    if (!firstLogBySkill.has(log.skillId)) firstLogBySkill.set(log.skillId, { correct: log.correct })
+    if (!firstLogBySkill.has(log.skillId))
+      firstLogBySkill.set(log.skillId, { correct: log.correct })
   }
   const totalCount = firstLogBySkill.size
   let correctCount = 0
@@ -156,7 +167,14 @@ export function useSessionBootstrap(scope: SessionScope) {
 
     setStatus({
       phase: 'ready',
-      runtime: { sessionId, mode: args.mode, cache, descriptors, attemptBySkillId, skillByInstanceId },
+      runtime: {
+        sessionId,
+        mode: args.mode,
+        cache,
+        descriptors,
+        attemptBySkillId,
+        skillByInstanceId,
+      },
     })
   }
 

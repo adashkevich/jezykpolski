@@ -50,7 +50,11 @@ export function SessionPage() {
       <PageHeader title="Сессия" description="Учим и повторяем — очередь собирает алгоритм." />
 
       {status.phase === 'loading' && (
-        <p role="status" aria-live="polite" className="py-8 text-center text-sm text-muted-foreground">
+        <p
+          role="status"
+          aria-live="polite"
+          className="py-8 text-center text-sm text-muted-foreground"
+        >
           Собираем очередь…
         </p>
       )}
@@ -91,7 +95,9 @@ export function SessionPage() {
         />
       )}
 
-      {status.phase === 'ready' && <SessionRunner runtime={status.runtime} onFinished={goToResults} />}
+      {status.phase === 'ready' && (
+        <SessionRunner runtime={status.runtime} onFinished={goToResults} />
+      )}
     </PageContainer>
   )
 }

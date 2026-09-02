@@ -88,7 +88,12 @@ describe('resolveGlobalScope (kind: global)', () => {
       entry({ lemma: 'nowy', pos: 'ADJ', rank: 6, primaryRu: 'новый' }),
     ])
     const knownWordId = encodeWordId('znany', 'ADJ')
-    await ensureSkill(encodeSkillId(knownWordId, 'vocab:pl-ru'), knownWordId, 'vocab', 'vocab:pl-ru')
+    await ensureSkill(
+      encodeSkillId(knownWordId, 'vocab:pl-ru'),
+      knownWordId,
+      'vocab',
+      'vocab:pl-ru',
+    )
     // Without this, `znany` would ALSO show up as a "new" word candidate (no `wordProgress`
     // row yet -> `queryWords`'s status filter defaults an unknown word to 'new') — recomputing
     // it is what actually marks it "no longer new" for the `candidateNewWords` query below.

@@ -174,7 +174,11 @@ export function SessionRunner({ runtime, onFinished }: SessionRunnerProps) {
         // Either mid-finish (the effect above is closing the session out) or a genuinely
         // empty queue slipped through — `SessionPage` never renders `SessionRunner` for an
         // empty `QueuePlan`, so this is just the one-tick gap while `completeSession` runs.
-        <p role="status" aria-live="polite" className="py-8 text-center text-sm text-muted-foreground">
+        <p
+          role="status"
+          aria-live="polite"
+          className="py-8 text-center text-sm text-muted-foreground"
+        >
           Завершаем сессию…
         </p>
       )}
@@ -356,7 +360,9 @@ function SkippedExerciseNotice({
   onSkip: () => void
 }) {
   useEffect(() => {
-    console.warn(`SessionRunner: no component registered for exercise type "${exerciseType}" — skipping.`)
+    console.warn(
+      `SessionRunner: no component registered for exercise type "${exerciseType}" — skipping.`,
+    )
   }, [exerciseType])
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">

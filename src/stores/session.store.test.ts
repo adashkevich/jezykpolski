@@ -3,7 +3,17 @@ import type { ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import { isFirstAnswerInSession, useSessionStore } from './session.store.ts'
 
 function instance(id: string, skillId: string): ExerciseInstance {
-  return { id, skillId, exercise: { type: 'choice', direction: 'pl-ru', prompt: 'x', options: ['a', 'b'], correct: 'a' } }
+  return {
+    id,
+    skillId,
+    exercise: {
+      type: 'choice',
+      direction: 'pl-ru',
+      prompt: 'x',
+      options: ['a', 'b'],
+      correct: 'a',
+    },
+  }
 }
 
 beforeEach(() => {
@@ -29,17 +39,25 @@ describe('session.store', () => {
     const i2 = instance('e2', 's1') // same skill, second exercise instance (a requeue)
     useSessionStore.getState().startSession({ sessionId: 1, mode: 'learn', queue: [i1, i2] })
 
-    useSessionStore
-      .getState()
-      .recordAnswer(i1, { skillId: 's1', answerGiven: 'a', correct: false, rating: 1, elapsedMs: 100 })
+    useSessionStore.getState().recordAnswer(i1, {
+      skillId: 's1',
+      answerGiven: 'a',
+      correct: false,
+      rating: 1,
+      elapsedMs: 100,
+    })
     expect(useSessionStore.getState().firstAnswerBySkill.get('s1')).toBe(1)
     expect(useSessionStore.getState().mistakes).toEqual([i1])
 
     // Second attempt at the same skill: firstAnswerBySkill must NOT change (damping rule),
     // and a wrong retry doesn't get queued into `mistakes` a second time.
-    useSessionStore
-      .getState()
-      .recordAnswer(i2, { skillId: 's1', answerGiven: 'b', correct: false, rating: 1, elapsedMs: 50 })
+    useSessionStore.getState().recordAnswer(i2, {
+      skillId: 's1',
+      answerGiven: 'b',
+      correct: false,
+      rating: 1,
+      elapsedMs: 50,
+    })
     expect(useSessionStore.getState().firstAnswerBySkill.get('s1')).toBe(1)
     expect(useSessionStore.getState().mistakes).toEqual([i1])
     expect(useSessionStore.getState().answers.size).toBe(2)
@@ -48,20 +66,20 @@ describe('session.store', () => {
   it('isFirstAnswerInSession reflects firstAnswerBySkill membership', () => {
     useSessionStore.getState().startSession({ sessionId: 1, mode: 'learn', queue: [] })
     expect(isFirstAnswerInSession(useSessionStore.getState(), 's1')).toBe(true)
-    useSessionStore
-      .getState()
-      .recordAnswer(instance('e1', 's1'), {
-        skillId: 's1',
-        answerGiven: 'a',
-        correct: true,
-        rating: 3,
-        elapsedMs: 10,
-      })
+    useSessionStore.getState().recordAnswer(instance('e1', 's1'), {
+      skillId: 's1',
+      answerGiven: 'a',
+      correct: true,
+      rating: 3,
+      elapsedMs: 10,
+    })
     expect(isFirstAnswerInSession(useSessionStore.getState(), 's1')).toBe(false)
   })
 
   it('appendToQueue grows the queue without touching currentIndex', () => {
-    useSessionStore.getState().startSession({ sessionId: 1, mode: 'learn', queue: [instance('e1', 's1')] })
+    useSessionStore
+      .getState()
+      .startSession({ sessionId: 1, mode: 'learn', queue: [instance('e1', 's1')] })
     useSessionStore.getState().advance()
     useSessionStore.getState().appendToQueue(instance('e2', 's2'))
     const state = useSessionStore.getState()

@@ -16,7 +16,9 @@ const CZLOWIEK_LOCATIVE = encodeSkillId(CZLOWIEK, 'noun:sg:locative')
 const KOBIETA_DATIVE = encodeSkillId(KOBIETA, 'noun:sg:dative')
 const DOBRY_GENITIVE = encodeSkillId(DOBRY, 'adj:sg:masculine_inanimate:genitive')
 
-function log(overrides: Partial<ReviewLogRecord> & Pick<ReviewLogRecord, 'skillId' | 'reviewedAt'>): ReviewLogRecord {
+function log(
+  overrides: Partial<ReviewLogRecord> & Pick<ReviewLogRecord, 'skillId' | 'reviewedAt'>,
+): ReviewLogRecord {
   const wordId = overrides.skillId.split('::')[0]!
   return {
     id: undefined,
@@ -105,7 +107,7 @@ describe('buildSessionSummary — mistakes (acceptance point 2, FR-100)', () => 
     expect(summary.mistakes).toEqual([])
   })
 
-  it('mistakeSkillIds() extracts exactly the mistakes\' skillIds, in order', () => {
+  it("mistakeSkillIds() extracts exactly the mistakes' skillIds, in order", () => {
     const logs: ReviewLogRecord[] = [
       log({ skillId: CZLOWIEK_LOCATIVE, reviewedAt: 1000, rating: AGAIN, correct: false }),
       log({ skillId: KOBIETA_DATIVE, reviewedAt: 2000, rating: GOOD, correct: true }),
@@ -121,11 +123,26 @@ describe('buildSessionSummary — hardestDimensions (acceptance point 3)', () =>
     const logs: ReviewLogRecord[] = [
       // locative: 1/3 correct (~33%)
       log({ skillId: CZLOWIEK_LOCATIVE, reviewedAt: 1000, rating: AGAIN, correct: false }),
-      log({ skillId: encodeSkillId(KOBIETA, 'noun:sg:locative'), reviewedAt: 1100, rating: AGAIN, correct: false }),
-      log({ skillId: encodeSkillId(DOBRY, 'adj:sg:masculine_inanimate:locative'), reviewedAt: 1200, rating: GOOD, correct: true }),
+      log({
+        skillId: encodeSkillId(KOBIETA, 'noun:sg:locative'),
+        reviewedAt: 1100,
+        rating: AGAIN,
+        correct: false,
+      }),
+      log({
+        skillId: encodeSkillId(DOBRY, 'adj:sg:masculine_inanimate:locative'),
+        reviewedAt: 1200,
+        rating: GOOD,
+        correct: true,
+      }),
       // dative: 2/2 correct (100%)
       log({ skillId: KOBIETA_DATIVE, reviewedAt: 2000, rating: GOOD, correct: true }),
-      log({ skillId: encodeSkillId(CZLOWIEK, 'noun:sg:dative'), reviewedAt: 2100, rating: EASY, correct: true }),
+      log({
+        skillId: encodeSkillId(CZLOWIEK, 'noun:sg:dative'),
+        reviewedAt: 2100,
+        rating: EASY,
+        correct: true,
+      }),
     ]
     const summary = buildSessionSummary({ newSkillCount: 0, reviewedSkillCount: 5 }, logs)
 
@@ -135,13 +152,27 @@ describe('buildSessionSummary — hardestDimensions (acceptance point 3)', () =>
       correctCount: 1,
       totalCount: 3,
     })
-    expect(summary.hardestDimensions[1]).toMatchObject({ accuracy: 1, correctCount: 2, totalCount: 2 })
+    expect(summary.hardestDimensions[1]).toMatchObject({
+      accuracy: 1,
+      correctCount: 2,
+      totalCount: 2,
+    })
   })
 
   it('a session with only vocab skills still produces per-direction groups, not one collapsed bucket hiding accuracy', () => {
     const logs: ReviewLogRecord[] = [
-      log({ skillId: encodeSkillId(KOBIETA, 'vocab:pl-ru'), reviewedAt: 1000, rating: AGAIN, correct: false }),
-      log({ skillId: encodeSkillId(CZLOWIEK, 'vocab:pl-ru'), reviewedAt: 1100, rating: GOOD, correct: true }),
+      log({
+        skillId: encodeSkillId(KOBIETA, 'vocab:pl-ru'),
+        reviewedAt: 1000,
+        rating: AGAIN,
+        correct: false,
+      }),
+      log({
+        skillId: encodeSkillId(CZLOWIEK, 'vocab:pl-ru'),
+        reviewedAt: 1100,
+        rating: GOOD,
+        correct: true,
+      }),
     ]
     const summary = buildSessionSummary({ newSkillCount: 2, reviewedSkillCount: 0 }, logs)
     expect(summary.hardestDimensions).toHaveLength(1)

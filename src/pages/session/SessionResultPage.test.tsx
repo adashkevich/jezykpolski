@@ -23,7 +23,10 @@ const KOBIETA = encodeWordId('kobieta', 'NOUN')
 const CZLOWIEK_LOCATIVE = encodeSkillId(CZLOWIEK, 'noun:sg:locative')
 const KOBIETA_DATIVE = encodeSkillId(KOBIETA, 'noun:sg:dative')
 
-function reviewLog(overrides: Partial<ReviewLogRecord> & Pick<ReviewLogRecord, 'skillId' | 'reviewedAt' | 'sessionId'>): Omit<ReviewLogRecord, 'id'> {
+function reviewLog(
+  overrides: Partial<ReviewLogRecord> &
+    Pick<ReviewLogRecord, 'skillId' | 'reviewedAt' | 'sessionId'>,
+): Omit<ReviewLogRecord, 'id'> {
   return {
     wordId: overrides.skillId.split('::')[0]!,
     exerciseType: 'input',

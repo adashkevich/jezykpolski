@@ -108,8 +108,11 @@ const PAST_COLUMNS: ReadonlyArray<{ number: NumberValue; gender: GenderValue }> 
 function PastTenseTable({ rows }: { rows: readonly VerbConjugationRow[] }) {
   if (rows.length === 0) return null
 
-  const cell = (person: (typeof PERSON_DISPLAY_ORDER)[number], number: NumberValue, gender: GenderValue) =>
-    rows.find((r) => r.person === person && r.number === number && r.gender === gender)
+  const cell = (
+    person: (typeof PERSON_DISPLAY_ORDER)[number],
+    number: NumberValue,
+    gender: GenderValue,
+  ) => rows.find((r) => r.person === person && r.number === number && r.gender === gender)
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -122,7 +125,11 @@ function PastTenseTable({ rows }: { rows: readonly VerbConjugationRow[] }) {
                 Лицо
               </th>
               {PAST_COLUMNS.map((col) => (
-                <th key={`${col.number}-${col.gender}`} scope="col" className="py-1.5 pr-3 font-medium">
+                <th
+                  key={`${col.number}-${col.gender}`}
+                  scope="col"
+                  className="py-1.5 pr-3 font-medium"
+                >
                   {GENDER_LABELS[col.gender].pl}
                 </th>
               ))}

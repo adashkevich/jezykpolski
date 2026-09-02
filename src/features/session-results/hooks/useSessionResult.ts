@@ -28,7 +28,11 @@ export type SessionResultStatus =
   | { readonly phase: 'loading' }
   | { readonly phase: 'redirect-home' }
   | { readonly phase: 'error'; readonly message: string }
-  | { readonly phase: 'ready'; readonly session: SessionRecord; readonly summary: SessionSummaryView }
+  | {
+      readonly phase: 'ready'
+      readonly session: SessionRecord
+      readonly summary: SessionSummaryView
+    }
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)

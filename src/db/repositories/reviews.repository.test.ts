@@ -11,7 +11,9 @@ afterEach(async () => {
   await db.delete()
 })
 
-function log(overrides: Partial<ReviewLogRecord> & Pick<ReviewLogRecord, 'wordId' | 'reviewedAt'>): Omit<ReviewLogRecord, 'id'> {
+function log(
+  overrides: Partial<ReviewLogRecord> & Pick<ReviewLogRecord, 'wordId' | 'reviewedAt'>,
+): Omit<ReviewLogRecord, 'id'> {
   return {
     sessionId: 1,
     skillId: `${overrides.wordId}::vocab:pl-ru`,
@@ -33,7 +35,7 @@ describe('reviews.repository', () => {
     expect(id2).toBeGreaterThan(id1)
   })
 
-  it('getLogsForWord returns only that word\'s logs, most recent first', async () => {
+  it("getLogsForWord returns only that word's logs, most recent first", async () => {
     await logReview(log({ wordId: 'a|NOUN', reviewedAt: 100 }))
     await logReview(log({ wordId: 'a|NOUN', reviewedAt: 300 }))
     await logReview(log({ wordId: 'a|NOUN', reviewedAt: 200 }))
@@ -66,7 +68,10 @@ describe('reviews.repository', () => {
   })
 
   it('never deletes: no delete API is exposed by this module', () => {
-    const mod = { getLogsForWord, getLogsForSession, getLogsSince, logReview } as Record<string, unknown>
+    const mod = { getLogsForWord, getLogsForSession, getLogsSince, logReview } as Record<
+      string,
+      unknown
+    >
     expect(Object.keys(mod).some((k) => /delete|remove|clear/i.test(k))).toBe(false)
   })
 })

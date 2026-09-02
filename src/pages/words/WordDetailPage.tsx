@@ -69,7 +69,11 @@ function WordDetailContent({ wordId, entry }: { wordId: WordId; entry: WordIndex
 
   return (
     <PageContainer className="gap-5">
-      <WordHeader entry={entry} primaryTranslation={primaryTranslation} paradigm={lazyParadigm.paradigm} />
+      <WordHeader
+        entry={entry}
+        primaryTranslation={primaryTranslation}
+        paradigm={lazyParadigm.paradigm}
+      />
 
       <SensesList status={sensesStatus} senses={senses} error={sensesError} />
 

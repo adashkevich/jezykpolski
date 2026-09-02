@@ -101,7 +101,11 @@ const RANK_RELAXATION_MULTIPLIERS = [9, 27] as const
 /** Step 2: "фильтр по частоте: rank в диапазоне [rank/3, rank*3]" — `multiplier` defaults to
  *  the spec's own ×3, but step 5's rank relaxation reuses this with a wider multiplier
  *  instead of dropping the rank bound in one jump (see `RANK_RELAXATION_MULTIPLIERS`). */
-function withinRankWindow(candidate: WordIndexEntry, target: WordIndexEntry, multiplier = 3): boolean {
+function withinRankWindow(
+  candidate: WordIndexEntry,
+  target: WordIndexEntry,
+  multiplier = 3,
+): boolean {
   return candidate.rank >= target.rank / multiplier && candidate.rank <= target.rank * multiplier
 }
 
@@ -171,7 +175,9 @@ export function pickVocabDistractors(
 
   // Steps 2 + 3.
   const rankFiltered = fullPool.filter((candidate) => withinRankWindow(candidate, target))
-  const rankAndLevelFiltered = rankFiltered.filter((candidate) => withinLevelWindow(candidate, target))
+  const rankAndLevelFiltered = rankFiltered.filter((candidate) =>
+    withinLevelWindow(candidate, target),
+  )
 
   // Step 4, at full strictness.
   let candidates = excludeTranslationOverlap(rankAndLevelFiltered, targetTranslations)
@@ -189,7 +195,9 @@ export function pickVocabDistractors(
   // instead of jumping straight to "any same-POS word whatsoever".
   for (const multiplier of RANK_RELAXATION_MULTIPLIERS) {
     if (candidates.length >= n) break
-    const widerRankFiltered = fullPool.filter((candidate) => withinRankWindow(candidate, target, multiplier))
+    const widerRankFiltered = fullPool.filter((candidate) =>
+      withinRankWindow(candidate, target, multiplier),
+    )
     candidates = excludeTranslationOverlap(widerRankFiltered, targetTranslations)
   }
   // Last resort: same POS, no rank bound at all (task text, "Шаг 5 нужен для редких слов" —

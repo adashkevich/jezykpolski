@@ -23,7 +23,9 @@ afterEach(async () => {
   await db.delete()
 })
 
-function makeSkill(overrides: Partial<SkillRecord> & Pick<SkillRecord, 'skillId' | 'wordId'>): SkillRecord {
+function makeSkill(
+  overrides: Partial<SkillRecord> & Pick<SkillRecord, 'skillId' | 'wordId'>,
+): SkillRecord {
   return {
     kind: 'vocab',
     dimension: 'vocab:pl-ru',
@@ -44,7 +46,12 @@ function makeSkill(overrides: Partial<SkillRecord> & Pick<SkillRecord, 'skillId'
 describe('ensureSkill', () => {
   it('creates a fresh "new" skill on first call', async () => {
     const before = Date.now()
-    const skill = await ensureSkill('kobieta|NOUN::vocab:pl-ru', 'kobieta|NOUN', 'vocab', 'vocab:pl-ru')
+    const skill = await ensureSkill(
+      'kobieta|NOUN::vocab:pl-ru',
+      'kobieta|NOUN',
+      'vocab',
+      'vocab:pl-ru',
+    )
     expect(skill.state).toBe('new')
     expect(skill.stability).toBe(0)
     expect(skill.reps).toBe(0)
@@ -55,12 +62,22 @@ describe('ensureSkill', () => {
   })
 
   it('is idempotent: a second call returns the SAME record and does not reset state', async () => {
-    const first = await ensureSkill('kobieta|NOUN::vocab:pl-ru', 'kobieta|NOUN', 'vocab', 'vocab:pl-ru')
+    const first = await ensureSkill(
+      'kobieta|NOUN::vocab:pl-ru',
+      'kobieta|NOUN',
+      'vocab',
+      'vocab:pl-ru',
+    )
 
     // Simulate the skill having since been reviewed (task 11 would do this via applyAnswer).
     await upsertSkill({ ...first, state: 'review', stability: 42, reps: 3, updatedAt: 999 })
 
-    const second = await ensureSkill('kobieta|NOUN::vocab:pl-ru', 'kobieta|NOUN', 'vocab', 'vocab:pl-ru')
+    const second = await ensureSkill(
+      'kobieta|NOUN::vocab:pl-ru',
+      'kobieta|NOUN',
+      'vocab',
+      'vocab:pl-ru',
+    )
     expect(second.state).toBe('review')
     expect(second.stability).toBe(42)
     expect(second.reps).toBe(3)
@@ -90,7 +107,11 @@ describe('getSkill / getSkillsForWord', () => {
   it('getSkillsForWord returns every skill for a word, nothing else', async () => {
     await db.skills.bulkAdd([
       makeSkill({ skillId: 'kobieta|NOUN::vocab:pl-ru', wordId: 'kobieta|NOUN' }),
-      makeSkill({ skillId: 'kobieta|NOUN::noun:sg:genitive', wordId: 'kobieta|NOUN', kind: 'noun' }),
+      makeSkill({
+        skillId: 'kobieta|NOUN::noun:sg:genitive',
+        wordId: 'kobieta|NOUN',
+        kind: 'noun',
+      }),
       makeSkill({ skillId: 'rower|NOUN::vocab:pl-ru', wordId: 'rower|NOUN' }),
     ])
     const rows = await getSkillsForWord('kobieta|NOUN')
@@ -103,7 +124,11 @@ describe('resetWord', () => {
   it('deletes every skill for the word and its wordProgress cache row', async () => {
     await db.skills.bulkAdd([
       makeSkill({ skillId: 'kobieta|NOUN::vocab:pl-ru', wordId: 'kobieta|NOUN' }),
-      makeSkill({ skillId: 'kobieta|NOUN::noun:sg:genitive', wordId: 'kobieta|NOUN', kind: 'noun' }),
+      makeSkill({
+        skillId: 'kobieta|NOUN::noun:sg:genitive',
+        wordId: 'kobieta|NOUN',
+        kind: 'noun',
+      }),
     ])
     await db.wordProgress.put({
       wordId: 'kobieta|NOUN',

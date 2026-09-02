@@ -166,7 +166,11 @@ function matchesDimension(form: DecodedForm, dimension: Dimension): boolean {
       // as the aggregate case above — `learning/skills/enumerate.ts`'s skill *dimensions*
       // are untouched by this (out of this task's scope; see this task's decision log).
       if (form.gender === 'masculine') {
-        return gender === 'masculine_personal' || gender === 'masculine_animate' || gender === 'masculine_inanimate'
+        return (
+          gender === 'masculine_personal' ||
+          gender === 'masculine_animate' ||
+          gender === 'masculine_inanimate'
+        )
       }
       return false
     }
@@ -211,13 +215,11 @@ export interface NounTable {
 }
 
 export function buildNounTable(paradigm: Paradigm): NounTable {
-  const rows = CASE_DISPLAY_ORDER.map(
-    (caseValue): NounTableRow => ({
-      case: caseValue,
-      singular: getFormsForSlot(paradigm, `noun:sg:${caseValue}`),
-      plural: getFormsForSlot(paradigm, `noun:pl:${caseValue}`),
-    }),
-  )
+  const rows = CASE_DISPLAY_ORDER.map((caseValue): NounTableRow => ({
+    case: caseValue,
+    singular: getFormsForSlot(paradigm, `noun:sg:${caseValue}`),
+    plural: getFormsForSlot(paradigm, `noun:pl:${caseValue}`),
+  }))
   return { rows }
 }
 

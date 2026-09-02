@@ -36,8 +36,8 @@ export function ResetProgressDialog({
             Сбросить прогресс «{lemma}»?
           </AlertDialog.Title>
           <AlertDialog.Description className="mt-2 text-sm text-muted-foreground">
-            Это удалит весь прогресс по переводу и формам этого слова — оно снова станет
-            «новым». Действие нельзя отменить.
+            Это удалит весь прогресс по переводу и формам этого слова — оно снова станет «новым».
+            Действие нельзя отменить.
           </AlertDialog.Description>
           {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
           <div className="mt-4 flex justify-end gap-2">

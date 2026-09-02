@@ -132,7 +132,7 @@ describe('completeSession — dailyStats.sessionsCount', () => {
     expect(stats?.sessionsCount).toBe(1)
   })
 
-  it('increments an existing day\'s sessionsCount without disturbing its other fields', async () => {
+  it("increments an existing day's sessionsCount without disturbing its other fields", async () => {
     vi.stubEnv('TZ', 'Europe/Warsaw')
     const endedAt = Date.UTC(2026, 8, 1, 10, 0, 0)
     await db.dailyStats.put({

@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { __resetLoaderCachesForTest, loadParadigmShard } from './loader.ts'
 import { __resetIndexStoreForTest, initIndexStore } from './index-store.ts'
-import { buildAdjTable, buildNounTable, buildVerbTable, getFormsForSlot, getParadigm } from './paradigms.ts'
+import {
+  buildAdjTable,
+  buildNounTable,
+  buildVerbTable,
+  getFormsForSlot,
+  getParadigm,
+} from './paradigms.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import { decodeForm } from './codec.ts'
 import type { EncodedForm } from './codec.ts'
@@ -143,7 +149,11 @@ describe('buildNounTable (acceptance: kobieta -> 7 cases x 2 numbers, correct fo
   it('every row has both a singular and a plural form, and the forms are the real declension', () => {
     const table = buildNounTable(kobietaParadigm)
     const byCase = Object.fromEntries(table.rows.map((r) => [r.case, r]))
-    expect(byCase.nominative).toEqual({ case: 'nominative', singular: ['kobieta'], plural: ['kobiety'] })
+    expect(byCase.nominative).toEqual({
+      case: 'nominative',
+      singular: ['kobieta'],
+      plural: ['kobiety'],
+    })
     expect(byCase.genitive).toEqual({ case: 'genitive', singular: ['kobiety'], plural: ['kobiet'] })
     expect(byCase.dative).toEqual({ case: 'dative', singular: ['kobiecie'], plural: ['kobietom'] })
     expect(byCase.accusative).toEqual({
@@ -156,8 +166,16 @@ describe('buildNounTable (acceptance: kobieta -> 7 cases x 2 numbers, correct fo
       singular: ['kobietą'],
       plural: ['kobietami'],
     })
-    expect(byCase.locative).toEqual({ case: 'locative', singular: ['kobiecie'], plural: ['kobietach'] })
-    expect(byCase.vocative).toEqual({ case: 'vocative', singular: ['kobieto'], plural: ['kobiety'] })
+    expect(byCase.locative).toEqual({
+      case: 'locative',
+      singular: ['kobiecie'],
+      plural: ['kobietach'],
+    })
+    expect(byCase.vocative).toEqual({
+      case: 'vocative',
+      singular: ['kobieto'],
+      plural: ['kobiety'],
+    })
   })
 })
 
@@ -273,9 +291,7 @@ describe('getParadigm', () => {
   })
 
   it('a repeat getParadigm for a word in an already-loaded shard does not fetch again (acceptance)', async () => {
-    initIndexStore([
-      entry({ lemma: 'kobieta', pos: 'NOUN', rank: 95, paradigmShard: 42 }),
-    ])
+    initIndexStore([entry({ lemma: 'kobieta', pos: 'NOUN', rank: 95, paradigmShard: 42 })])
     const shard = { 'kobieta|NOUN': { forms: KOBIETA_RAW_FORMS, dominantGender: 1 } }
     const fetchMock = makeFetchMock({ 'paradigms/042.json': shard })
     vi.stubGlobal('fetch', fetchMock)
