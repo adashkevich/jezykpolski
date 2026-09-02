@@ -14,12 +14,13 @@ import {
   computeWordProgress,
   getAllWordProgress,
   getWordProgress,
+  getWordProgressSummary,
   recomputeAll,
   recomputeWordProgress,
 } from './words-progress.repository.ts'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
-import type { SkillRecord } from '@/types/progress.ts'
+import type { SkillRecord, WordProgressRecord } from '@/types/progress.ts'
 
 function entry(lemma: string, rank: number): WordIndexEntry {
   return {
@@ -132,5 +133,58 @@ describe('recomputeAll matches incremental recomputeWordProgress bit-for-bit', (
     await recomputeAll()
 
     expect(await getWordProgress('kobieta|NOUN')).toBeUndefined()
+  })
+})
+
+// `spec/tasks/15-home-screen.md` §3/§4: the home screen's "изучается / выучено" counters
+// (overall and per part of speech) must come from `wordProgress`'s `status` index only,
+// never a full-table `.toArray()`. This suite writes `wordProgress` rows directly (bypassing
+// `computeWordProgress`'s content/paradigm pipeline entirely — status-and-POS bucketing
+// doesn't need any of that) to isolate `getWordProgressSummary`'s own aggregation logic.
+describe('getWordProgressSummary', () => {
+  function row(wordId: string, status: WordProgressRecord['status']): WordProgressRecord {
+    return { wordId, status, vocabMaturity: 0, morphMaturity: 0, updatedAt: 0 }
+  }
+
+  it('returns all-zero counts against an empty table', async () => {
+    expect(await getWordProgressSummary()).toEqual({
+      learningTotal: 0,
+      learnedTotal: 0,
+      learnedByPos: {},
+    })
+  })
+
+  it('buckets "learning" (overall) and "known"+"mastered" (overall and per POS) from wordId, ignoring "new"', async () => {
+    await db.wordProgress.bulkPut([
+      row('kot|NOUN', 'learning'),
+      row('pies|NOUN', 'learning'),
+      row('być|VERB', 'learning'),
+      row('kobieta|NOUN', 'known'),
+      row('rower|NOUN', 'known'),
+      row('dom|NOUN', 'known'),
+      row('dobry|ADJ', 'known'),
+      row('człowiek|NOUN', 'mastered'),
+      row('mieć|VERB', 'mastered'),
+      row('robić|VERB', 'mastered'),
+      // A 'new'-status row is not something the real app ever writes (architecture.md §5.2:
+      // "no record" already means new), but the aggregation must not count it either way if
+      // one somehow existed.
+      row('nowy|ADJ', 'new'),
+    ])
+
+    expect(await getWordProgressSummary()).toEqual({
+      learningTotal: 3,
+      learnedTotal: 7, // 4 known + 3 mastered
+      learnedByPos: { NOUN: 4, VERB: 2, ADJ: 1 },
+    })
+  })
+
+  it('reads via the "status" index (primaryKeys), not a full-table scan', async () => {
+    await db.wordProgress.bulkPut([row('kot|NOUN', 'known'), row('pies|NOUN', 'learning')])
+    const toArraySpy = vi.spyOn(db.wordProgress, 'toArray')
+
+    await getWordProgressSummary()
+
+    expect(toArraySpy).not.toHaveBeenCalled()
   })
 })

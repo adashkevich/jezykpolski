@@ -11,11 +11,12 @@
  * `loader.ts#getParadigm` already has.
  */
 import { db } from '../database.ts'
+import type { PosValue } from '@/content/codec.ts'
 import { getIndexStore } from '@/content/index-store.ts'
 import { getParadigm } from '@/content/paradigms.ts'
 import { aggregateWord, deriveStatus } from '@/learning/progress/aggregate.ts'
 import { enumerateSkills } from '@/learning/skills/enumerate.ts'
-import type { SkillId, WordId } from '@/learning/skills/skill-id.ts'
+import { decodeWordId, type SkillId, type WordId } from '@/learning/skills/skill-id.ts'
 import type { SkillRecord, WordProgressRecord } from '@/types/progress.ts'
 
 export async function getWordProgress(wordId: WordId): Promise<WordProgressRecord | undefined> {
@@ -25,6 +26,51 @@ export async function getWordProgress(wordId: WordId): Promise<WordProgressRecor
 export async function getAllWordProgress(): Promise<Map<WordId, WordProgressRecord>> {
   const rows = await db.wordProgress.toArray()
   return new Map(rows.map((row) => [row.wordId, row]))
+}
+
+/** Home screen's per-section counters (`spec/tasks/15-home-screen.md` §3/§4). */
+export interface WordProgressSummary {
+  /** `status === 'learning'`, all parts of speech combined. */
+  learningTotal: number
+  /** `status ∈ {'known', 'mastered'}` — "выучено" — all parts of speech combined. */
+  learnedTotal: number
+  /** Same "выучено" bucket, broken down by POS (missing key ≡ 0). */
+  learnedByPos: Partial<Record<PosValue, number>>
+}
+
+/**
+ * Home screen counters WITHOUT loading all 7998 `wordProgress` rows into memory
+ * (`spec/tasks/15-home-screen.md` §3 "Производительность", acceptance point 8).
+ *
+ * Each status bucket is read via `.where('status').equals(...).primaryKeys()` — Dexie
+ * answers that straight from the `status` index (an IndexedDB index entry is already
+ * `[indexedValue, primaryKey]`), so this never deserializes a `WordProgressRecord` at all,
+ * let alone the whole table. The POS breakdown then comes for free: `wordId` already
+ * encodes its part of speech (`"<lemma>|<POS>"`, `skill-id.ts#decodeWordId`), so bucketing
+ * by POS is a cheap in-memory `decodeWordId` over whichever rows matched `status` — never a
+ * second query, and never a join against content. The POS *denominator* (words per
+ * section) is a separate concern this function deliberately does NOT compute: it lives in
+ * the already-loaded `getIndexStore().byPos` (task 04), a synchronous in-memory Map, not a
+ * Dexie table — callers combine the two themselves.
+ */
+export async function getWordProgressSummary(): Promise<WordProgressSummary> {
+  const [learningIds, knownIds, masteredIds] = await Promise.all([
+    db.wordProgress.where('status').equals('learning').primaryKeys(),
+    db.wordProgress.where('status').equals('known').primaryKeys(),
+    db.wordProgress.where('status').equals('mastered').primaryKeys(),
+  ])
+
+  const learnedByPos: Partial<Record<PosValue, number>> = {}
+  for (const id of [...knownIds, ...masteredIds] as WordId[]) {
+    const { pos } = decodeWordId(id)
+    learnedByPos[pos] = (learnedByPos[pos] ?? 0) + 1
+  }
+
+  return {
+    learningTotal: learningIds.length,
+    learnedTotal: knownIds.length + masteredIds.length,
+    learnedByPos,
+  }
 }
 
 /**

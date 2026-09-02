@@ -15,7 +15,7 @@
  * filtering/list behavior is `WordsListPage.test.tsx`'s job) instead of living in the
  * provider-agnostic `it.each` table below.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { AppRouter } from './router.tsx'
 import { wordPath } from './word-path.ts'
@@ -50,6 +50,17 @@ afterEach(() => {
   __resetIndexStoreForTest()
   __resetLoaderCachesForTest()
   vi.unstubAllGlobals()
+})
+
+// `/` is the real `HomePage` (task 15), not a provider-agnostic stub — it reads the content
+// index directly (`getIndexStore().byPos`, for the per-part-of-speech word counts) and
+// throws synchronously if nothing initialized it first, exactly like `/words` already needs
+// (see that route's dedicated test below). An empty index is enough for every test in this
+// file that lands on `/` (this task doesn't assert on HomePage's actual counters, only that
+// the route renders) — `beforeEach` rather than a one-off call so it covers the several
+// distinct tests below that (re)render `/`, not just the `it.each` entry.
+beforeEach(() => {
+  initIndexStore([])
 })
 
 describe('AppRouter', () => {
