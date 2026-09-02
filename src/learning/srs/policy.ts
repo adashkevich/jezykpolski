@@ -14,6 +14,19 @@
  *       `isFirstAnswerInSession` as a magic boolean at the call site.
  *     - Rule 2 (Practice mode, FR-112) is `capRatingForMode` + `applyPracticeDamping` below.
  *
+ * Task 14 fix (§22 "Режим «Ошибки»", FR-103's "не даёт полноценного SRS-апдейта"):
+ * `shouldApplySrs` now also takes `mode` and returns `false` unconditionally for
+ * `mode === 'mistakes'` — stricter than Rule 1's plain "first answer in session" gate,
+ * because in this mode there IS no meaningful "first answer": every question in a mistakes
+ * review is itself a repeat of an answer the learner just got wrong minutes/hours earlier,
+ * having already seen the correct answer once. Applying SRS credit to *any* rating here
+ * (including a confident Easy) would double-count exactly the inflated-recall problem
+ * app-design.md §22 warns about — so the skill's FSRS state (`due`/`stability`/`difficulty`)
+ * never moves in this mode, no matter how the user answers. The skill's applied
+ * `correct`/`incorrect` tally (`SkillRecord`'s "independent of the FSRS state" counters,
+ * `types/progress.ts`) still updates, same as any in-session repeat — this is intentionally
+ * not the same variable.
+ *
  * Pure domain module: no React, no Dexie, no `features/**` (architecture.md §3). No
  * `ts-fsrs` import — only `fsrs-adapter.ts` may (architecture.md §6.1).
  */
@@ -87,8 +100,13 @@ export function mapResultToRating(result: ExerciseGradeResult): Rating {
  *  `!(skillId in sessionState.firstAnswerBySkill)` at the call site (task 13) — the first
  *  answer to a given skill within one session always applies; every later repeat of that
  *  same skill within the same session (typically "saw the correct answer, retried it 20s
- *  later") never does, no matter how the user answers it. */
-export function shouldApplySrs(isFirstAnswerInSession: boolean): boolean {
+ *  later") never does, no matter how the user answers it.
+ *
+ *  `mode === 'mistakes'` (task 14) overrides all of that to always `false` — see this file's
+ *  header for why a mistakes-review session never gets SRS credit, not even on its first
+ *  (and only) answer to a given skill. */
+export function shouldApplySrs(isFirstAnswerInSession: boolean, mode: SessionMode): boolean {
+  if (mode === 'mistakes') return false
   return isFirstAnswerInSession
 }
 

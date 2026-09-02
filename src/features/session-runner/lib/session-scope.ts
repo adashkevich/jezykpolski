@@ -23,19 +23,30 @@
  *    fallback for direct `/session` navigation) — the global pool: every due skill, every
  *    not-yet-started word, ordered by rank.
  *
+ * A fourth scope, added by task 14 (`spec/app-design.md` §22 "Режим «Ошибки»", FR-102):
+ *
+ *  - `{ skillIds }` (`SessionResultPage`'s "Разобрать ошибки") — an explicit, fixed list of
+ *    skills that were answered wrong in the session just finished. Unlike the three scopes
+ *    above, this is NOT a Learn queue in disguise: no due-filtering (every listed skill goes
+ *    in regardless of its own `due` timestamp — the whole point is "review what you just
+ *    missed *now*, not whenever SRS would have scheduled it"), and no new-word budget (a
+ *    mistakes review only ever revisits skills that already exist). `useSessionBootstrap.ts`
+ *    is what actually maps this scope to `mode: 'mistakes'` — this module only resolves the
+ *    candidate pool, same as it does for the other three scopes; it has no opinion on mode.
+ *
  * `targetSize`/`newWordsBudget` (FR-133) come from `settings.repository.ts` with the task
  * text's own stated defaults (20 / 10) as fallback — no settings screen writes these keys
  * yet (task 24), so every session runs at the default until one does; the word-scoped case
  * overrides both so the single word the user explicitly asked to practice is never silently
  * dropped by an unrelated daily-goal setting.
  */
-import { getDueSkills } from '@/db/repositories/skills.repository.ts'
+import { getDueSkills, getSkill } from '@/db/repositories/skills.repository.ts'
 import { getSkillsForWord } from '@/db/repositories/skills.repository.ts'
 import { getAllWordProgress } from '@/db/repositories/words-progress.repository.ts'
 import * as settingsRepo from '@/db/repositories/settings.repository.ts'
 import { queryWords, type WordQuery } from '@/content/query.ts'
 import { getIndexStore } from '@/content/index-store.ts'
-import { encodeWordId, type WordId } from '@/learning/skills/skill-id.ts'
+import { encodeWordId, type SkillId, type WordId } from '@/learning/skills/skill-id.ts'
 import type { SkillRecord } from '@/types/progress.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 
@@ -43,6 +54,7 @@ export type SessionScope =
   | { readonly kind: 'global' }
   | { readonly kind: 'word'; readonly wordId: WordId }
   | { readonly kind: 'filter'; readonly filter: WordQuery }
+  | { readonly kind: 'mistake'; readonly skillIds: readonly SkillId[] }
 
 const DEFAULT_TARGET_SIZE_KEY = 'sessionTargetSize'
 const DEFAULT_NEW_WORDS_BUDGET_KEY = 'dailyNewWordsBudget'
@@ -53,12 +65,18 @@ const DEFAULT_NEW_WORDS_BUDGET = 10
  *  trims to `targetSize` anyway, this just bounds one Dexie read for a large backlog. */
 const DUE_SKILLS_FETCH_LIMIT = 2000
 
-/** Reads the raw `location.state` payload `LearnFab`/`WordActions` attach and narrows it to
- *  a `SessionScope` — anything else (including a plain reload with no state, or a future
- *  caller that passes nothing) falls back to `'global'`. */
+/** Reads the raw `location.state` payload `LearnFab`/`WordActions`/`SessionResultPage`
+ *  attach and narrows it to a `SessionScope` — anything else (including a plain reload with
+ *  no state, or a future caller that passes nothing) falls back to `'global'`.
+ *  `{ skillIds }` (task 14, `SessionResultPage`'s "Разобрать ошибки") is checked first: it's
+ *  the most specific shape, and — unlike `wordId`/`filter` — always non-empty by the time
+ *  the button that produces it is even shown (see that page's own guard). */
 export function parseSessionScope(locationState: unknown): SessionScope {
   if (locationState && typeof locationState === 'object') {
     const state = locationState as Record<string, unknown>
+    if (Array.isArray(state.skillIds)) {
+      return { kind: 'mistake', skillIds: state.skillIds as SkillId[] }
+    }
     if (typeof state.wordId === 'string') {
       return { kind: 'word', wordId: state.wordId }
     }
@@ -109,6 +127,26 @@ async function resolveFilterScope(filter: WordQuery, now: number): Promise<Sessi
   return { dueSkills, candidateNewWords, targetSize, newWordsBudget }
 }
 
+/**
+ * Task 14's fourth scope — see this file's header. Fetches each listed skill's current
+ * `SkillRecord` directly (`getSkill`, not `getDueSkills`): the whole point is bypassing
+ * due-filtering entirely, so this never calls into `getDueSkills` at all. A `skillId` whose
+ * `SkillRecord` has since vanished (defensive only — nothing in this app deletes skills
+ * today) is silently dropped rather than throwing, matching `resolveWordScope`'s own "an
+ * already-scheduled-but-not-due word yields an empty scope" spirit: a stale reference should
+ * shrink the queue, not crash the whole session launch.
+ */
+async function resolveMistakeScope(skillIds: readonly SkillId[]): Promise<SessionCandidates> {
+  const skills = await Promise.all(skillIds.map((skillId) => getSkill(skillId)))
+  const dueSkills = skills.filter((s): s is SkillRecord => s !== undefined)
+  return {
+    dueSkills,
+    candidateNewWords: [],
+    targetSize: dueSkills.length,
+    newWordsBudget: 0,
+  }
+}
+
 async function resolveGlobalScope(now: number): Promise<SessionCandidates> {
   const [progress, targetSize, newWordsBudget, dueSkills] = await Promise.all([
     getAllWordProgress(),
@@ -131,5 +169,7 @@ export function resolveSessionCandidates(
       return resolveFilterScope(scope.filter, now)
     case 'global':
       return resolveGlobalScope(now)
+    case 'mistake':
+      return resolveMistakeScope(scope.skillIds)
   }
 }

@@ -45,12 +45,13 @@ import { useEffect, useMemo, useRef, useState, type ComponentType, type RefObjec
 import { LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button.tsx'
 import { getSkill } from '@/db/repositories/skills.repository.ts'
-import { completeSession } from '@/db/repositories/sessions.repository.ts'
+import { completeSession, deleteSession } from '@/db/repositories/sessions.repository.ts'
 import type { Exercise, ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import type { GradeResult } from '@/learning/exercises/grade.ts'
 import { AGAIN } from '@/learning/srs/policy.ts'
 import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import type { SkillId } from '@/learning/skills/skill-id.ts'
+import type { SessionMode } from '@/types/progress.ts'
 import { isFirstAnswerInSession, useSessionStore } from '@/stores/session.store.ts'
 import type { SessionRuntime } from '../hooks/useSessionBootstrap.ts'
 import { correctAnswerOf, submitAnswer, toSrsState } from '../lib/answer-pipeline.ts'
@@ -62,9 +63,13 @@ import { SessionProgressBar } from './SessionProgressBar.tsx'
 
 export interface SessionRunnerProps {
   readonly runtime: SessionRuntime
-  /** Queue emptied (or "Выйти" confirmed) and `sessions.completeSession` already wrote —
-   *  `SessionPage` navigates to `/session/result` from here. */
-  onFinished(): void
+  /**
+   * Queue emptied (or "Выйти" confirmed) and the session row already written (either
+   * `completeSession`, or -- task 14 acceptance point 8 -- `deleteSession` for a
+   * zero-answer run, see `finalizeSession` below). `totalCount` lets `SessionPage` tell the
+   * two cases apart: `0` means "don't show /session/result at all, go home" (task text §4).
+   */
+  onFinished(sessionId: number, totalCount: number): void
 }
 
 function summarizeSession(newSkillIds: ReadonlySet<SkillId>) {
@@ -90,29 +95,52 @@ export function SessionRunner({ runtime, onFinished }: SessionRunnerProps) {
 
   const currentInstance = queue[currentIndex]
 
+  /**
+   * Writes the session row exactly once, however the session ends (queue emptied, or
+   * "Выйти" confirmed) -- returns the summary so the caller can decide whether/how to
+   * hand off. Task 14 acceptance point 8: a session that never received a single graded
+   * answer must not leave a garbage row in `sessions` -- `deleteSession` removes it
+   * outright instead of `completeSession` writing a zeroed, permanently-"complete" row that
+   * would otherwise sit there forever with nothing to show on `/session/result`. The
+   * returned `totalCount === 0` is exactly `SessionPage`'s "go home instead" signal.
+   */
+  async function writeSessionRecord() {
+    const summary = summarizeSession(newSkillIdsRef.current)
+    if (summary.totalCount === 0) {
+      await deleteSession(runtime.sessionId)
+    } else {
+      await completeSession(runtime.sessionId, Date.now(), summary)
+    }
+    return summary
+  }
+
   // Queue exhausted -> close out the session exactly once, then hand off to the caller.
   useEffect(() => {
     if (finishedRef.current || queue.length === 0 || currentIndex < queue.length) return
     finishedRef.current = true
     let cancelled = false
     ;(async () => {
-      const summary = summarizeSession(newSkillIdsRef.current)
-      await completeSession(runtime.sessionId, Date.now(), summary)
+      const summary = await writeSessionRecord()
       if (cancelled) return
       useSessionStore.getState().reset()
-      onFinished()
+      onFinished(runtime.sessionId, summary.totalCount)
     })()
     return () => {
       cancelled = true
     }
+    // `writeSessionRecord` is intentionally omitted: it's a plain closure recreated every
+    // render (reading `newSkillIdsRef`/`runtime`, both already stable or already listed),
+    // not a value whose *identity* changing should ever re-run this effect — `finishedRef`
+    // is the real guard against a second run, same pattern `useSessionBootstrap.ts`'s own
+    // mount effect already uses for the same reason.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex, queue.length, runtime, onFinished])
 
   async function handleExitConfirmed() {
     setExitDialogOpen(false)
-    const summary = summarizeSession(newSkillIdsRef.current)
-    await completeSession(runtime.sessionId, Date.now(), summary)
+    const summary = await writeSessionRecord()
     useSessionStore.getState().reset()
-    onFinished()
+    onFinished(runtime.sessionId, summary.totalCount)
   }
 
   return (
@@ -170,7 +198,7 @@ export function SessionRunner({ runtime, onFinished }: SessionRunnerProps) {
 interface ActiveQuestionProps {
   readonly instance: ExerciseInstance
   readonly runtime: SessionRuntime
-  readonly mode: 'learn' | 'practice'
+  readonly mode: SessionMode
   readonly requeuedSkillsRef: RefObject<Set<SkillId>>
   readonly newSkillIdsRef: RefObject<Set<SkillId>>
 }

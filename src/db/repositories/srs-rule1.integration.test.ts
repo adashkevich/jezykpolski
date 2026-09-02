@@ -74,7 +74,11 @@ function buildAnswerInput(args: {
   const rating = mapResultToRating({ correct: true, nearMiss: false, answerKind: 'input' })
   expect(rating).toBe(4) // EASY — "верный, ввод текста" (architecture.md §6.2)
   const { next } = review(toSrsState(skill), rating, reviewedAt)
-  const srsApplied = shouldApplySrs(isFirstAnswerInSession)
+  // 'learn' — this test's own docstring: it plays task 13's future session-runner role
+  // directly, and task 13 (built since) only ever runs this exact scenario in Learn mode.
+  // `shouldApplySrs` gained a required `mode` param in task 14 (the `'mistakes'` addition);
+  // this call site predates that and is unaffected by it either way.
+  const srsApplied = shouldApplySrs(isFirstAnswerInSession, 'learn')
 
   const reviewLog: Omit<ReviewLogRecord, 'id'> = {
     sessionId: 1,

@@ -27,6 +27,7 @@
  * than materializing it itself.
  */
 import { db } from '../database.ts'
+import { toLocalDateKey } from '@/lib/dates.ts'
 import type { SkillId, WordId } from '@/learning/skills/skill-id.ts'
 import type { ReviewLogRecord, SkillKind, SkillRecord, WordProgressRecord } from '@/types/progress.ts'
 
@@ -61,17 +62,6 @@ export interface AnswerInput {
   /** The word's full next `wordProgress` row (see file header for why this is precomputed
    *  rather than derived in here). Always defined: `wordId` has at least this one skill. */
   readonly nextWordProgress: WordProgressRecord
-}
-
-/** `YYYY-MM-DD` in the *local* timezone (matches `DailyStatsRecord.date`'s stated meaning —
- *  see `types/progress.ts`'s header, "local calendar day"). Deliberately not
- *  `toISOString().slice(0, 10)`, which is UTC and would misfile answers near local midnight. */
-function toLocalDateKey(epochMs: number): string {
-  const d = new Date(epochMs)
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
 }
 
 /**

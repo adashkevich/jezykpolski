@@ -414,4 +414,72 @@ describe('submitAnswer', () => {
     })
     expect(practiceResult.rating).toBe(3) // capped from Easy(4) to Good(3)
   })
+
+  it('mistakes mode: SkillRecord FSRS fields never move, even for a correct free-text (Easy-mapped) answer on the very first answer of the "session" (task 14, FR-103)', async () => {
+    const before = await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+
+    const result = await submitAnswer({
+      sessionId: 1,
+      mode: 'mistakes',
+      exercise: INPUT_EXERCISE,
+      skillId: SKILL_ID,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: 'женщина',
+      // Deliberately `true` — a mistakes-review is always this skill's first (and only)
+      // answer within that "session", so this is the realistic call shape. The point of
+      // the test is that `shouldApplySrs` ignores it entirely for this mode.
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now: 1_000_000,
+    })
+
+    // Not capped (capRatingForMode only special-cases 'practice') — the *rating* recorded is
+    // the real Easy, only the FSRS write is suppressed.
+    expect(result.rating).toBe(4)
+    expect(result.gradeResult.correct).toBe(true)
+
+    const after = await getSkill(SKILL_ID)
+    expect(after).toBeDefined()
+    // Every FSRS-facing field is byte-for-byte unchanged from the freshly-ensured skill.
+    expect(after!.state).toBe(before.state)
+    expect(after!.stability).toBe(before.stability)
+    expect(after!.difficulty).toBe(before.difficulty)
+    expect(after!.due).toBe(before.due)
+    expect(after!.reps).toBe(before.reps)
+    expect(after!.lapses).toBe(before.lapses)
+    expect(after!.lastReviewAt).toBe(before.lastReviewAt)
+    // Applied stats still move (same "independent of FSRS state" rule as any in-session
+    // repeat) — mistakes mode isn't a no-op write, just a no-SRS-credit one.
+    expect(after!.correct).toBe(before.correct + 1)
+
+    const logs = await getLogsForSession(1)
+    expect(logs).toHaveLength(1)
+    expect(logs[0]).toMatchObject({ srsApplied: false, correct: true, rating: 4 })
+  })
+
+  it('mistakes mode: an incorrect (Again-mapped) answer also leaves the SkillRecord untouched', async () => {
+    const before = await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+
+    await submitAnswer({
+      sessionId: 1,
+      mode: 'mistakes',
+      exercise: CHOICE_EXERCISE,
+      skillId: SKILL_ID,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: 'мужчина',
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now: 1_000_000,
+    })
+
+    const after = await getSkill(SKILL_ID)
+    expect(after!.due).toBe(before.due)
+    expect(after!.reps).toBe(before.reps)
+    expect(after!.incorrect).toBe(before.incorrect + 1)
+
+    const logs = await getLogsForSession(1)
+    expect(logs[0]).toMatchObject({ srsApplied: false, correct: false })
+  })
 })

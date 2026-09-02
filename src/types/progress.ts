@@ -114,8 +114,16 @@ export interface ReviewLogRecord {
 // see file header).
 // ---------------------------------------------------------------------------
 
-/** `spec/app-design.md` §24 "Свободная тренировка vs обучение": Learn / Practice. No `Lesson`. */
-export type SessionMode = 'learn' | 'practice'
+/**
+ * `spec/app-design.md` §24 "Свободная тренировка vs обучение": Learn / Practice. No `Lesson`.
+ *
+ * `'mistakes'` (task 14, `spec/architecture.md` §10's `SessionState.mode` — this task's own
+ * fix to a gap left by task 03: that section already declared all three variants, but this
+ * union only had two) is the §22 "Повторить только ошибки" mode: a fixed queue built from
+ * `resolveMistakeScope` (`features/session-runner/lib/session-scope.ts`), never SRS-scheduled
+ * (`learning/srs/policy.ts#shouldApplySrs` returns `false` unconditionally for it — FR-103).
+ */
+export type SessionMode = 'learn' | 'practice' | 'mistakes'
 
 export interface SessionRecord {
   /** Auto-increment primary key; absent before insert. */

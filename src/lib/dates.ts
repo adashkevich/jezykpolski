@@ -56,4 +56,22 @@ export function in7Days(now: number): number {
   return addDays(now, 7)
 }
 
+/**
+ * `YYYY-MM-DD` in the *local* timezone (matches `DailyStatsRecord.date`'s stated meaning —
+ * `types/progress.ts`'s header, "local calendar day"). Deliberately not
+ * `toISOString().slice(0, 10)`, which is UTC and would misfile an answer/session near local
+ * midnight — precisely the "session around midnight" scenario task 14's acceptance list
+ * calls out. Extracted here (task 14) from `db/repositories/answer.repository.ts`'s
+ * originally-private copy so `sessions.repository.ts#completeSession` can bucket its own
+ * `dailyStats.sessionsCount` bump by the exact same rule, without a second, possibly
+ * drifting definition of "today".
+ */
+export function toLocalDateKey(epochMs: number): string {
+  const d = new Date(epochMs)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export { MS_PER_DAY }

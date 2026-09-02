@@ -29,11 +29,11 @@ import type { SkillId, WordId } from '@/learning/skills/skill-id.ts'
 import { applyAnswer } from '@/db/repositories/answer.repository.ts'
 import { getSkill, getSkillsForWord } from '@/db/repositories/skills.repository.ts'
 import { computeWordProgress } from '@/db/repositories/words-progress.repository.ts'
-import type { Rating, ReviewLogRecord, SkillKind, SkillRecord } from '@/types/progress.ts'
+import type { Rating, ReviewLogRecord, SessionMode, SkillKind, SkillRecord } from '@/types/progress.ts'
 
 export interface SubmitAnswerInput {
   readonly sessionId: number
-  readonly mode: 'learn' | 'practice'
+  readonly mode: SessionMode
   readonly exercise: Exercise
   readonly skillId: SkillId
   readonly wordId: WordId
@@ -140,7 +140,7 @@ export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnsw
 
   const { next } = review(toSrsState(currentSkill), cappedRating, now)
   const dampedNext = applyPracticeDamping(next, mode, now)
-  const srsApplied = shouldApplySrs(input.isFirstAnswerInSession)
+  const srsApplied = shouldApplySrs(input.isFirstAnswerInSession, mode)
 
   // Mirrors architecture.md §5.2's lazy-materialization rule read backwards: a skill that
   // has never once been graded (regardless of *when* its SkillRecord row was created — could

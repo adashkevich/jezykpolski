@@ -29,8 +29,20 @@ export function SessionPage() {
   const scope = useMemo(() => parseSessionScope(location.state), [location.state])
   const { status, resumeIncomplete, abandonAndStartFresh, retry } = useSessionBootstrap(scope)
 
-  function goToResults() {
-    navigate('/session/result', { replace: true })
+  /**
+   * `SessionRunner`'s `onFinished` — task 14 acceptance point 8: a session that ended with
+   * zero graded answers (immediate "Выйти") has nothing to show on `/session/result` (and
+   * `deleteSession` already removed its row there), so it goes straight home instead. Every
+   * other case passes `sessionId` as router state — `SessionResultPage` has no other way to
+   * know which session to render, since the active session's own Zustand state is already
+   * reset by the time this fires.
+   */
+  function goToResults(sessionId: number, totalCount: number) {
+    if (totalCount === 0) {
+      navigate('/', { replace: true })
+      return
+    }
+    navigate('/session/result', { replace: true, state: { sessionId } })
   }
 
   return (

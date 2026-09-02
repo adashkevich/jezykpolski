@@ -163,7 +163,12 @@ export function useSessionBootstrap(scope: SessionScope) {
   async function startFresh() {
     setStatus({ phase: 'loading' })
     try {
-      await buildAndStart({ mode: 'learn', excludeSkillIds: new Set(), prefillFirstAnswers: new Map() })
+      // Task 14: the one scope that isn't a Learn queue in disguise — `SessionResultPage`'s
+      // "Разобрать ошибки" always launches `{ kind: 'mistake' }`, and that scope has no
+      // other reason to exist than starting a `mode: 'mistakes'` session (see
+      // `session-scope.ts`'s own header). Every other scope keeps today's `'learn'` default.
+      const mode: SessionMode = scope.kind === 'mistake' ? 'mistakes' : 'learn'
+      await buildAndStart({ mode, excludeSkillIds: new Set(), prefillFirstAnswers: new Map() })
     } catch (error: unknown) {
       if (aliveRef.current) setStatus({ phase: 'error', message: errorMessage(error) })
     }

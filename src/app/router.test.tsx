@@ -59,13 +59,17 @@ describe('AppRouter', () => {
     ['/verbs', 'Глаголы'],
     ['/adjectives', 'Прилагательные'],
     ['/session', 'Сессия'],
-    ['/session/result', 'Результаты сессии'],
     ['/practice', 'Практика'],
     ['/stats', 'Прогресс'],
     ['/settings', 'Настройки'],
   ])('renders the %s stub', (path, heading) => {
     renderAt(path)
     expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument()
+  })
+
+  it('redirects /session/result to the home screen when there is no sessionId to show (task 14, real page replacing the task-06 stub)', async () => {
+    renderAt('/session/result')
+    expect(await screen.findByRole('heading', { name: 'Главная' })).toBeInTheDocument()
   })
 
   it('renders the /words screen (WordsListPage, task 07)', () => {

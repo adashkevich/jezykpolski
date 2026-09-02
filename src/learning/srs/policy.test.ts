@@ -42,9 +42,16 @@ describe('mapResultToRating (architecture.md §6.2)', () => {
 })
 
 describe('shouldApplySrs (Rule 1 / FR-103)', () => {
-  it('applies only on the first answer to a skill within a session', () => {
-    expect(shouldApplySrs(true)).toBe(true)
-    expect(shouldApplySrs(false)).toBe(false)
+  it('applies only on the first answer to a skill within a session (learn/practice)', () => {
+    expect(shouldApplySrs(true, 'learn')).toBe(true)
+    expect(shouldApplySrs(false, 'learn')).toBe(false)
+    expect(shouldApplySrs(true, 'practice')).toBe(true)
+    expect(shouldApplySrs(false, 'practice')).toBe(false)
+  })
+
+  it('mode "mistakes" (task 14) always returns false, even on a first answer', () => {
+    expect(shouldApplySrs(true, 'mistakes')).toBe(false)
+    expect(shouldApplySrs(false, 'mistakes')).toBe(false)
   })
 })
 

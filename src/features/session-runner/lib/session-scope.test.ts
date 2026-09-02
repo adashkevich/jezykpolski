@@ -57,6 +57,18 @@ describe('parseSessionScope', () => {
     expect(parseSessionScope({ filter })).toEqual({ kind: 'filter', filter })
   })
 
+  it('narrows { skillIds } router state (SessionResultPage.tsx "Разобрать ошибки", task 14) to the mistake scope', () => {
+    const skillIds = ['dom|NOUN::noun:sg:genitive', 'robic|VERB::verb:present:1:sg']
+    expect(parseSessionScope({ skillIds })).toEqual({ kind: 'mistake', skillIds })
+  })
+
+  it('{ skillIds } takes priority over wordId/filter if a caller somehow sent both', () => {
+    expect(parseSessionScope({ skillIds: ['a|NOUN::vocab:pl-ru'], wordId: 'b|NOUN' })).toEqual({
+      kind: 'mistake',
+      skillIds: ['a|NOUN::vocab:pl-ru'],
+    })
+  })
+
   it('falls back to global for null/undefined/empty/unrecognized state', () => {
     expect(parseSessionScope(null)).toEqual({ kind: 'global' })
     expect(parseSessionScope(undefined)).toEqual({ kind: 'global' })
@@ -187,5 +199,57 @@ describe('resolveWordScope (kind: word)', () => {
     await expect(
       resolveSessionCandidates({ kind: 'word', wordId: 'nope|NOUN' }, Date.now()),
     ).rejects.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// resolveSessionCandidates — mistake scope (task 14, SessionResultPage "Разобрать ошибки").
+// ---------------------------------------------------------------------------
+
+describe('resolveMistakeScope (kind: mistake)', () => {
+  it('returns exactly the listed skills as dueSkills, with no due-filtering and no new-word budget', async () => {
+    initIndexStore([
+      entry({ lemma: 'dom', pos: 'NOUN', rank: 1 }),
+      entry({ lemma: 'kot', pos: 'NOUN', rank: 2 }),
+    ])
+    const domId = encodeWordId('dom', 'NOUN')
+    const kotId = encodeWordId('kot', 'NOUN')
+    const domSkill = encodeSkillId(domId, 'vocab:pl-ru')
+    const kotSkill = encodeSkillId(kotId, 'vocab:pl-ru')
+    await ensureSkill(domSkill, domId, 'vocab', 'vocab:pl-ru')
+    await ensureSkill(kotSkill, kotId, 'vocab', 'vocab:pl-ru')
+
+    // Deliberately called with `now` far BEFORE either skill's `due` — a due-filtered scope
+    // (global/filter/word) would exclude both; the mistake scope must not.
+    const past = Date.now() - 60_000
+    const candidates = await resolveSessionCandidates(
+      { kind: 'mistake', skillIds: [domSkill, kotSkill] },
+      past,
+    )
+
+    expect(candidates.dueSkills.map((s) => s.skillId).sort()).toEqual([domSkill, kotSkill].sort())
+    expect(candidates.candidateNewWords).toEqual([])
+    expect(candidates.newWordsBudget).toBe(0)
+    expect(candidates.targetSize).toBe(2)
+  })
+
+  it('drops a skillId that no longer resolves to a SkillRecord instead of throwing', async () => {
+    initIndexStore([entry({ lemma: 'dom', pos: 'NOUN', rank: 1 })])
+    const domId = encodeWordId('dom', 'NOUN')
+    const domSkill = encodeSkillId(domId, 'vocab:pl-ru')
+    await ensureSkill(domSkill, domId, 'vocab', 'vocab:pl-ru')
+
+    const candidates = await resolveSessionCandidates(
+      { kind: 'mistake', skillIds: [domSkill, 'nope|NOUN::vocab:pl-ru'] },
+      Date.now(),
+    )
+    expect(candidates.dueSkills.map((s) => s.skillId)).toEqual([domSkill])
+    expect(candidates.targetSize).toBe(1)
+  })
+
+  it('an empty skillIds list resolves to a fully empty candidate pool', async () => {
+    const candidates = await resolveSessionCandidates({ kind: 'mistake', skillIds: [] }, Date.now())
+    expect(candidates.dueSkills).toEqual([])
+    expect(candidates.targetSize).toBe(0)
   })
 })
