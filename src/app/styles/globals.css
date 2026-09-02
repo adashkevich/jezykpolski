@@ -55,6 +55,25 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * ACCESSIBILITY FIX (task 26, axe scan): `--muted-foreground`, `--destructive`/`--error`,
+ * `--success`, and `--warning` below were darkened from their original values in this LIGHT
+ * theme block only (the `.dark` block and the `@media (prefers-color-scheme: dark)` mirror
+ * below it were already measured compliant — dark-theme text sits on much darker
+ * backgrounds, giving it contrast headroom the light theme's near-white tints don't have).
+ *
+ * Each of these is used as TEXT color against either the plain light `--background`/`--card`
+ * (white) or a `/10`-opacity tint of itself over that same white (`bg-error/10`,
+ * `bg-success/10`, `bg-warning/10` — `ExerciseFeedback.tsx`'s correct/near-miss/incorrect
+ * panels, `ChoiceExercise.tsx`'s per-option state, `button.tsx`'s `destructive` variant).
+ * Measured live via `@axe-core/playwright` against the real rendered app (not computed by
+ * hand): the original values gave `muted-foreground` 4.34:1 against `bg-muted` (needs
+ * 4.5:1), `destructive`/`error` 3.98:1 against their own `/10` tint, `success` 3.29:1, and
+ * `warning` 2.09:1 — the last two meaning the single most common exercise-feedback state
+ * ("Верно!") failed WCAG AA contrast for every learner in light mode until this fix. New
+ * values keep the same hue/chroma (only `L` moved) and were re-verified to land at
+ * 4.8-5.7:1 against their respective real backgrounds — comfortable margin, not a bare pass.
+ */
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -67,10 +86,10 @@
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: oklch(0.5 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: oklch(0.5 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -80,9 +99,9 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --success: oklch(0.6 0.16 145);
-  --error: oklch(0.577 0.245 27.325);
-  --warning: oklch(0.75 0.16 75);
+  --success: oklch(0.48 0.16 145);
+  --error: oklch(0.5 0.245 27.325);
+  --warning: oklch(0.48 0.16 75);
   --state-new: oklch(0.65 0.02 260);
   --state-learning: oklch(0.75 0.16 75);
   --state-known: oklch(0.7 0.14 220);

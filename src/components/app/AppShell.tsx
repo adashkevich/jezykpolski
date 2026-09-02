@@ -60,7 +60,17 @@ export function AppShell() {
       <UpdateBanner />
       <OfflineBanner />
 
-      <main className="flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))]">
+      {/* `tabIndex={0}` (task 26, axe `scrollable-region-focusable`): this is the app's one
+          scroll container (this file's own header above), and a screen with little or no
+          other focusable content — `/stats` with a tall-but-plain progress layout is the
+          scan's actual repro — would otherwise be reachable by Tab but never actually
+          scrollable by a keyboard-only user once its content overflows the viewport. Making
+          the container itself a tab stop gives Arrow/Page Down/End something to scroll no
+          matter what the current route renders inside it. */}
+      <main
+        tabIndex={0}
+        className="flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))]"
+      >
         <Outlet />
       </main>
 

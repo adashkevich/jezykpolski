@@ -30,8 +30,8 @@ export function ResetProgressDialog({
   return (
     <AlertDialog.Root open={open} onOpenChange={onOpenChange}>
       <AlertDialog.Portal>
-        <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/30 duration-100 data-closed:animate-out data-closed:fade-out-0 data-open:animate-in data-open:fade-in-0" />
-        <AlertDialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl bg-popover bg-clip-padding p-4 text-popover-foreground shadow-lg duration-150 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95">
+        <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/30 duration-100 motion-safe:data-closed:animate-out motion-safe:data-closed:fade-out-0 motion-safe:data-open:animate-in motion-safe:data-open:fade-in-0" />
+        <AlertDialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl bg-popover bg-clip-padding p-4 text-popover-foreground shadow-lg duration-150 motion-safe:data-closed:animate-out motion-safe:data-closed:fade-out-0 motion-safe:data-closed:zoom-out-95 motion-safe:data-open:animate-in motion-safe:data-open:fade-in-0 motion-safe:data-open:zoom-in-95">
           <AlertDialog.Title className="font-heading text-base font-medium text-foreground">
             Сбросить прогресс «{lemma}»?
           </AlertDialog.Title>

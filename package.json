@@ -7,6 +7,7 @@
     "dev": "vite",
     "prebuild": "npm run build:content",
     "build": "tsc -b && vite build",
+    "postbuild": "node scripts/check-bundle-size.ts",
     "build:content": "node scripts/build-content.ts",
     "build:content:dev": "node scripts/build-content.ts --dev",
     "icons:generate": "node scripts/generate-icons.ts",
@@ -39,6 +40,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.3.3",
