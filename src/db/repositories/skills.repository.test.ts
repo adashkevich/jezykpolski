@@ -10,6 +10,7 @@ import {
   getDueSkills,
   getSkill,
   getSkillsForWord,
+  hasAnySkill,
   resetWord,
   upsertSkill,
 } from './skills.repository.ts'
@@ -220,5 +221,16 @@ describe('getDueSkills — perf (acceptance point 2)', () => {
     expect(due.every((s) => s.kind === 'noun' && s.due <= now)).toBe(true)
     console.log(`getDueSkills([kind+due], 5000 rows): ${elapsed.toFixed(3)}ms`)
     expect(elapsed).toBeLessThan(20)
+  })
+})
+
+describe('hasAnySkill', () => {
+  it('is false on an empty table', async () => {
+    expect(await hasAnySkill()).toBe(false)
+  })
+
+  it('is true once at least one skill exists', async () => {
+    await upsertSkill(makeSkill({ skillId: 's1', wordId: 'w1' }))
+    expect(await hasAnySkill()).toBe(true)
   })
 })

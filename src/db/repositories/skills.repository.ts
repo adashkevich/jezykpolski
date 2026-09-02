@@ -20,6 +20,18 @@ export async function getSkillsForWord(wordId: WordId): Promise<SkillRecord[]> {
 }
 
 /**
+ * Whether the user has materialized at least one `SkillRecord` — i.e. has actually started
+ * learning something, as opposed to a freshly-installed, still-empty app
+ * (`spec/tasks/25-offline-update.md` §6: `navigator.storage.persist()` is requested only
+ * after this is true, not on first launch — "запрос на пустом приложении пользователи
+ * отклоняют"). `.limit(1).count()` rather than a plain `.count()` — this only ever needs to
+ * distinguish "zero" from "at least one", so it doesn't need Dexie to walk the whole table.
+ */
+export async function hasAnySkill(): Promise<boolean> {
+  return (await db.skills.limit(1).count()) > 0
+}
+
+/**
  * "What's due now" — the app's most important query (architecture.md §8). Uses the plain
  * `due` index when `kind` is omitted, or the compound `[kind+due]` index when it's given
  * (a section-scoped queue, e.g. "only nouns"). Both are covered by an index — no full scan.

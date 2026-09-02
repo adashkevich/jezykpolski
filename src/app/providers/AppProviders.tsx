@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { ContentProvider } from './ContentProvider.tsx'
 import { DatabaseProvider } from './DatabaseProvider.tsx'
 import { useThemeSync } from '@/features/settings/hooks/useThemeSync.ts'
+import { StoragePersistRequest } from '@/components/app/StoragePersistRequest.tsx'
 
 /**
  * Composes the two readiness gates every route needs before it can render for real
@@ -21,11 +22,16 @@ import { useThemeSync } from '@/features/settings/hooks/useThemeSync.ts'
  * table it reads is guaranteed open), applying the persisted theme class to `<html>` for every
  * route, not just while `/settings` happens to be mounted. It renders nothing itself — see
  * `features/settings/hooks/useThemeSync.ts`.
+ *
+ * Task-25 addition, same pattern: `<StoragePersistRequest />` is another silent sibling here
+ * (needs the `skills` table open, same reason `ThemeSync` sits inside `DatabaseProvider`) —
+ * see `components/app/StoragePersistRequest.tsx`.
  */
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <DatabaseProvider>
       <ThemeSync />
+      <StoragePersistRequest />
       <ContentProvider>{children}</ContentProvider>
     </DatabaseProvider>
   )

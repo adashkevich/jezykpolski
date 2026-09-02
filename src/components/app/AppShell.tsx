@@ -1,6 +1,8 @@
 import { Settings } from 'lucide-react'
 import { Link, Outlet } from 'react-router'
 import { BottomNavigation } from './BottomNavigation.tsx'
+import { OfflineBanner } from './OfflineBanner.tsx'
+import { UpdateBanner } from './UpdateBanner.tsx'
 
 /**
  * Top-level layout every route renders inside (`spec/tasks/06-app-shell-pwa.md` §2):
@@ -54,6 +56,9 @@ export function AppShell() {
           <Settings aria-hidden="true" className="size-5" />
         </Link>
       </header>
+
+      <UpdateBanner />
+      <OfflineBanner />
 
       <main className="flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))]">
         <Outlet />

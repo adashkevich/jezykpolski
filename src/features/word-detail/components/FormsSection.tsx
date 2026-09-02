@@ -15,11 +15,20 @@
  * one. Task 22 (`spec/tasks/22-adjectives-section.md`) extends it once more, to `AdjFormsTable`/
  * `AdvFormsTable` — but only for their shared `DegreeComparisonBlock` rows, not the ADJ case x
  * gender grid (that grid stays plain display; see `AdjFormsTable.tsx`'s own header for why).
+ *
+ * Task 25 (`spec/tasks/25-offline-update.md` §7) makes the error branch offline-aware: a
+ * paradigm shard that was never fetched before (not in the SW's runtime cache, task 24's
+ * opt-in prefetch never ran) and can't be reached now because the device is offline is an
+ * expected, explainable state ("Формы недоступны офлайн", pointing at `/settings`) — not the
+ * same generic "Не удалось загрузить формы: <message>" + Retry shown for a genuine (online)
+ * failure, where retrying is actually the useful next step.
  */
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { Link } from 'react-router'
 import { Button } from '@/components/ui/button.tsx'
 import { cn } from '@/lib/utils'
+import { useOnlineStatus } from '@/hooks/useOnlineStatus.ts'
 import type { PosValue } from '@/content/codec.ts'
 import type { WordId } from '@/learning/skills/skill-id.ts'
 import type { Paradigm } from '@/types/content.ts'
@@ -65,6 +74,7 @@ export function FormsSection({
   skills: readonly SkillRecord[] | undefined
 }) {
   const [open, setOpen] = useState(false)
+  const online = useOnlineStatus()
 
   function handleToggle() {
     const next = !open
@@ -96,17 +106,27 @@ export function FormsSection({
             <p className="text-sm text-muted-foreground">Загрузка форм…</p>
           )}
 
-          {lazyParadigm.status === 'error' && (
-            <div className="flex flex-col items-start gap-2">
-              <p className="text-sm text-destructive">
-                Не удалось загрузить формы
-                {lazyParadigm.error ? `: ${lazyParadigm.error.message}` : ''}.
+          {lazyParadigm.status === 'error' &&
+            (online ? (
+              <div className="flex flex-col items-start gap-2">
+                <p className="text-sm text-destructive">
+                  Не удалось загрузить формы
+                  {lazyParadigm.error ? `: ${lazyParadigm.error.message}` : ''}.
+                </p>
+                <Button type="button" variant="outline" size="sm" onClick={lazyParadigm.load}>
+                  Повторить
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Формы недоступны офлайн. Откройте это слово ещё раз при подключении к сети —
+                или включите заранее в{' '}
+                <Link to="/settings" className="text-foreground underline underline-offset-2">
+                  настройках
+                </Link>{' '}
+                загрузку всех форм для офлайна.
               </p>
-              <Button type="button" variant="outline" size="sm" onClick={lazyParadigm.load}>
-                Повторить
-              </Button>
-            </div>
-          )}
+            ))}
 
           {lazyParadigm.status === 'loaded' &&
             (lazyParadigm.paradigm ? (

@@ -15,10 +15,17 @@
  *
  * `useContent()` and the context object itself live in `content-context.ts`, not here — see
  * that file's header.
+ *
+ * task 25 addition: once the manifest resolves, this also fires (never awaits)
+ * `prewarmSensesCache` and `cleanupStaleContentCaches` — see those modules' own headers.
+ * Both are best-effort background work, not readiness gates: `children` renders as soon as
+ * `manifest`+`index` are ready, exactly as before.
  */
 import { useEffect, useState, type ReactNode } from 'react'
 import { loadIndex, loadManifest } from '@/content/loader.ts'
 import { initIndexStore } from '@/content/index-store.ts'
+import { prewarmSensesCache } from '@/content/senses-prewarm.ts'
+import { cleanupStaleContentCaches } from '@/content/stale-cache-cleanup.ts'
 import { ContentContext, type ContentContextValue } from './content-context.ts'
 import { ErrorState } from '@/components/app/ErrorState.tsx'
 import { LoadingScreen } from '@/components/app/LoadingScreen.tsx'
@@ -43,6 +50,8 @@ export function ContentProvider({ children }: { children: ReactNode }) {
         if (cancelled) return
         initIndexStore(rows)
         setState({ status: 'ready', value: { manifest, wordCount: rows.length } })
+        void prewarmSensesCache(manifest.contentVersion)
+        void cleanupStaleContentCaches(manifest.contentVersion)
       })
       .catch((error: unknown) => {
         if (cancelled) return

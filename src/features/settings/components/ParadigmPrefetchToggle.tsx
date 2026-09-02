@@ -15,6 +15,7 @@ import { useContent } from '@/app/providers/content-context.ts'
 import { Button } from '@/components/ui/button.tsx'
 import { PARADIGMS_SHARD_COUNT } from '@/content/codec.ts'
 import {
+  checkStorageQuota,
   isAbortError,
   isParadigmPrefetchComplete,
   prefetchAllParadigmShards,
@@ -24,9 +25,17 @@ import { SettingRow } from './SettingRow.tsx'
 type PrefetchState =
   | { readonly phase: 'checking' }
   | { readonly phase: 'idle' }
+  /** Quota check (`spec/tasks/25-offline-update.md` §6) came back low before the fetch loop
+   *  even started — not a hard block (the estimate is approximate and browsers differ in
+   *  how they count), just a warning with an explicit "proceed anyway" escape hatch. */
+  | { readonly phase: 'quota-warning'; readonly availableBytes: number | null }
   | { readonly phase: 'running'; readonly done: number; readonly total: number }
   | { readonly phase: 'done' }
   | { readonly phase: 'error'; readonly message: string }
+
+function formatMegabytes(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`
+}
 
 export function ParadigmPrefetchToggle() {
   const { manifest } = useContent()
@@ -47,7 +56,19 @@ export function ParadigmPrefetchToggle() {
     }
   }, [manifest.contentVersion])
 
+  /** Entry point for the "Скачать" button: checks quota first (§6), only actually starting
+   *  the fetch loop once that's clear — or once the user explicitly dismisses the warning
+   *  via `runPrefetch()` below. */
   async function start() {
+    const quota = await checkStorageQuota()
+    if (!quota.ok) {
+      setState({ phase: 'quota-warning', availableBytes: quota.availableBytes })
+      return
+    }
+    await runPrefetch()
+  }
+
+  async function runPrefetch() {
     const controller = new AbortController()
     controllerRef.current = controller
     setState({ phase: 'running', done: 0, total: PARADIGMS_SHARD_COUNT })
@@ -87,6 +108,16 @@ export function ParadigmPrefetchToggle() {
             Скачать (64 шарда, ~1 МБ)
           </Button>
         )}
+        {state.phase === 'quota-warning' && (
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setState({ phase: 'idle' })}>
+              Отмена
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => void runPrefetch()}>
+              Всё равно скачать
+            </Button>
+          </div>
+        )}
         {state.phase === 'running' && (
           <Button type="button" variant="ghost" size="sm" onClick={cancel}>
             Отменить
@@ -116,6 +147,14 @@ export function ParadigmPrefetchToggle() {
             {state.done} из {state.total}
           </span>
         </div>
+      )}
+
+      {state.phase === 'quota-warning' && (
+        <p role="alert" className="text-xs text-muted-foreground">
+          Мало свободного места
+          {state.availableBytes !== null ? ` (~${formatMegabytes(state.availableBytes)})` : ''} —
+          загрузка форм может не поместиться.
+        </p>
       )}
 
       {state.phase === 'error' && (

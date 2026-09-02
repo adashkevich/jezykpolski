@@ -10,6 +10,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PARADIGMS_SHARD_COUNT } from '@/content/codec.ts'
 import {
+  checkStorageQuota,
   isAbortError,
   isParadigmPrefetchComplete,
   paradigmCacheName,
@@ -165,5 +166,31 @@ describe('isParadigmPrefetchComplete', () => {
     vi.stubGlobal('fetch', makeFetchMock())
     await prefetchAllParadigmShards('v1', () => {}, new AbortController().signal)
     expect(await isParadigmPrefetchComplete('v2')).toBe(false)
+  })
+})
+
+describe('checkStorageQuota', () => {
+  it('is ok when plenty of space is available', async () => {
+    vi.stubGlobal('navigator', {
+      storage: { estimate: async () => ({ usage: 1_000_000, quota: 1_000_000_000 }) },
+    })
+    const result = await checkStorageQuota()
+    expect(result.ok).toBe(true)
+    expect(result.availableBytes).toBe(999_000_000)
+  })
+
+  it('is not ok when available space is below the threshold', async () => {
+    vi.stubGlobal('navigator', {
+      storage: { estimate: async () => ({ usage: 999_000_000, quota: 1_000_000_000 }) },
+    })
+    const result = await checkStorageQuota()
+    expect(result.ok).toBe(false)
+    expect(result.availableBytes).toBe(1_000_000)
+  })
+
+  it('reports ok with a null availableBytes when the Storage API is unsupported', async () => {
+    vi.stubGlobal('navigator', {})
+    const result = await checkStorageQuota()
+    expect(result).toEqual({ ok: true, availableBytes: null })
   })
 })

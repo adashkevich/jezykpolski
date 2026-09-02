@@ -25,12 +25,16 @@
  * actually written by anything in the app today, and task 25's own cache-name suffix — baked
  * in at SW-build time from `public/content/manifest.json` — could only ever match the
  * manifest's value anyway, never a runtime IndexedDB read.
+ *
+ * `paradigmCacheName` itself now lives in `@/content/cache-names.ts` (task 25) — re-exported
+ * here so this module's own existing imports (and its test file) don't need to change, but
+ * `vite.config.ts`'s runtime-caching declaration and `content/stale-cache-cleanup.ts` import
+ * the same function from that shared module rather than a second copy of this one.
  */
 import { PARADIGMS_SHARD_COUNT, shardFileStem } from '@/content/codec.ts'
+import { paradigmCacheName } from '@/content/cache-names.ts'
 
-export function paradigmCacheName(contentVersion: string): string {
-  return `paradigms-${contentVersion}`
-}
+export { paradigmCacheName }
 
 /** Mirrors `content/loader.ts#contentUrl`'s own `BASE_URL`-aware join — duplicated rather
  *  than imported because that function isn't exported (task 04's module keeps it private),
@@ -113,4 +117,37 @@ export async function isParadigmPrefetchComplete(contentVersion: string): Promis
   const cache = await caches.open(paradigmCacheName(contentVersion))
   const keys = await cache.keys()
   return keys.length >= PARADIGMS_SHARD_COUNT
+}
+
+// ---------------------------------------------------------------------------
+// Quota check (`spec/tasks/25-offline-update.md` §6): warn before starting the prefetch
+// rather than after it fails partway through. The 64 shards are ~1 MB total (this file's own
+// `ParadigmPrefetchToggle.tsx` label), so headroom well above that is what "мало места"
+// means here — the threshold is intentionally generous (10x the payload) so a genuinely
+// near-full device gets flagged, not a device that merely has less than 1 MB to spare.
+// ---------------------------------------------------------------------------
+
+const MIN_AVAILABLE_BYTES_FOR_PREFETCH = 10 * 1024 * 1024 // 10 MB
+
+export interface StorageQuotaCheck {
+  /** `false` only when the estimate API is available AND reports too little headroom.
+   *  Always `true` when `navigator.storage.estimate` doesn't exist — an unsupported browser
+   *  is not treated as "low space", just as "can't tell". */
+  readonly ok: boolean
+  /** Bytes of `quota - usage`, or `null` if the Storage API isn't available to ask. */
+  readonly availableBytes: number | null
+}
+
+/**
+ * `navigator.storage.estimate()` — best-effort; some browsers (older Safari, some private-
+ * browsing modes) don't implement it at all, in which case this reports "ok" rather than
+ * blocking a prefetch it has no way to actually evaluate.
+ */
+export async function checkStorageQuota(): Promise<StorageQuotaCheck> {
+  if (typeof navigator === 'undefined' || !navigator.storage?.estimate) {
+    return { ok: true, availableBytes: null }
+  }
+  const { usage = 0, quota = 0 } = await navigator.storage.estimate()
+  const availableBytes = quota - usage
+  return { ok: availableBytes >= MIN_AVAILABLE_BYTES_FOR_PREFETCH, availableBytes }
 }
