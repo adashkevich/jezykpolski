@@ -244,6 +244,17 @@ export interface VerbConjugationRow {
    * matching `DecodedForm`s rather than re-derived some other way.
    */
   readonly analytic: boolean
+  /**
+   * Which of `forms` are themselves analytic (added by task 20 for the 84 mixed-aspect
+   * verbs, `spec/tasks/20-verbs-section.md` §3: a slot like `verb:future:1:pl` can hold both
+   * a perfective non-analytic form and an imperfective analytic one at once, e.g.
+   * `przypadamy` / `będziemy przypadać` for `przypadać|VERB` — `matchesDimension` never
+   * filters on `aspect` (there is no `aspect` dimension, architecture.md §5.1), so both
+   * already land in `forms` together; this field only lets the display layer badge the
+   * right one instead of badging (or not badging) the whole row). A subset of `forms`, same
+   * order. Always `[]` for `past` rows (Polish past tense is never analytic).
+   */
+  readonly analyticForms: readonly string[]
 }
 
 export interface VerbTable {
@@ -262,12 +273,24 @@ const PAST_GENDERS_BY_NUMBER: Readonly<Record<NumberValue, readonly GenderValue[
   plural: ['masculine_personal', 'non_masculine_personal'],
 }
 
-/** Whether any form matching `dimension` carries the `analytic` bit — reuses the same
- *  `matchesDimension` predicate `getFormsForSlot` itself filters with, so a row's `analytic`
- *  flag can never disagree with which forms `getFormsForSlot` returned for that same
- *  dimension. */
-function isDimensionAnalytic(paradigm: Paradigm, dimension: Dimension): boolean {
-  return paradigm.forms.some((f) => matchesDimension(f, dimension) && f.analytic)
+/** Same de-dup walk as `getFormsForSlot`, plus which of those forms carry the `analytic` bit
+ *  — one pass over `paradigm.forms` instead of two separate scans. Not exported: this is
+ *  `buildPersonNumberRows`'s own need (`getFormsForSlot` stays the general-purpose,
+ *  analytic-agnostic entry point every other table/consumer uses). */
+function verbSlotForms(
+  paradigm: Paradigm,
+  dimension: Dimension,
+): { forms: string[]; analyticForms: string[] } {
+  const seen = new Set<string>()
+  const forms: string[] = []
+  const analyticForms: string[] = []
+  for (const form of paradigm.forms) {
+    if (!matchesDimension(form, dimension) || seen.has(form.form)) continue
+    seen.add(form.form)
+    forms.push(form.form)
+    if (form.analytic) analyticForms.push(form.form)
+  }
+  return { forms, analyticForms }
 }
 
 function buildPersonNumberRows(
@@ -278,9 +301,9 @@ function buildPersonNumberRows(
   for (const person of PERSON_DISPLAY_ORDER) {
     for (const number of NUMBER_DISPLAY_ORDER) {
       const dimension = makeDimension(person, number)
-      const forms = getFormsForSlot(paradigm, dimension)
+      const { forms, analyticForms } = verbSlotForms(paradigm, dimension)
       if (forms.length > 0) {
-        rows.push({ person, number, forms, analytic: isDimensionAnalytic(paradigm, dimension) })
+        rows.push({ person, number, forms, analytic: analyticForms.length > 0, analyticForms })
       }
     }
   }
@@ -298,7 +321,9 @@ function buildPastRows(paradigm: Paradigm): VerbConjugationRow[] {
         // no `raw_tag` in the real data ever marks a past form analytic), so this is a plain
         // literal rather than another `isDimensionAnalytic` call, to make that fact visible
         // at the call site instead of implicit in what the data happens to contain.
-        if (forms.length > 0) rows.push({ person, number, gender, forms, analytic: false })
+        if (forms.length > 0) {
+          rows.push({ person, number, gender, forms, analytic: false, analyticForms: [] })
+        }
       }
     }
   }

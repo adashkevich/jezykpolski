@@ -365,16 +365,21 @@ describe('task 17 §4 — declension table cells are clickable, navigate with th
   })
 })
 
-describe('acceptance 3 & 5 — robić conjugation: present/past/future/imperative, analytic marked', () => {
-  it('shows all four sections and marks the analytic future', async () => {
+describe('acceptance 3 & 5 — robić conjugation: present/past/future/imperative tabs, analytic marked', () => {
+  it('shows all four tabs and marks the analytic future', async () => {
     renderWordDetail(ROBIC_ID)
     await expandForms()
-    expect(screen.getByText('Настоящее время')).toBeInTheDocument()
-    expect(screen.getByText('Будущее время')).toBeInTheDocument()
-    expect(screen.getByText('Повелительное наклонение')).toBeInTheDocument()
-    expect(screen.getByText('Прошедшее время')).toBeInTheDocument()
+    const user = userEvent.setup()
 
+    expect(screen.getByRole('tab', { name: 'Настоящее время' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Будущее время' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Повелительное наклонение' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Прошедшее время' })).toBeInTheDocument()
+
+    // Present is the default active tab.
     expect(screen.getByText('robię')).toBeInTheDocument() // present, 1sg
+
+    await user.click(screen.getByRole('tab', { name: 'Будущее время' }))
     expect(screen.getByText(/będę robić/)).toBeInTheDocument() // future, 1sg — analytic
     expect(screen.getAllByText('аналит.').length).toBeGreaterThan(0)
   })
@@ -384,10 +389,39 @@ describe('acceptance 4 — past tense shows the gendered variants', () => {
   it('robiłem (masc.) and robiłam (fem.) both appear, on the same row', async () => {
     renderWordDetail(ROBIC_ID)
     await expandForms()
-    const pastHeading = screen.getByText('Прошедшее время')
-    const pastTable = pastHeading.closest('div')!.querySelector('table')!
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('tab', { name: 'Прошедшее время' }))
+    const pastTable = screen.getByRole('tabpanel', { name: 'Прошедшее время' }).querySelector('table')!
     expect(pastTable.textContent).toContain('robiłem')
     expect(pastTable.textContent).toContain('robiłam')
+  })
+})
+
+describe('task 20 — pronouns instead of digits', () => {
+  it('labels rows with pronouns (ja/my, ty/wy, on·ona·ono/oni·one)', async () => {
+    renderWordDetail(ROBIC_ID)
+    await expandForms()
+    expect(screen.getByText('ja / my')).toBeInTheDocument()
+    expect(screen.getByText('ty / wy')).toBeInTheDocument()
+    expect(screen.getByText('on · ona · ono / oni · one')).toBeInTheDocument()
+    expect(screen.queryByText('1 л.')).not.toBeInTheDocument()
+  })
+})
+
+describe('task 20 — conjugation table cells are clickable too (same mechanism as task 17)', () => {
+  it('clicking the present-tense ja/singular cell sends exactly that skillId as targetSkillIds', async () => {
+    const user = userEvent.setup()
+    renderWordDetail(ROBIC_ID)
+    await expandForms()
+
+    await user.click(screen.getByRole('button', { name: /Настоящее время, ja, liczba pojedyncza/i }))
+
+    const state = JSON.parse(screen.getByTestId('session-state').textContent ?? '{}') as {
+      targetSkillIds?: string[]
+      skillIds?: string[]
+    }
+    expect(state.targetSkillIds).toEqual([`${ROBIC_ID}::verb:present:1:sg`])
+    expect(state.skillIds).toBeUndefined()
   })
 })
 

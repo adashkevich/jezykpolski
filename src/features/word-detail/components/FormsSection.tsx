@@ -8,9 +8,11 @@
  * back does not discard already-fetched data (no point re-fetching on next expand), it's a
  * pure `open` toggle.
  *
- * `wordId`/`skills` (task 17, `spec/tasks/17-nouns-section.md` §4) are threaded through only
- * as far as `NounFormsTable`, which is the one table this task made clickable — the other
- * three POS tables' signatures are untouched (no click-to-train for VERB/ADJ/ADV yet).
+ * `wordId`/`skills` (task 17, `spec/tasks/17-nouns-section.md` §4) were threaded through only
+ * as far as `NounFormsTable` at first — the one table task 17 made clickable. Task 20
+ * (`spec/tasks/20-verbs-section.md`) extends the same click-to-train mechanism to
+ * `VerbFormsTable`, reusing task 17's identical `targetSkillIds` navigation rather than a new
+ * one. ADJ/ADV still get neither `wordId` nor `skills` — no click-to-train for them yet.
  */
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
@@ -41,7 +43,7 @@ function FormsTables({
     case 'NOUN':
       return <NounFormsTable wordId={wordId} paradigm={paradigm} skills={skills} />
     case 'VERB':
-      return <VerbFormsTable paradigm={paradigm} />
+      return <VerbFormsTable wordId={wordId} paradigm={paradigm} skills={skills} />
     case 'ADJ':
       return <AdjFormsTable paradigm={paradigm} />
     case 'ADV':
