@@ -34,19 +34,50 @@
  *    is what actually maps this scope to `mode: 'mistakes'` — this module only resolves the
  *    candidate pool, same as it does for the other three scopes; it has no opinion on mode.
  *
+ * A fifth scope, added by task 17 (`spec/tasks/17-nouns-section.md` §4, "точечная
+ * тренировка" from a single declension-table cell):
+ *
+ *  - `{ skillIds }` under `kind: 'skill'` (`NounFormsTable`'s cell click) — also an explicit,
+ *    fixed list, but semantically the *opposite* of the `mistake` scope above: this is a
+ *    plain, ordinary Learn-queue entry for one specific skill the user picked by hand — not
+ *    "I just got this wrong, drill it again right now". It must NOT collapse into
+ *    `mode: 'mistakes'` (which would permanently suppress the SRS update — see
+ *    `learning/srs/policy.ts`'s `shouldApplySrs`, "no matter how the user answers"): a click
+ *    on "Narzędnik / liczba pojedyncza" is the user *choosing what to review next*, and the
+ *    scheduler should credit that review exactly like any other due skill. `useSessionBootstrap.ts`
+ *    needs no change for this: its `mode` ternary only special-cases `'mistake'`, so `'skill'`
+ *    already falls through to `'learn'`, same as `word`/`filter`/`global`.
+ *
+ *    Unlike `resolveMistakeScope`, this calls `ensureSkill` (not `getSkill`): a morphological
+ *    skill the user has never been drilled on yet (the overwhelmingly common case — most
+ *    paradigm slots never get a `SkillRecord` at all, per architecture.md §5.2's lazy
+ *    materialization) has no row to fetch, and the whole point of clicking a table cell is to
+ *    start reviewing it *now*, not to silently no-op because nothing was there yet.
+ *    `NounFormsTable` only ever sends skillIds for dimensions `enumerateSkills` actually
+ *    produced (a cell with no forms in the paradigm isn't clickable — see that component), so
+ *    `ensureSkill`'s `kind`/`dimension` arguments (recovered here via `decodeSkillId` +
+ *    `kindOfDimension`, not re-derived through a second `enumerateSkills` call) are always
+ *    consistent with what the content layer would enumerate for that word.
+ *
  * `targetSize`/`newWordsBudget` (FR-133) come from `settings.repository.ts` with the task
  * text's own stated defaults (20 / 10) as fallback — no settings screen writes these keys
  * yet (task 24), so every session runs at the default until one does; the word-scoped case
  * overrides both so the single word the user explicitly asked to practice is never silently
  * dropped by an unrelated daily-goal setting.
  */
-import { getDueSkills, getSkill } from '@/db/repositories/skills.repository.ts'
+import { ensureSkill, getDueSkills, getSkill } from '@/db/repositories/skills.repository.ts'
 import { getSkillsForWord } from '@/db/repositories/skills.repository.ts'
 import { getAllWordProgress } from '@/db/repositories/words-progress.repository.ts'
 import * as settingsRepo from '@/db/repositories/settings.repository.ts'
 import { queryWords, type WordQuery } from '@/content/query.ts'
 import { getIndexStore } from '@/content/index-store.ts'
-import { encodeWordId, type SkillId, type WordId } from '@/learning/skills/skill-id.ts'
+import { kindOfDimension } from '@/learning/skills/enumerate.ts'
+import {
+  decodeSkillId,
+  encodeWordId,
+  type SkillId,
+  type WordId,
+} from '@/learning/skills/skill-id.ts'
 import type { SkillRecord } from '@/types/progress.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 
@@ -55,6 +86,7 @@ export type SessionScope =
   | { readonly kind: 'word'; readonly wordId: WordId }
   | { readonly kind: 'filter'; readonly filter: WordQuery }
   | { readonly kind: 'mistake'; readonly skillIds: readonly SkillId[] }
+  | { readonly kind: 'skill'; readonly skillIds: readonly SkillId[] }
 
 const DEFAULT_TARGET_SIZE_KEY = 'sessionTargetSize'
 const DEFAULT_NEW_WORDS_BUDGET_KEY = 'dailyNewWordsBudget'
@@ -65,17 +97,28 @@ const DEFAULT_NEW_WORDS_BUDGET = 10
  *  trims to `targetSize` anyway, this just bounds one Dexie read for a large backlog. */
 const DUE_SKILLS_FETCH_LIMIT = 2000
 
-/** Reads the raw `location.state` payload `LearnFab`/`WordActions`/`SessionResultPage`
- *  attach and narrows it to a `SessionScope` — anything else (including a plain reload with
- *  no state, or a future caller that passes nothing) falls back to `'global'`.
- *  `{ skillIds }` (task 14, `SessionResultPage`'s "Разобрать ошибки") is checked first: it's
- *  the most specific shape, and — unlike `wordId`/`filter` — always non-empty by the time
- *  the button that produces it is even shown (see that page's own guard). */
+/** Reads the raw `location.state` payload `LearnFab`/`WordActions`/`SessionResultPage`/
+ *  `NounFormsTable` attach and narrows it to a `SessionScope` — anything else (including a
+ *  plain reload with no state, or a future caller that passes nothing) falls back to
+ *  `'global'`.
+ *
+ *  `{ skillIds }` (task 14, `SessionResultPage`'s "Разобрать ошибки" -> `mode: 'mistakes'`,
+ *  no SRS credit) and `{ targetSkillIds }` (task 17, `NounFormsTable`'s cell click ->
+ *  ordinary `mode: 'learn'`, full SRS credit) are deliberately **different** router-state
+ *  field names, not a shared `skillIds` disambiguated by some second flag — this file's own
+ *  header explains why collapsing a table-cell click into the mistake scope would be a real
+ *  behavioral bug (SRS would never update, no matter how the user answers), so the two must
+ *  never be reachable through the same key. `{ skillIds }` is still checked first only
+ *  because it was here first (task 14 predates task 17); order between the two mutually
+ *  exclusive keys otherwise doesn't matter. */
 export function parseSessionScope(locationState: unknown): SessionScope {
   if (locationState && typeof locationState === 'object') {
     const state = locationState as Record<string, unknown>
     if (Array.isArray(state.skillIds)) {
       return { kind: 'mistake', skillIds: state.skillIds as SkillId[] }
+    }
+    if (Array.isArray(state.targetSkillIds)) {
+      return { kind: 'skill', skillIds: state.targetSkillIds as SkillId[] }
     }
     if (typeof state.wordId === 'string') {
       return { kind: 'word', wordId: state.wordId }
@@ -147,6 +190,29 @@ async function resolveMistakeScope(skillIds: readonly SkillId[]): Promise<Sessio
   }
 }
 
+/**
+ * Task 17's fifth scope — see this file's header. Unlike `resolveMistakeScope`, this calls
+ * `ensureSkill` for every listed `skillId`: a table-cell click on a dimension that has never
+ * been drilled must still start a real Learn session for it, not silently vanish because no
+ * `SkillRecord` existed yet. `kind`/`dimension` come straight from `decodeSkillId` +
+ * `kindOfDimension` — cheap, pure, and exactly what `enumerateSkills` would have produced for
+ * this same dimension, without re-fetching the word's content just to re-derive it.
+ */
+async function resolveSkillScope(skillIds: readonly SkillId[]): Promise<SessionCandidates> {
+  const dueSkills = await Promise.all(
+    skillIds.map((skillId) => {
+      const { wordId, dimension } = decodeSkillId(skillId)
+      return ensureSkill(skillId, wordId, kindOfDimension(dimension), dimension)
+    }),
+  )
+  return {
+    dueSkills,
+    candidateNewWords: [],
+    targetSize: dueSkills.length,
+    newWordsBudget: 0,
+  }
+}
+
 async function resolveGlobalScope(now: number): Promise<SessionCandidates> {
   const [progress, targetSize, newWordsBudget, dueSkills] = await Promise.all([
     getAllWordProgress(),
@@ -171,5 +237,7 @@ export function resolveSessionCandidates(
       return resolveGlobalScope(now)
     case 'mistake':
       return resolveMistakeScope(scope.skillIds)
+    case 'skill':
+      return resolveSkillScope(scope.skillIds)
   }
 }

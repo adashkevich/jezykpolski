@@ -77,7 +77,9 @@ function WordDetailContent({ wordId, entry }: { wordId: WordId; entry: WordIndex
 
       <SensesList status={sensesStatus} senses={senses} error={sensesError} />
 
-      {hasParadigm && <FormsSection pos={entry.pos} lazyParadigm={lazyParadigm} />}
+      {hasParadigm && (
+        <FormsSection pos={entry.pos} wordId={wordId} lazyParadigm={lazyParadigm} skills={skills} />
+      )}
 
       <ProgressSection
         entry={entry}

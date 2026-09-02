@@ -171,6 +171,35 @@ describe('enumerateSkills — multi-form slot (aborcja|NOUN, real data: plural g
   })
 })
 
+// `drzwi|NOUN`'s real paradigm (public/content/paradigms/021.json, decoded) — a genuine
+// pluralia tantum: 7 forms, every one plural, zero singular forms anywhere in the corpus.
+const DRZWI_FORMS: DecodedForm[] = [
+  { form: 'drzwi', number: 'plural', case: 'accusative', gender: 'neuter', analytic: false },
+  { form: 'drzwiom', number: 'plural', case: 'dative', gender: 'neuter', analytic: false },
+  { form: 'drzwi', number: 'plural', case: 'genitive', gender: 'neuter', analytic: false },
+  { form: 'drzwiami', number: 'plural', case: 'instrumental', gender: 'neuter', analytic: false },
+  { form: 'drzwiach', number: 'plural', case: 'locative', gender: 'neuter', analytic: false },
+  { form: 'drzwi', number: 'plural', case: 'nominative', gender: 'neuter', analytic: false },
+  { form: 'drzwi', number: 'plural', case: 'vocative', gender: 'neuter', analytic: false },
+]
+
+describe('enumerateSkills — pluralia tantum (drzwi|NOUN, real data: only plural forms exist)', () => {
+  it('the cartesian product (2 numbers x 7 cases) does NOT happen — zero noun:sg:* skills', () => {
+    const w = word({ lemma: 'drzwi', pos: 'NOUN' })
+    const paradigm: Paradigm = { forms: DRZWI_FORMS, dominantGender: 'neuter' }
+    const skills = enumerateSkills(w, paradigm)
+
+    const nounDims = skills.filter((s) => s.kind === 'noun').map((s) => s.dimension)
+    expect(nounDims).toHaveLength(7) // exactly the 7 real plural slots
+    expect(nounDims.every((d) => d.startsWith('noun:pl:'))).toBe(true)
+    expect(nounDims.some((d) => d.startsWith('noun:sg:'))).toBe(false)
+
+    // Still exactly the 2 vocab skills — a pluralia tantum is not otherwise special-cased.
+    expect(skills.filter((s) => s.kind === 'vocab')).toHaveLength(2)
+    expect(skills).toHaveLength(9)
+  })
+})
+
 describe('enumerateSkills — ADJ aggregate gender expansion (dobry|ADJ, real data)', () => {
   it('expands a non_masculine_personal plural-accusative form into 4 concrete-gender skills sharing the same answer', () => {
     const w = word({ lemma: 'dobry', pos: 'ADJ' })

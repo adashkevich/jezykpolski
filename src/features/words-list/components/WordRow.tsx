@@ -86,6 +86,23 @@ const POS_LABEL: Readonly<Record<PosValue, string>> = {
   ADV: 'Нар.',
 }
 
+/**
+ * The "Формы" bar's aria-label, per POS (task 17, `spec/tasks/17-nouns-section.md` §1: "строка
+ * списка получает вторую шкалу «Склонение»" — `app-design.md` §8's own mockup literally names
+ * it "Склонение", not the generic "Формы" this file used before task 17). VERB gets its own
+ * term for the same reason (task 21's title, "упражнения на спряжение" — "Спряжение" is the
+ * established Russian word for verb conjugation, same register as "Склонение" for declension).
+ * ADJ has no equivalent one-word term anywhere in the spec (FR-45 only says "Формы
+ * прилагательного"), so it keeps the pre-task-17 generic "Формы" rather than inventing one.
+ * ADV never reaches this map — `showFormsBar` is `false` for it (see `WordsListPage.tsx`).
+ */
+const FORMS_BAR_LABEL: Readonly<Record<PosValue, string>> = {
+  NOUN: 'Склонение',
+  VERB: 'Спряжение',
+  ADJ: 'Формы',
+  ADV: 'Формы',
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
@@ -228,7 +245,7 @@ export function WordRow({
               {showFormsBar && (
                 <div
                   role="progressbar"
-                  aria-label={`Формы: ${morphPercent}%`}
+                  aria-label={`${FORMS_BAR_LABEL[entry.pos]}: ${morphPercent}%`}
                   aria-valuenow={morphPercent}
                   aria-valuemin={0}
                   aria-valuemax={100}

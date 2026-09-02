@@ -301,3 +301,38 @@ describe('getParadigm', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
+
+// `public/content/paradigms/021.json`'s `drzwi|NOUN` entry, in full — a real pluralia
+// tantum (task 17, `spec/tasks/17-nouns-section.md` acceptance: "существительное только с
+// формами множественного числа не даёт пустых sg-слотов"). All 7 forms are encoded
+// `number: 2` (plural); the word has no singular forms in the corpus at all.
+const DRZWI_RAW_FORMS: EncodedForm[] = [
+  ['drzwi', 2, 4, 5, 0, 0, 0, 0, 0, 0],
+  ['drzwiom', 2, 3, 5, 0, 0, 0, 0, 0, 0],
+  ['drzwi', 2, 2, 5, 0, 0, 0, 0, 0, 0],
+  ['drzwiami', 2, 5, 5, 0, 0, 0, 0, 0, 0],
+  ['drzwiach', 2, 6, 5, 0, 0, 0, 0, 0, 0],
+  ['drzwi', 2, 1, 5, 0, 0, 0, 0, 0, 0],
+  ['drzwi', 2, 7, 5, 0, 0, 0, 0, 0, 0],
+]
+const drzwiParadigm: Paradigm = { forms: DRZWI_RAW_FORMS.map(decodeForm), dominantGender: 'neuter' }
+
+describe('buildNounTable(drzwi) — real pluralia tantum: 7 rows, every singular slot empty', () => {
+  it('every row has an empty singular array and a real plural form', () => {
+    const table = buildNounTable(drzwiParadigm)
+    expect(table.rows).toHaveLength(7)
+    for (const row of table.rows) {
+      expect(row.singular).toEqual([])
+      expect(row.plural.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('nominative/genitive/vocative plural all literally spell "drzwi" (real Polish syncretism)', () => {
+    const table = buildNounTable(drzwiParadigm)
+    const byCase = Object.fromEntries(table.rows.map((r) => [r.case, r]))
+    expect(byCase.nominative!.plural).toEqual(['drzwi'])
+    expect(byCase.genitive!.plural).toEqual(['drzwi'])
+    expect(byCase.vocative!.plural).toEqual(['drzwi'])
+    expect(byCase.dative!.plural).toEqual(['drzwiom'])
+  })
+})

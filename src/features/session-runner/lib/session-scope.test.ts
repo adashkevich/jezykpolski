@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
-import { ensureSkill } from '@/db/repositories/skills.repository.ts'
+import { ensureSkill, getSkill } from '@/db/repositories/skills.repository.ts'
 import { recomputeWordProgress } from '@/db/repositories/words-progress.repository.ts'
 import * as settingsRepo from '@/db/repositories/settings.repository.ts'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
@@ -67,6 +67,23 @@ describe('parseSessionScope', () => {
       kind: 'mistake',
       skillIds: ['a|NOUN::vocab:pl-ru'],
     })
+  })
+
+  it('narrows { targetSkillIds } router state (NounFormsTable.tsx cell click, task 17) to the skill scope', () => {
+    const skillIds = ['kobieta|NOUN::noun:sg:instrumental']
+    expect(parseSessionScope({ targetSkillIds: skillIds })).toEqual({
+      kind: 'skill',
+      skillIds,
+    })
+  })
+
+  it('{ skillIds } (mistake) and { targetSkillIds } (skill) are independent — the mistake key wins if both are somehow present', () => {
+    expect(
+      parseSessionScope({
+        skillIds: ['a|NOUN::vocab:pl-ru'],
+        targetSkillIds: ['b|NOUN::noun:sg:genitive'],
+      }),
+    ).toEqual({ kind: 'mistake', skillIds: ['a|NOUN::vocab:pl-ru'] })
   })
 
   it('falls back to global for null/undefined/empty/unrecognized state', () => {
@@ -254,6 +271,54 @@ describe('resolveMistakeScope (kind: mistake)', () => {
 
   it('an empty skillIds list resolves to a fully empty candidate pool', async () => {
     const candidates = await resolveSessionCandidates({ kind: 'mistake', skillIds: [] }, Date.now())
+    expect(candidates.dueSkills).toEqual([])
+    expect(candidates.targetSize).toBe(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// resolveSessionCandidates — skill scope (task 17, NounFormsTable cell click).
+// ---------------------------------------------------------------------------
+
+describe('resolveSkillScope (kind: skill)', () => {
+  it('lazily materializes a SkillRecord (state "new") for a dimension never drilled before', async () => {
+    initIndexStore([entry({ lemma: 'kobieta', pos: 'NOUN', rank: 1 })])
+    const wordId = encodeWordId('kobieta', 'NOUN')
+    const skillId = encodeSkillId(wordId, 'noun:sg:instrumental')
+
+    expect(await getSkill(skillId)).toBeUndefined()
+
+    const candidates = await resolveSessionCandidates({ kind: 'skill', skillIds: [skillId] }, Date.now())
+
+    expect(candidates.dueSkills).toHaveLength(1)
+    expect(candidates.dueSkills[0]!.skillId).toBe(skillId)
+    expect(candidates.dueSkills[0]!.kind).toBe('noun')
+    expect(candidates.dueSkills[0]!.dimension).toBe('noun:sg:instrumental')
+    expect(candidates.dueSkills[0]!.state).toBe('new')
+    expect(candidates.candidateNewWords).toEqual([])
+    expect(candidates.newWordsBudget).toBe(0)
+    expect(candidates.targetSize).toBe(1)
+
+    // Idempotent — the same skillId doesn't get materialized twice.
+    expect(await getSkill(skillId)).toBeDefined()
+  })
+
+  it('returns the existing SkillRecord unchanged when one is already there — never a due filter', async () => {
+    initIndexStore([entry({ lemma: 'dom', pos: 'NOUN', rank: 1 })])
+    const wordId = encodeWordId('dom', 'NOUN')
+    const skillId = encodeSkillId(wordId, 'noun:sg:genitive')
+    const existing = await ensureSkill(skillId, wordId, 'noun', 'noun:sg:genitive')
+
+    // Deliberately far in the future of `now` — a due-filtered scope would exclude it, this
+    // one must not (mirrors the mistake-scope test's own point).
+    const past = Date.now() - 60_000
+    const candidates = await resolveSessionCandidates({ kind: 'skill', skillIds: [skillId] }, past)
+
+    expect(candidates.dueSkills).toEqual([existing])
+  })
+
+  it('an empty skillIds list resolves to a fully empty candidate pool', async () => {
+    const candidates = await resolveSessionCandidates({ kind: 'skill', skillIds: [] }, Date.now())
     expect(candidates.dueSkills).toEqual([])
     expect(candidates.targetSize).toBe(0)
   })

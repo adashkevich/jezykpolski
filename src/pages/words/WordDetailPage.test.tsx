@@ -348,6 +348,23 @@ describe('acceptance 2 — kobieta declension: 7 cases x 2 numbers, correct form
   })
 })
 
+describe('task 17 §4 — declension table cells are clickable, navigate with the skill scope', () => {
+  it('clicking the Narzędnik/singular cell sends exactly that skillId as targetSkillIds (not the mistake-scope skillIds)', async () => {
+    const user = userEvent.setup()
+    renderWordDetail(KOBIETA_ID)
+    await expandForms()
+
+    await user.click(screen.getByRole('button', { name: /Narzędnik.*liczba pojedyncza/i }))
+
+    const state = JSON.parse(screen.getByTestId('session-state').textContent ?? '{}') as {
+      targetSkillIds?: string[]
+      skillIds?: string[]
+    }
+    expect(state.targetSkillIds).toEqual([`${KOBIETA_ID}::noun:sg:instrumental`])
+    expect(state.skillIds).toBeUndefined()
+  })
+})
+
 describe('acceptance 3 & 5 — robić conjugation: present/past/future/imperative, analytic marked', () => {
   it('shows all four sections and marks the analytic future', async () => {
     renderWordDetail(ROBIC_ID)

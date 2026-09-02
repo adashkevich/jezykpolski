@@ -70,7 +70,13 @@ export interface SkillDescriptor {
   readonly acceptedAnswers: readonly string[]
 }
 
-function kindOfDimension(dimension: Dimension): SkillKind {
+/** The `SkillKind` a dimension string belongs to — its prefix up to (not including) the
+ *  first `":"` (e.g. `"noun:sg:genitive"` -> `"noun"`). Exported for `session-scope.ts`'s
+ *  `{ kind: 'skill' }` scope (task 17): a click on one table cell only has a bare `SkillId`
+ *  (and therefore, via `decodeSkillId`, a bare `Dimension`) to work with — no `WordIndexEntry`/
+ *  `Paradigm` in hand to re-derive the kind through a full `enumerateSkills` call — so it
+ *  needs this same prefix rule directly, rather than duplicating it. */
+export function kindOfDimension(dimension: Dimension): SkillKind {
   const separatorIndex = dimension.indexOf(':')
   const prefix = separatorIndex === -1 ? dimension : dimension.slice(0, separatorIndex)
   return prefix as SkillKind

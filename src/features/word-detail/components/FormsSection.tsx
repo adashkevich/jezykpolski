@@ -7,23 +7,39 @@
  * Expanding the disclosure is the ONE thing that calls `lazyParadigm.load()` — collapsing it
  * back does not discard already-fetched data (no point re-fetching on next expand), it's a
  * pure `open` toggle.
+ *
+ * `wordId`/`skills` (task 17, `spec/tasks/17-nouns-section.md` §4) are threaded through only
+ * as far as `NounFormsTable`, which is the one table this task made clickable — the other
+ * three POS tables' signatures are untouched (no click-to-train for VERB/ADJ/ADV yet).
  */
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button.tsx'
 import { cn } from '@/lib/utils'
 import type { PosValue } from '@/content/codec.ts'
+import type { WordId } from '@/learning/skills/skill-id.ts'
 import type { Paradigm } from '@/types/content.ts'
+import type { SkillRecord } from '@/types/progress.ts'
 import type { LazyParadigm } from '../hooks/useLazyParadigm.ts'
 import { NounFormsTable } from './forms/NounFormsTable.tsx'
 import { VerbFormsTable } from './forms/VerbFormsTable.tsx'
 import { AdjFormsTable } from './forms/AdjFormsTable.tsx'
 import { AdvFormsTable } from './forms/AdvFormsTable.tsx'
 
-function FormsTables({ pos, paradigm }: { pos: PosValue; paradigm: Paradigm }) {
+function FormsTables({
+  pos,
+  wordId,
+  paradigm,
+  skills,
+}: {
+  pos: PosValue
+  wordId: WordId
+  paradigm: Paradigm
+  skills: readonly SkillRecord[] | undefined
+}) {
   switch (pos) {
     case 'NOUN':
-      return <NounFormsTable paradigm={paradigm} />
+      return <NounFormsTable wordId={wordId} paradigm={paradigm} skills={skills} />
     case 'VERB':
       return <VerbFormsTable paradigm={paradigm} />
     case 'ADJ':
@@ -33,7 +49,17 @@ function FormsTables({ pos, paradigm }: { pos: PosValue; paradigm: Paradigm }) {
   }
 }
 
-export function FormsSection({ pos, lazyParadigm }: { pos: PosValue; lazyParadigm: LazyParadigm }) {
+export function FormsSection({
+  pos,
+  wordId,
+  lazyParadigm,
+  skills,
+}: {
+  pos: PosValue
+  wordId: WordId
+  lazyParadigm: LazyParadigm
+  skills: readonly SkillRecord[] | undefined
+}) {
   const [open, setOpen] = useState(false)
 
   function handleToggle() {
@@ -80,7 +106,12 @@ export function FormsSection({ pos, lazyParadigm }: { pos: PosValue; lazyParadig
 
           {lazyParadigm.status === 'loaded' &&
             (lazyParadigm.paradigm ? (
-              <FormsTables pos={pos} paradigm={lazyParadigm.paradigm} />
+              <FormsTables
+                pos={pos}
+                wordId={wordId}
+                paradigm={lazyParadigm.paradigm}
+                skills={skills}
+              />
             ) : (
               <p className="text-sm text-muted-foreground">У этого слова нет форм.</p>
             ))}
