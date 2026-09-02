@@ -113,10 +113,14 @@ export type SessionScope =
  *  `buildPracticeQueue`), not a `SessionCandidates`. */
 export type LearnLikeSessionScope = Exclude<SessionScope, { kind: 'practice' }>
 
-const DEFAULT_TARGET_SIZE_KEY = 'sessionTargetSize'
-const DEFAULT_NEW_WORDS_BUDGET_KEY = 'dailyNewWordsBudget'
-const DEFAULT_TARGET_SIZE = 20
-const DEFAULT_NEW_WORDS_BUDGET = 10
+// Exported (task 24, `spec/tasks/24-settings-backup.md` §1's "Новых слов в день" / "Заданий
+// в сессии" rows) so `/settings` reads/writes these exact keys and defaults instead of
+// re-declaring its own copies — see that task's file header for the house convention this
+// follows (`hint-mode.ts`'s `NOUN_HINT_MODE_SETTING_KEY` is the same pattern).
+export const DEFAULT_TARGET_SIZE_KEY = 'sessionTargetSize'
+export const DEFAULT_NEW_WORDS_BUDGET_KEY = 'dailyNewWordsBudget'
+export const DEFAULT_TARGET_SIZE = 20
+export const DEFAULT_NEW_WORDS_BUDGET = 10
 
 /** A very generous cap on how many overdue skills a single query pulls in — `buildLearnQueue`
  *  trims to `targetSize` anyway, this just bounds one Dexie read for a large backlog. */

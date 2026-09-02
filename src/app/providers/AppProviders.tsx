@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ContentProvider } from './ContentProvider.tsx'
 import { DatabaseProvider } from './DatabaseProvider.tsx'
+import { useThemeSync } from '@/features/settings/hooks/useThemeSync.ts'
 
 /**
  * Composes the two readiness gates every route needs before it can render for real
@@ -15,14 +16,22 @@ import { DatabaseProvider } from './DatabaseProvider.tsx'
  * (the two loads still run sequentially, not in parallel; each provider fully gates its own
  * `children`), just a deliberate, deterministic order over an arbitrary one.
  *
- * Renders nothing of its own — by the time `children` (the router, in practice) mounts, both
- * IndexedDB is open and the word index is loaded, so pages never need to know either provider
- * exists.
+ * Renders nothing of its own beyond that gating — with one task-24 addition: `<ThemeSync />`
+ * is mounted as a sibling of `<ContentProvider>`, inside `<DatabaseProvider>` (so the `settings`
+ * table it reads is guaranteed open), applying the persisted theme class to `<html>` for every
+ * route, not just while `/settings` happens to be mounted. It renders nothing itself — see
+ * `features/settings/hooks/useThemeSync.ts`.
  */
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <DatabaseProvider>
+      <ThemeSync />
       <ContentProvider>{children}</ContentProvider>
     </DatabaseProvider>
   )
+}
+
+function ThemeSync() {
+  useThemeSync()
+  return null
 }

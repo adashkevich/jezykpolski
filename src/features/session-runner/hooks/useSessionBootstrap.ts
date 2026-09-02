@@ -25,7 +25,6 @@ import type { SkillId } from '@/learning/skills/skill-id.ts'
 import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import { buildLearnQueue } from '@/learning/session/build-learn-queue.ts'
 import { buildPracticeQueue } from '@/learning/session/build-practice-queue.ts'
-import type { PracticeConfig } from '@/learning/session/session.types.ts'
 import type { ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import type { ExerciseCategory } from '@/learning/exercises/picker.ts'
 import {
@@ -33,6 +32,11 @@ import {
   NOUN_HINT_MODE_SETTING_KEY,
   type HintMode,
 } from '@/learning/exercises/hint-mode.ts'
+import {
+  DEFAULT_EXERCISE_TYPES_DEFAULT,
+  DEFAULT_EXERCISE_TYPES_SETTING_KEY,
+  resolveForceCategory,
+} from '@/learning/exercises/default-exercise-type.ts'
 import type { Rating, SessionMode, SkillRecord } from '@/types/progress.ts'
 import { getIncompleteSession } from '@/db/repositories/sessions.repository.ts'
 import { useSessionStore } from '@/stores/session.store.ts'
@@ -48,18 +52,6 @@ import {
   resolveSessionCandidates,
   type SessionScope,
 } from '../lib/session-scope.ts'
-
-/** Task 19's Practice "Тип задания" restriction, resolved once per session (not per item —
- *  the whole session shares one category or defers to the normal picker): exactly one of
- *  `choice`/`input` checked forces every exercise to that recognition/recall category
- *  (`picker.ts`'s `PickerOptions.forceCategory`); both checked (or, defensively, neither —
- *  `features/training-setup/**` never lets the user reach "Начать" with neither checked)
- *  leaves the state-based picker in charge, same as every non-Practice scope. */
-function forceCategoryFor(exerciseTypes: PracticeConfig['exerciseTypes']): ExerciseCategory | undefined {
-  if (exerciseTypes.choice && !exerciseTypes.input) return 'recognition'
-  if (exerciseTypes.input && !exerciseTypes.choice) return 'recall'
-  return undefined
-}
 
 export interface SessionRuntime {
   readonly sessionId: number
@@ -85,10 +77,13 @@ export interface SessionRuntime {
    *  including `SessionRunner.tsx`'s mistake-requeue path, which reads it back off this
    *  runtime rather than re-reading `settings` a second time mid-session. */
   readonly hintMode: HintMode
-  /** Task 19's Practice "Тип задания" restriction — `undefined` for every non-`'practice'`
-   *  scope. `SessionRunner.tsx`'s mistake-requeue path reads this back off the runtime and
-   *  passes it to its own `generateForSkill` retry call, so a wrong answer requeued mid a
-   *  Practice session still respects the user's chosen exercise-type restriction. */
+  /** Task 19's Practice "Тип задания" restriction for a `'practice'` scope, or (task 24)
+   *  the persisted "Тип задания по умолчанию" setting
+   *  (`learning/exercises/default-exercise-type.ts`) for every other scope —
+   *  `undefined` only when neither restricts anything (both checked, the default).
+   *  `SessionRunner.tsx`'s mistake-requeue path reads this back off the runtime and passes
+   *  it to its own `generateForSkill` retry call, so a wrong answer requeued mid-session
+   *  still respects whichever restriction was in force. */
   readonly forceCategory: ExerciseCategory | undefined
 }
 
@@ -181,7 +176,7 @@ export function useSessionBootstrap(scope: SessionScope) {
       // `session-scope.ts#resolvePracticeCandidateWords`'s own headers for why this is a
       // completely separate pipeline from `buildLearnQueue`'s due/new model: the user
       // explicitly picked a section + dimension set, there is no `due` filter here at all.
-      forceCategory = forceCategoryFor(scope.config.exerciseTypes)
+      forceCategory = resolveForceCategory(scope.config.exerciseTypes)
       const candidateWords = await resolvePracticeCandidateWords(scope.config)
       const plan = buildPracticeQueue({ config: scope.config, candidateWords, seed: now })
       if (!aliveRef.current) return
@@ -197,6 +192,13 @@ export function useSessionBootstrap(scope: SessionScope) {
         materialized.push(await materializePracticeItem(item, cache))
       }
     } else {
+      // Task 24: the persisted global default (`learning/exercises/default-exercise-type.ts`)
+      // applies to every non-Practice scope — the same restriction rule as Practice's own
+      // per-run checkboxes, just settings-backed instead of configured per session. Default
+      // value resolves to `undefined` (no restriction), i.e. today's pre-task-24 behavior.
+      forceCategory = resolveForceCategory(
+        await settingsRepo.get(DEFAULT_EXERCISE_TYPES_SETTING_KEY, DEFAULT_EXERCISE_TYPES_DEFAULT),
+      )
       const candidates = await resolveSessionCandidates(scope, now)
       const dueSkills = candidates.dueSkills.filter((s) => !args.excludeSkillIds.has(s.skillId))
       const candidateNewWords = candidates.candidateNewWords.filter(

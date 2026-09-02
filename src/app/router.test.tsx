@@ -16,12 +16,13 @@
  * provider-agnostic `it.each` table below.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import { AppRouter } from './router.tsx'
 import { wordPath } from './word-path.ts'
 import { encodeWordId } from '@/learning/skills/skill-id.ts'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
 import { __resetLoaderCachesForTest } from '@/content/loader.ts'
+import { ContentProvider } from './providers/ContentProvider.tsx'
 
 function renderAt(path: string) {
   window.history.pushState({}, '', path)
@@ -50,6 +51,14 @@ afterEach(() => {
   __resetIndexStoreForTest()
   __resetLoaderCachesForTest()
   vi.unstubAllGlobals()
+  // Deliberately NOT closing/deleting `db` here: only the dedicated `/settings` test below
+  // (task 24) touches IndexedDB at all (its settings-backed controls implicitly open `db`
+  // via Dexie's lazy-open-on-first-query), no other test in this file ever reads `settings`/
+  // `meta`, and an explicit `db.close()` sets a permanent "explicitly closed" flag that
+  // breaks Dexie's lazy-reopen for every *later* test in this same file that happens to use
+  // a live query of its own (e.g. the word-detail route's `useWordProgress`) — Vitest's
+  // default per-file module isolation already gives every other test FILE a fresh
+  // `fake-indexeddb` instance regardless, so there's nothing to clean up across files here.
 })
 
 // `/` is the real `HomePage` (task 15), not a provider-agnostic stub — it reads the content
@@ -72,10 +81,86 @@ describe('AppRouter', () => {
     ['/session', 'Сессия'],
     ['/practice', 'Практика'],
     ['/stats', 'Прогресс'],
-    ['/settings', 'Настройки'],
   ])('renders the %s stub', (path, heading) => {
     renderAt(path)
     expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument()
+  })
+
+  // `/settings` (task 24) is no longer a provider-agnostic stub — it reads the loaded
+  // manifest via `useContent()` (the "О приложении" block, the paradigm-prefetch cache
+  // name), so unlike every route above it genuinely needs a real `<ContentProvider>`
+  // ancestor, not just an initialized `content/index-store.ts` singleton. Same "no longer a
+  // stub" carve-out this file already makes for `/words` (see its own dedicated test below).
+  it('renders the /settings screen (SettingsPage, task 24) inside a real ContentProvider', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: unknown) => {
+        const href = String(url)
+        if (href.includes('manifest.json')) {
+          return {
+            ok: true,
+            json: async () => ({
+              contentVersion: 'abcdef123456',
+              generatedAt: '2026-09-01T05:18:06+00:00',
+              counts: { words: 1, paradigms: 1, forms: 1 },
+              shards: { senses: 16, paradigms: 64 },
+              codec: {
+                pos: ['NOUN', 'VERB', 'ADJ', 'ADV'],
+                level: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'],
+                number: ['singular', 'plural'],
+                case: [
+                  'nominative',
+                  'genitive',
+                  'dative',
+                  'accusative',
+                  'instrumental',
+                  'locative',
+                  'vocative',
+                ],
+                gender: [
+                  'feminine',
+                  'masculine_personal',
+                  'masculine_inanimate',
+                  'masculine_animate',
+                  'neuter',
+                  'non_masculine_personal',
+                  'any',
+                  'masculine_animate_or_personal',
+                  'masculine_or_neuter',
+                  'masculine',
+                ],
+                degree: ['positive', 'comparative', 'superlative'],
+                tense: ['present', 'past', 'future'],
+                mood: ['indicative', 'imperative', 'infinitive'],
+                aspect: ['imperfective', 'perfective'],
+                person: [1, 2, 3],
+              },
+            }),
+          } as Response
+        }
+        if (href.includes('index.json')) {
+          return { ok: true, json: async () => [['kobieta|NOUN', 1, 95, 1, 'женщина', 10, 42]] } as Response
+        }
+        // Anything else (including a stray, un-cancelled paradigm-shard fetch a *previous*
+        // test in this same file's `/practice` route may still have in flight — `useEffect`
+        // cleanup there doesn't abort it) resolves harmlessly rather than 404ing: a 404
+        // becomes a thrown+unhandled rejection several ticks later inside code this test
+        // doesn't own (`session-scope.ts#resolvePracticeCandidateWords`), which the earlier
+        // test's own render never awaits either.
+        return { ok: true, json: async () => ({}) } as Response
+      }),
+    )
+    window.history.pushState({}, '', '/settings')
+    render(
+      <ContentProvider>
+        <AppRouter />
+      </ContentProvider>,
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Настройки' })).toBeInTheDocument(),
+    )
+    // "О приложении" block resolved its content version from the real ContentProvider.
+    expect(screen.getByText('abcdef123456')).toBeInTheDocument()
   })
 
   it('redirects /session/result to the home screen when there is no sessionId to show (task 14, real page replacing the task-06 stub)', async () => {
