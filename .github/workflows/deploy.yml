@@ -1,0 +1,114 @@
+# Build the static SPA (Vite + vite-plugin-pwa, see vite.config.ts) and publish it to
+# GitHub Pages.
+#
+# Flow:
+#   1. build: install, run the quality gates (ESLint -> Vitest), then `npm run build`.
+#      `build` is `tsc -b && vite build`, and its `prebuild` hook runs
+#      `scripts/build-content.ts`, which compiles `data/**` -> `public/content/**`
+#      (that directory is gitignored — it MUST be regenerated in CI, never committed).
+#      The result is uploaded as a Pages artifact.
+#   2. deploy: publish that artifact to the `github-pages` environment.
+#
+# There is no backend, no Docker image and no server to restart — the app is
+# offline-first and keeps all state in IndexedDB (README.md, spec/architecture.md).
+# Nothing here needs runtime secrets: there is no API key, no database, no auth.
+#
+# SPA fallback (spec/polish-learning-pwa-technical-blueprint.md, "Hosting requirement"):
+# the app uses <BrowserRouter> (src/app/router.tsx), so an unknown path must serve
+# index.html. GitHub Pages has no rewrite rules, but it does serve `404.html` for any
+# unmatched path — so we copy the built index.html to 404.html. A deep link then loads
+# the app shell with the original URL intact and React Router resolves it client-side.
+# (Once the service worker is installed its navigateFallback handles this offline; the
+# 404.html copy is what makes the *first* deep-link visit work.)
+#
+# Base path: the site is served from the ROOT of a custom domain, so Vite's default
+# `base: '/'` is correct and no source changes are needed. If this ever moves to the
+# default project-page URL (`<user>.github.io/jezykpolski/`) it is NOT enough to change
+# this workflow — `base` in vite.config.ts, `basename` on <BrowserRouter>, the PWA
+# manifest's `start_url`/`scope`/icon paths and `navigateFallbackDenylist` all have to be
+# made base-aware. `src/content/loader.ts` already reads `import.meta.env.BASE_URL` and
+# needs no change.
+#
+# One-time setup in the repository (nothing else is required — no secrets at all):
+#   Settings -> Pages -> Build and deployment -> Source: "GitHub Actions"
+#   Settings -> Pages -> Custom domain: enter the domain, and point its DNS at GitHub
+#     Pages (CNAME to <user>.github.io, or the four A records for an apex domain).
+#
+# Optional repository variable (Settings -> Secrets and variables -> Actions ->
+# Variables tab). Not a secret — a public hostname:
+#   CUSTOM_DOMAIN   e.g. `polski.example.com`. When set, a CNAME file with this value is
+#                   written into the published output. GitHub Pages already stores the
+#                   custom domain in the repo settings, so this is belt-and-braces: it
+#                   keeps the domain from being dropped if the Pages settings are ever
+#                   reset. Leave it unset to rely on the settings alone.
+
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Let an in-flight deploy finish rather than cancelling it — a cancelled `deploy-pages`
+# can leave the Pages environment mid-update. Queued runs still collapse to the latest.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          # Node 24: scripts/build-content.ts is executed as TypeScript directly
+          # (`node scripts/build-content.ts`), which relies on native type stripping.
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        # Vitest only — Playwright (`npm run e2e`) is deliberately not a deploy gate.
+        run: npm test
+
+      # Type-checks (`tsc -b`) and regenerates public/content/** via the prebuild hook.
+      - name: Build
+        run: npm run build
+
+      - name: Add SPA fallback
+        # See the "SPA fallback" note in this file's header.
+        run: cp dist/index.html dist/404.html
+
+      - name: Write CNAME
+        if: vars.CUSTOM_DOMAIN != ''
+        run: echo "${{ vars.CUSTOM_DOMAIN }}" > dist/CNAME
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
