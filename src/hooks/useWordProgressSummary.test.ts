@@ -70,7 +70,12 @@ describe('useWordProgressSummary', () => {
 
     const { result } = renderHook(() => useWordProgressSummary())
     await waitFor(() =>
-      expect(result.current).toEqual({ learningTotal: 0, learnedTotal: 0, learnedByPos: {} }),
+      expect(result.current).toEqual({
+        learningTotal: 0,
+        learnedTotal: 0,
+        learnedByPos: {},
+        learnedByLevel: {},
+      }),
     )
   })
 
@@ -96,6 +101,7 @@ describe('useWordProgressSummary', () => {
         learningTotal: 2,
         learnedTotal: 3,
         learnedByPos: { NOUN: 1, VERB: 1, ADJ: 1 },
+        learnedByLevel: { A1: 3 },
       }),
     )
   })
@@ -115,6 +121,7 @@ describe('useWordProgressSummary', () => {
         learningTotal: 0,
         learnedTotal: 1,
         learnedByPos: { NOUN: 1 },
+        learnedByLevel: { A1: 1 },
       }),
     )
   })

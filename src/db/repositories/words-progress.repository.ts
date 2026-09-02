@@ -11,7 +11,7 @@
  * `loader.ts#getParadigm` already has.
  */
 import { db } from '../database.ts'
-import type { PosValue } from '@/content/codec.ts'
+import type { LevelValue, PosValue } from '@/content/codec.ts'
 import { getIndexStore } from '@/content/index-store.ts'
 import { getParadigm } from '@/content/paradigms.ts'
 import { aggregateWord, deriveStatus } from '@/learning/progress/aggregate.ts'
@@ -28,7 +28,10 @@ export async function getAllWordProgress(): Promise<Map<WordId, WordProgressReco
   return new Map(rows.map((row) => [row.wordId, row]))
 }
 
-/** Home screen's per-section counters (`spec/tasks/15-home-screen.md` §3/§4). */
+/** Home screen's per-section counters (`spec/tasks/15-home-screen.md` §3/§4), extended by
+ *  `spec/tasks/23-stats.md` with a by-level breakdown for the `/stats` screen's "По уровням"
+ *  block (acceptance point 1: must agree with `/words`'s own level+status filter, which is
+ *  exactly the same `known`/`mastered` union counted here). */
 export interface WordProgressSummary {
   /** `status === 'learning'`, all parts of speech combined. */
   learningTotal: number
@@ -36,6 +39,8 @@ export interface WordProgressSummary {
   learnedTotal: number
   /** Same "выучено" bucket, broken down by POS (missing key ≡ 0). */
   learnedByPos: Partial<Record<PosValue, number>>
+  /** Same "выучено" bucket, broken down by content level A1..C2 (missing key ≡ 0). */
+  learnedByLevel: Partial<Record<LevelValue, number>>
 }
 
 /**
@@ -48,10 +53,15 @@ export interface WordProgressSummary {
  * let alone the whole table. The POS breakdown then comes for free: `wordId` already
  * encodes its part of speech (`"<lemma>|<POS>"`, `skill-id.ts#decodeWordId`), so bucketing
  * by POS is a cheap in-memory `decodeWordId` over whichever rows matched `status` — never a
- * second query, and never a join against content. The POS *denominator* (words per
- * section) is a separate concern this function deliberately does NOT compute: it lives in
- * the already-loaded `getIndexStore().byPos` (task 04), a synchronous in-memory Map, not a
- * Dexie table — callers combine the two themselves.
+ * second query, and never a join against content. The POS/level *denominators* (words per
+ * section/level) are a separate concern this function deliberately does NOT compute: they
+ * live in the already-loaded `getIndexStore().byPos`/`byLevel` (task 04), synchronous
+ * in-memory structures, not a Dexie table — callers combine the two themselves.
+ *
+ * `learnedByLevel` (task 23) is built the exact same way as `learnedByPos` — one extra
+ * `getIndexStore().byId.get(id)?.level` lookup per matched id, no second query — so the two
+ * breakdowns can never disagree about *which* ids counted as "выучено", only how they're
+ * bucketed.
  */
 export async function getWordProgressSummary(): Promise<WordProgressSummary> {
   const [learningIds, knownIds, masteredIds] = await Promise.all([
@@ -61,15 +71,19 @@ export async function getWordProgressSummary(): Promise<WordProgressSummary> {
   ])
 
   const learnedByPos: Partial<Record<PosValue, number>> = {}
+  const learnedByLevel: Partial<Record<LevelValue, number>> = {}
   for (const id of [...knownIds, ...masteredIds] as WordId[]) {
     const { pos } = decodeWordId(id)
     learnedByPos[pos] = (learnedByPos[pos] ?? 0) + 1
+    const level = getIndexStore().byId.get(id)?.level
+    if (level) learnedByLevel[level] = (learnedByLevel[level] ?? 0) + 1
   }
 
   return {
     learningTotal: learningIds.length,
     learnedTotal: knownIds.length + masteredIds.length,
     learnedByPos,
+    learnedByLevel,
   }
 }
 

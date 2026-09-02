@@ -19,6 +19,7 @@ import {
   recomputeWordProgress,
 } from './words-progress.repository.ts'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
+import type { LevelValue, PosValue } from '@/content/codec.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import type { SkillRecord, WordProgressRecord } from '@/types/progress.ts'
 
@@ -32,6 +33,13 @@ function entry(lemma: string, rank: number): WordIndexEntry {
     sensesShard: 0,
     paradigmShard: -1, // no paradigm — vocab-only skills, no network fetch involved
   }
+}
+
+/** Like `entry`, but with an explicit `pos`/`level` — `getWordProgressSummary`'s
+ *  `learnedByLevel` test below (task 23) needs words spread across several levels, not
+ *  `entry`'s fixed NOUN/A1. */
+function indexEntry(lemma: string, pos: PosValue, level: LevelValue): WordIndexEntry {
+  return { lemma, pos, rank: 1, level, primaryRu: 'x', sensesShard: 0, paradigmShard: -1 }
 }
 
 function vocabSkill(
@@ -151,25 +159,42 @@ describe('getWordProgressSummary', () => {
   }
 
   it('returns all-zero counts against an empty table', async () => {
+    // No known/mastered ids at all -> the `learnedByLevel`-bucketing loop never runs, so
+    // this deliberately does NOT call `initIndexStore` first (mirrors the real "no content
+    // index needed when there's nothing to look up" behavior, not just a test convenience).
     expect(await getWordProgressSummary()).toEqual({
       learningTotal: 0,
       learnedTotal: 0,
       learnedByPos: {},
+      learnedByLevel: {},
     })
   })
 
-  it('buckets "learning" (overall) and "known"+"mastered" (overall and per POS) from wordId, ignoring "new"', async () => {
+  it('buckets "learning" (overall) and "known"+"mastered" (overall/per POS/per level) from wordId, ignoring "new"', async () => {
+    initIndexStore([
+      indexEntry('kot', 'NOUN', 'A1'),
+      indexEntry('pies', 'NOUN', 'A1'),
+      indexEntry('być', 'VERB', 'A1'),
+      indexEntry('kobieta', 'NOUN', 'A1'),
+      indexEntry('rower', 'NOUN', 'A2'),
+      indexEntry('dom', 'NOUN', 'A2'),
+      indexEntry('dobry', 'ADJ', 'B1'),
+      indexEntry('człowiek', 'NOUN', 'A1'),
+      indexEntry('mieć', 'VERB', 'A2'),
+      indexEntry('robić', 'VERB', 'B1'),
+      indexEntry('nowy', 'ADJ', 'A1'),
+    ])
     await db.wordProgress.bulkPut([
       row('kot|NOUN', 'learning'),
       row('pies|NOUN', 'learning'),
       row('być|VERB', 'learning'),
-      row('kobieta|NOUN', 'known'),
-      row('rower|NOUN', 'known'),
-      row('dom|NOUN', 'known'),
-      row('dobry|ADJ', 'known'),
-      row('człowiek|NOUN', 'mastered'),
-      row('mieć|VERB', 'mastered'),
-      row('robić|VERB', 'mastered'),
+      row('kobieta|NOUN', 'known'), // A1
+      row('rower|NOUN', 'known'), // A2
+      row('dom|NOUN', 'known'), // A2
+      row('dobry|ADJ', 'known'), // B1
+      row('człowiek|NOUN', 'mastered'), // A1
+      row('mieć|VERB', 'mastered'), // A2
+      row('robić|VERB', 'mastered'), // B1
       // A 'new'-status row is not something the real app ever writes (architecture.md §5.2:
       // "no record" already means new), but the aggregation must not count it either way if
       // one somehow existed.
@@ -180,10 +205,12 @@ describe('getWordProgressSummary', () => {
       learningTotal: 3,
       learnedTotal: 7, // 4 known + 3 mastered
       learnedByPos: { NOUN: 4, VERB: 2, ADJ: 1 },
+      learnedByLevel: { A1: 2, A2: 3, B1: 2 }, // kobieta+człowiek / rower+dom+mieć / dobry+robić
     })
   })
 
   it('reads via the "status" index (primaryKeys), not a full-table scan', async () => {
+    initIndexStore([]) // 'kot|NOUN' below is 'known' -> the learnedByLevel loop runs once
     await db.wordProgress.bulkPut([row('kot|NOUN', 'known'), row('pies|NOUN', 'learning')])
     const toArraySpy = vi.spyOn(db.wordProgress, 'toArray')
 
