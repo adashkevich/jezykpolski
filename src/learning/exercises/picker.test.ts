@@ -13,7 +13,26 @@ function vocabSkill(): SkillDescriptor {
   }
 }
 
+/**
+ * Deliberately `noun:sg:accusative`, NOT `noun:sg:genitive` — task 27's `context-sentence`
+ * substitution (see the dedicated describe block below) only fires for
+ * genitive/dative/instrumental/locative singular; every existing expectation in this
+ * describe block predates task 27 and must keep meaning "the plain form-choice/form-input
+ * pair", so it needs a dimension task 27 never touches.
+ */
 function morphSkill(): SkillDescriptor {
+  return {
+    skillId: 'kobieta|NOUN::noun:sg:accusative',
+    wordId: 'kobieta|NOUN',
+    kind: 'noun',
+    dimension: 'noun:sg:accusative',
+    acceptedAnswers: ['kobietę'],
+  }
+}
+
+/** One of the 4 dimensions task 27's `content/context-templates.ts` bank covers — used only
+ *  by the "context-sentence substitution" describe block below. */
+function contextEligibleSkill(): SkillDescriptor {
   return {
     skillId: 'kobieta|NOUN::noun:sg:genitive',
     wordId: 'kobieta|NOUN',
@@ -129,5 +148,74 @@ describe('pickExerciseType — forceCategory (task 19)', () => {
   it('undefined forceCategory falls back to the normal state-based switch', () => {
     const record = srs({ state: 'review', reps: 10 })
     expect(pickExerciseType(vocabSkill(), record)).toBe('input')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Task 27 (`spec/tasks/27-context-and-error-analysis.md` §2, FR-63): `context-sentence`
+// substitutes for `form-choice` on exactly `noun:sg:<genitive|dative|instrumental
+// |locative>` — every other dimension (including this same word's `noun:sg:accusative`,
+// covered by `morphSkill()` above) keeps returning plain `form-choice`. Recall
+// (`form-input`) is never substituted, for any state.
+// ---------------------------------------------------------------------------
+
+describe('pickExerciseType — context-sentence substitution (task 27)', () => {
+  const eligibleDimensions = ['genitive', 'dative', 'instrumental', 'locative'] as const
+
+  function skillFor(caseValue: (typeof eligibleDimensions)[number]): SkillDescriptor {
+    return {
+      skillId: `kobieta|NOUN::noun:sg:${caseValue}`,
+      wordId: 'kobieta|NOUN',
+      kind: 'noun',
+      dimension: `noun:sg:${caseValue}` as SkillDescriptor['dimension'],
+      acceptedAnswers: ['kobiety'],
+    }
+  }
+
+  it.each(eligibleDimensions)('state=new, noun:sg:%s -> context-sentence', (caseValue) => {
+    expect(pickExerciseType(skillFor(caseValue), undefined)).toBe('context-sentence')
+  })
+
+  it.each(eligibleDimensions)(
+    'state=learning reps<2, noun:sg:%s -> context-sentence',
+    (caseValue) => {
+      const record = srs({ state: 'learning', reps: 0 })
+      expect(pickExerciseType(skillFor(caseValue), record)).toBe('context-sentence')
+    },
+  )
+
+  it.each(eligibleDimensions)('state=relearning, noun:sg:%s -> context-sentence', (caseValue) => {
+    const record = srs({ state: 'relearning', reps: 3 })
+    expect(pickExerciseType(skillFor(caseValue), record)).toBe('context-sentence')
+  })
+
+  it('forceCategory: recognition also substitutes context-sentence', () => {
+    const record = srs({ state: 'review', reps: 10 })
+    expect(pickExerciseType(contextEligibleSkill(), record, { forceCategory: 'recognition' })).toBe(
+      'context-sentence',
+    )
+  })
+
+  it('recall (form-input) is never substituted, even for an eligible dimension', () => {
+    const record = srs({ state: 'learning', reps: 2 })
+    expect(pickExerciseType(contextEligibleSkill(), record)).toBe('form-input')
+    expect(
+      pickExerciseType(contextEligibleSkill(), undefined, { forceCategory: 'recall' }),
+    ).toBe('form-input')
+  })
+
+  it('noun:sg:accusative (not one of the 4 covered cases) keeps plain form-choice', () => {
+    expect(pickExerciseType(morphSkill(), undefined)).toBe('form-choice')
+  })
+
+  it('a plural dimension of one of the 4 covered cases keeps plain form-choice', () => {
+    const skill: SkillDescriptor = {
+      skillId: 'kobieta|NOUN::noun:pl:genitive',
+      wordId: 'kobieta|NOUN',
+      kind: 'noun',
+      dimension: 'noun:pl:genitive',
+      acceptedAnswers: ['kobiet'],
+    }
+    expect(pickExerciseType(skill, undefined)).toBe('form-choice')
   })
 })

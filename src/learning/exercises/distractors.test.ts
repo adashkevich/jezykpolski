@@ -558,3 +558,102 @@ describe('task 10 acceptance — pickFormDistractors same-slot-from-similar-word
     expect(result.length).toBe(2) // just the paradigm's own 'bardzo' + 'najbardziej'
   })
 })
+
+// =============================================================================================
+// Task 27 (`spec/tasks/27-context-and-error-analysis.md` §3, FR-94): `CONFUSABLE_GROUPS`
+// wiring in `pickVocabDistractors`. `duży`/`wielki` (real corpus ADJ words, real
+// `CONFUSABLE_GROUPS` entry) are used with DELIBERATELY non-overlapping, test-only
+// translations and a `wielki` rank far outside `duży`'s rank/level window — this isolates
+// the wiring itself (does the group get consulted, and does it bypass the rank/level
+// filter, per the task text's "предпочтительно... раньше эвристики") from whether the real
+// dictionary senses of this specific pair happen to overlap (they may; that's an orthogonal,
+// data-dependent question already covered by the `wiedzieć`/`znać` translation-overlap test
+// above, which demonstrates the OTHER side of this same invariant: group membership never
+// bypasses step 4).
+// =============================================================================================
+
+describe('pickVocabDistractors — CONFUSABLE_GROUPS preference (task 27, FR-94)', () => {
+  const DUZY = entry({
+    lemma: 'duży',
+    pos: 'ADJ',
+    rank: 50,
+    level: 'A1',
+    primaryRu: 'большой-test',
+    sensesShard: 40,
+  })
+  const WIELKI = entry({
+    lemma: 'wielki',
+    pos: 'ADJ',
+    rank: 9000, // far outside duży's rank window even at the ×27 relaxation
+    level: 'C2', // and outside the level window too
+    primaryRu: 'великий-test',
+    sensesShard: 41,
+  })
+  // A same-rank/level ADJ the general heuristic WOULD normally pick instead, absent the
+  // group preference.
+  const NEARBY = entry({
+    lemma: 'mały',
+    pos: 'ADJ',
+    rank: 55,
+    level: 'A1',
+    primaryRu: 'маленький-test',
+    sensesShard: 42,
+  })
+
+  beforeEach(() => {
+    __resetIndexStoreForTest()
+    initIndexStore([DUZY, WIELKI, NEARBY])
+  })
+
+  it("prefers wielki (duży's real CONFUSABLE_GROUPS sibling) over an in-window word, even though wielki's rank/level are far outside duży's window", async () => {
+    stubContentFetch({
+      'senses/040.json': { 'duży|ADJ': [{ ru: ['большой-test'], primary: true }] },
+      'senses/041.json': { 'wielki|ADJ': [{ ru: ['великий-test'], primary: true }] },
+      'senses/042.json': { 'mały|ADJ': [{ ru: ['маленький-test'], primary: true }] },
+    })
+    await loadSensesShard(40)
+    await loadSensesShard(41)
+    await loadSensesShard(42)
+
+    const result = pickVocabDistractors(DUZY, 'pl-ru', 1, 0)
+    expect(result).toEqual(['великий-test'])
+  })
+
+  it('fills remaining slots from the general heuristic once the group is exhausted', async () => {
+    stubContentFetch({
+      'senses/040.json': { 'duży|ADJ': [{ ru: ['большой-test'], primary: true }] },
+      'senses/041.json': { 'wielki|ADJ': [{ ru: ['великий-test'], primary: true }] },
+      'senses/042.json': { 'mały|ADJ': [{ ru: ['маленький-test'], primary: true }] },
+    })
+    await loadSensesShard(40)
+    await loadSensesShard(41)
+    await loadSensesShard(42)
+
+    const result = pickVocabDistractors(DUZY, 'pl-ru', 2, 0)
+    expect(result).toHaveLength(2)
+    expect(result).toContain('великий-test') // the group sibling
+    expect(result).toContain('маленький-test') // general heuristic fills the rest
+  })
+
+  it('a word with no CONFUSABLE_GROUPS entry is entirely unaffected (falls straight to the general heuristic)', async () => {
+    const plain = entry({
+      lemma: 'zielony',
+      pos: 'ADJ',
+      rank: 60,
+      level: 'A1',
+      primaryRu: 'зелёный-test',
+      sensesShard: 43,
+    })
+    __resetIndexStoreForTest()
+    initIndexStore([plain, NEARBY])
+    stubContentFetch({
+      'senses/043.json': { 'zielony|ADJ': [{ ru: ['зелёный-test'], primary: true }] },
+      'senses/042.json': { 'mały|ADJ': [{ ru: ['маленький-test'], primary: true }] },
+    })
+    await loadSensesShard(43)
+    await loadSensesShard(42)
+
+    const result = pickVocabDistractors(plain, 'pl-ru', 1, 0)
+    expect(result).toEqual(['маленький-test'])
+  })
+})

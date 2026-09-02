@@ -32,6 +32,8 @@ import { PageHeader } from '@/components/app/PageHeader.tsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.tsx'
 import { levelProgress, posProgress } from '@/db/repositories/stats.repository.ts'
 import { StatProgressBar } from '@/features/stats/components/StatProgressBar.tsx'
+import { ConfusionCard } from '@/features/stats/components/ConfusionCard.tsx'
+import { useConfusionMatrix } from '@/hooks/useConfusionMatrix.ts'
 import { useMorphologyProgress } from '@/hooks/useMorphologyProgress.ts'
 import { useReviewCounts } from '@/hooks/useReviewCounts.ts'
 import { useWordProgressSummary } from '@/hooks/useWordProgressSummary.ts'
@@ -70,6 +72,7 @@ export function StatsPage() {
   const summary = useWordProgressSummary()
   const reviewCounts = useReviewCounts(now)
   const morphology = useMorphologyProgress()
+  const confusionMatrix = useConfusionMatrix()
 
   const loading = summary === undefined
   const hasAnyProgress = (summary?.learningTotal ?? 0) + (summary?.learnedTotal ?? 0) > 0
@@ -126,6 +129,10 @@ export function StatsPage() {
               <SmallStat label="7 дней" value={reviewCounts?.in7Days ?? 0} />
             </CardContent>
           </Card>
+
+          {confusionMatrix && confusionMatrix.length > 0 && (
+            <ConfusionCard pair={confusionMatrix[0]!} />
+          )}
 
           {morphology?.hasNounData && (
             <Card>

@@ -110,7 +110,14 @@ function answerLanguage(exercise: Exercise): AnswerLanguage {
     case 'form-input':
     case 'form-choice':
     case 'self-assess':
+    case 'context-sentence':
+    case 'pos-classify':
       return 'pl'
+    case 'odd-one-out':
+      // The 4 options are Russian words (`generate.ts`'s odd-one-out builder pulls them from
+      // translations/distractor pools, same source a pl-ru `choice` uses) — graded the same
+      // way a pl-ru `choice` answer is.
+      return 'ru'
     case 'table':
     case 'matching':
       throw new Error(
@@ -123,12 +130,18 @@ function acceptedAnswersFor(exercise: Exercise): readonly string[] {
   switch (exercise.type) {
     case 'choice':
     case 'form-choice':
+    case 'context-sentence':
+    case 'pos-classify':
       return [exercise.correct]
     case 'input':
     case 'form-input':
       return exercise.accepted
     case 'self-assess':
       return [exercise.answer]
+    case 'odd-one-out':
+      // The single "correct" pick is the odd option itself — see this exercise type's own
+      // doc comment in `exercise.types.ts` for why there's no separate `correct` field.
+      return [exercise.options[exercise.oddIndex]!]
     case 'table':
     case 'matching':
       throw new Error(

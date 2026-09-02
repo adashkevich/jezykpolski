@@ -41,6 +41,9 @@ import { InputExercise } from './InputExercise.tsx'
 import { FormInputExercise } from './FormInputExercise.tsx'
 import { FormChoiceExercise } from './FormChoiceExercise.tsx'
 import { SelfAssessExercise } from './SelfAssessExercise.tsx'
+import { ContextSentenceExercise } from './ContextSentenceExercise.tsx'
+import { OddOneOutExercise } from './OddOneOutExercise.tsx'
+import { PosClassifyExercise } from './PosClassifyExercise.tsx'
 import type {
   ExerciseComponentRegistry,
   ExerciseOfType,
@@ -61,5 +64,13 @@ export function createExerciseComponentRegistry(current: {
     'form-input': FormInputExercise,
     'form-choice': FormChoiceExercise,
     'self-assess': SelfAssessSlot,
+    // Task 27 (`spec/tasks/27-context-and-error-analysis.md`): `context-sentence` is picked
+    // by `picker.ts` for ordinary Learn sessions (FR-63); `odd-one-out`/`pos-classify` are
+    // Practice-only, forced by `useSessionBootstrap.ts`'s `{ kind: 'practice-extra' }`
+    // branch (FR-56/FR-57) — all 3 conform to the plain `ExerciseProps<E>` contract, same as
+    // `choice`/`input`, so each is a literal one-line mapping.
+    'context-sentence': ContextSentenceExercise,
+    'odd-one-out': OddOneOutExercise,
+    'pos-classify': PosClassifyExercise,
   }
 }

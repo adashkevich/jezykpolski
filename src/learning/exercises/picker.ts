@@ -16,8 +16,16 @@ import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import type { SkillRecord, SkillState } from '@/types/progress.ts'
 
 /** The subset of `Exercise['type']` the picker ever selects — recognition or recall, for
- *  vocabulary or morphology, plus the self-assess opt-out for `review`. */
-export type PickedExerciseType = 'choice' | 'input' | 'form-choice' | 'form-input' | 'self-assess'
+ *  vocabulary or morphology, plus the self-assess opt-out for `review`, plus (task 27,
+ *  FR-63) `context-sentence` as a recognition-category substitute for `form-choice` on the
+ *  4 dimensions `CONTEXT_SENTENCE_ELIGIBLE_CASES` below names. */
+export type PickedExerciseType =
+  | 'choice'
+  | 'input'
+  | 'form-choice'
+  | 'form-input'
+  | 'self-assess'
+  | 'context-sentence'
 
 /** The two broad categories `pickExerciseType`'s state-based switch normally chooses
  *  between — `'recognition'` (`choice`/`form-choice`) or `'recall'` (`input`/`form-input`).
@@ -48,6 +56,39 @@ function isMorphological(skill: SkillDescriptor): boolean {
 }
 
 /**
+ * Task 27 (`spec/tasks/27-context-and-error-analysis.md` §2, FR-63) — the supervisor's
+ * literal resolution of that task's own "источник предложений" open question:
+ * `content/context-templates.ts`'s bank only covers singular genitive/dative/instrumental/
+ * locative (nominative/accusative are already drilled via the bare lemma/`form-choice`
+ * elsewhere; plural and every other case are out of this bank's scope). Only these 4
+ * dimensions are ever eligible to substitute `context-sentence` for `form-choice` below.
+ */
+const CONTEXT_SENTENCE_ELIGIBLE_CASES: ReadonlySet<string> = new Set([
+  'genitive',
+  'dative',
+  'instrumental',
+  'locative',
+])
+
+function isContextSentenceEligible(skill: SkillDescriptor): boolean {
+  if (skill.kind !== 'noun') return false
+  const parts = skill.dimension.split(':')
+  return parts[1] === 'sg' && CONTEXT_SENTENCE_ELIGIBLE_CASES.has(parts[2] ?? '')
+}
+
+/** The recognition-category exercise type for one skill — `form-choice`/`choice` as before,
+ *  except a `noun:sg:<genitive|dative|instrumental|locative>` skill now gets
+ *  `context-sentence` instead of `form-choice` (task 27 §2's "точка входа": every place the
+ *  state-based switch below used to hard-code `morphological ? 'form-choice' : 'choice'`
+ *  now goes through this one function, so the substitution applies uniformly to `new`,
+ *  `learning`-with-few-reps, `relearning`, and `forceCategory: 'recognition'` alike — recall
+ *  (`form-input`) is untouched, per the task's explicit instruction). */
+function recognitionType(skill: SkillDescriptor, morphological: boolean): PickedExerciseType {
+  if (!morphological) return 'choice'
+  return isContextSentenceEligible(skill) ? 'context-sentence' : 'form-choice'
+}
+
+/**
  * `srs === undefined` means the skill has never been materialized (architecture.md §5.2's
  * lazy materialization — most `SkillDescriptor`s never get a `SkillRecord` row at all) and
  * is treated exactly like `state === 'new'`, per the task text's first rule: "skill
@@ -62,9 +103,7 @@ export function pickExerciseType(
 
   if (options.forceCategory) {
     return options.forceCategory === 'recognition'
-      ? morphological
-        ? 'form-choice'
-        : 'choice'
+      ? recognitionType(skill, morphological)
       : morphological
         ? 'form-input'
         : 'input'
@@ -75,10 +114,10 @@ export function pickExerciseType(
 
   switch (state) {
     case 'new':
-      return morphological ? 'form-choice' : 'choice'
+      return recognitionType(skill, morphological)
 
     case 'learning':
-      if (reps < 2) return morphological ? 'form-choice' : 'choice'
+      if (reps < 2) return recognitionType(skill, morphological)
       return morphological ? 'form-input' : 'input'
 
     case 'review':
@@ -87,6 +126,6 @@ export function pickExerciseType(
 
     case 'relearning':
       // "мягкий возврат после провала" — back to recognition, same as 'new'.
-      return morphological ? 'form-choice' : 'choice'
+      return recognitionType(skill, morphological)
   }
 }

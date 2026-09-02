@@ -99,6 +99,17 @@ import type { PracticeCandidateWord, PracticeConfig } from '@/learning/session/s
 import type { SkillRecord } from '@/types/progress.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 
+/**
+ * Task 27 (`spec/tasks/27-context-and-error-analysis.md` §4, FR-56/FR-57) — which of the 2
+ * Practice-only, picker-bypassing exercise types a `{ kind: 'practice-extra' }` scope forces.
+ * "Найди лишний перевод" and "Быстрая классификация части речи" are both single-slot,
+ * auto-graded exercises (unlike `matching`/`table`), so — per that task's own instruction —
+ * they DO go through the ordinary `SessionRunner` queue/registry path; what makes them
+ * "extra" is that `useSessionBootstrap.ts` forces this exact `Exercise['type']` instead of
+ * ever calling `pickExerciseType` for the word's `vocab:pl-ru` skill.
+ */
+export type PracticeExtraVariant = 'odd-one-out' | 'pos-classify'
+
 export type SessionScope =
   | { readonly kind: 'global' }
   | { readonly kind: 'word'; readonly wordId: WordId }
@@ -106,12 +117,18 @@ export type SessionScope =
   | { readonly kind: 'mistake'; readonly skillIds: readonly SkillId[] }
   | { readonly kind: 'skill'; readonly skillIds: readonly SkillId[] }
   | { readonly kind: 'practice'; readonly config: PracticeConfig }
+  | {
+      readonly kind: 'practice-extra'
+      readonly variant: PracticeExtraVariant
+      readonly wordIds: readonly WordId[]
+    }
 
 /** Every `SessionScope` `resolveSessionCandidates` below actually knows how to handle — see
- *  this file's header for why `{ kind: 'practice' }` is deliberately excluded: it produces a
- *  `PracticeQueuePlan` via a completely different pipeline (`resolvePracticeCandidateWords` +
- *  `buildPracticeQueue`), not a `SessionCandidates`. */
-export type LearnLikeSessionScope = Exclude<SessionScope, { kind: 'practice' }>
+ *  this file's header for why `{ kind: 'practice' }` (and, by the same reasoning, task 27's
+ *  `{ kind: 'practice-extra' }`) is deliberately excluded: both produce their queue via a
+ *  completely different pipeline than `resolveSessionCandidates`'s due/new model —
+ *  `useSessionBootstrap.ts` branches on `scope.kind` before ever calling this function. */
+export type LearnLikeSessionScope = Exclude<SessionScope, { kind: 'practice' | 'practice-extra' }>
 
 // Exported (task 24, `spec/tasks/24-settings-backup.md` §1's "Новых слов в день" / "Заданий
 // в сессии" rows) so `/settings` reads/writes these exact keys and defaults instead of
@@ -149,6 +166,10 @@ export function parseSessionScope(locationState: unknown): SessionScope {
     const state = locationState as Record<string, unknown>
     if (state.practiceConfig && typeof state.practiceConfig === 'object') {
       return { kind: 'practice', config: state.practiceConfig as PracticeConfig }
+    }
+    if (state.practiceExtra && typeof state.practiceExtra === 'object') {
+      const extra = state.practiceExtra as { variant: PracticeExtraVariant; wordIds: WordId[] }
+      return { kind: 'practice-extra', variant: extra.variant, wordIds: extra.wordIds }
     }
     if (Array.isArray(state.skillIds)) {
       return { kind: 'mistake', skillIds: state.skillIds as SkillId[] }

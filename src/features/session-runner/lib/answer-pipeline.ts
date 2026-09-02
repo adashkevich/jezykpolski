@@ -78,10 +78,17 @@ export function toSrsState(skill: SkillRecord): SrsState {
   }
 }
 
+// Task 27's 3 new single-slot exercise types (`context-sentence`/`odd-one-out`/
+// `pos-classify`) are all pick-one-of-several UIs, same as `choice`/`form-choice` — they
+// reuse `mapResultToRating`'s existing `answerKind: 'choice'` FSRS-rating branch below
+// rather than needing a 4th kind of their own.
 function answerKindOf(exercise: Exercise): 'choice' | 'input' {
   switch (exercise.type) {
     case 'choice':
     case 'form-choice':
+    case 'context-sentence':
+    case 'odd-one-out':
+    case 'pos-classify':
       return 'choice'
     case 'input':
     case 'form-input':
@@ -98,7 +105,11 @@ export function correctAnswerOf(exercise: Exercise): string {
   switch (exercise.type) {
     case 'choice':
     case 'form-choice':
+    case 'context-sentence':
+    case 'pos-classify':
       return exercise.correct
+    case 'odd-one-out':
+      return exercise.options[exercise.oddIndex]!
     case 'input':
     case 'form-input':
       return exercise.accepted[0]!

@@ -40,6 +40,7 @@ import {
   sectionFromFilterPos,
 } from '../lib/practice-config.ts'
 import { usePracticeCandidateWords } from '../hooks/usePracticeCandidateWords.ts'
+import { pickPracticeExtraWordIds } from '../lib/practice-extra-words.ts'
 import { CheckboxRow } from './CheckboxRow.tsx'
 import { DimensionGroupFieldset } from './DimensionGroupFieldset.tsx'
 
@@ -60,6 +61,11 @@ const TOP_N_OPTIONS: ReadonlyArray<{ value: PracticeConfig['topN']; label: strin
 
 const TARGET_SIZE_OPTIONS: readonly number[] = [10, 20, 30, 50]
 
+/** Task 27 (`spec/tasks/27-context-and-error-analysis.md` §4/§5) — batch sizes for the 3
+ *  "extra" Practice entry points below (matching pairs / odd-one-out+pos-classify batch). */
+const MATCHING_PAIR_COUNT = 5
+const EXTRA_BATCH_SIZE = 8
+
 const selectClassName =
   'h-11 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 
@@ -67,6 +73,27 @@ const selectClassName =
  *  fixed, arbitrary seed (totals don't depend on it, only which *subset* becomes `items`;
  *  see `build-practice-queue.ts`'s own header) is enough for this live preview. */
 const PREVIEW_SEED = 1
+
+/** Task 27's "Сопоставление" entry point below: a seeded sample of `n` distinct word ids
+ *  out of this screen's own already-resolved `candidateWords` — same small local
+ *  mulberry32 duplicate every other seeded-sample site in this codebase uses (see
+ *  `learning/session/build-practice-queue.ts`'s own header on why it's copied rather than
+ *  imported). */
+function seededSampleForMatching<T>(items: readonly T[], n: number, seed: number): T[] {
+  let a = seed >>> 0
+  const rng = () => {
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+  const pool = [...items]
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[pool[i], pool[j]] = [pool[j]!, pool[i]!]
+  }
+  return pool.slice(0, Math.max(0, n))
+}
 
 export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQuery }) {
   const navigate = useNavigate()
@@ -120,6 +147,15 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
     if (!config || candidateWords === null) return null
     return buildPracticeQueue({ config, candidateWords, seed: PREVIEW_SEED })
   }, [config, candidateWords])
+
+  // Task 27's "Сопоставление" entry point (see this component's header) — declared before
+  // the `if (!config)` early return below so this `useMemo` call is never conditional
+  // (`react-hooks/rules-of-hooks`).
+  const matchingWordIds = useMemo(() => {
+    if (!candidateWords) return null
+    const ids = [...new Set(candidateWords.map((w) => w.wordId))]
+    return ids.length >= MATCHING_PAIR_COUNT ? ids : null
+  }, [candidateWords])
 
   if (!config) {
     return (
@@ -181,6 +217,30 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
     setStarting(true)
     await settingsRepo.set(PRACTICE_CONFIG_SETTING_KEY, config)
     navigate('/session', { state: { practiceConfig: config } })
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // Task 27 (`spec/tasks/27-context-and-error-analysis.md` §4/§5) — 3 more entry points on
+  // this same screen, "по духу" identical to "Начать" above but each bypassing the whole
+  // `PracticeConfig`/`dimensionSelection` machinery (none of the 3 new exercise types has a
+  // dimension to select): "Сопоставление" reuses THIS screen's own already-resolved
+  // `candidateWords` (same section/level/status/frequency filter the user is currently
+  // looking at — the task text's explicit "переиспользуй, не пиши новый источник
+  // кандидатов" for `matching`); "Найди лишний перевод"/"Быстрая классификация" use a
+  // separate, POS-agnostic frequency sample (`practice-extra-words.ts`'s own header explains
+  // why `candidateWords` — locked to one of NOUN/VERB/ADJ — doesn't fit `pos-classify`).
+  // ---------------------------------------------------------------------------------------
+
+  function handleStartMatching() {
+    if (!matchingWordIds) return
+    const wordIds = seededSampleForMatching(matchingWordIds, MATCHING_PAIR_COUNT, Date.now())
+    navigate('/practice/matching', { state: { wordIds } })
+  }
+
+  function handleStartExtra(variant: 'odd-one-out' | 'pos-classify') {
+    const wordIds = pickPracticeExtraWordIds(EXTRA_BATCH_SIZE, Date.now())
+    if (wordIds.length === 0) return
+    navigate('/session', { state: { practiceExtra: { variant, wordIds } } })
   }
 
   return (
@@ -325,6 +385,60 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
           ))}
         </select>
       </label>
+
+      {/* Task 27 (`spec/tasks/27-context-and-error-analysis.md` §4/§5) — 3 more Practice-only
+          exercise types, each its own mini-section with its own "Начать", independent of the
+          `PracticeConfig`/dimension form above (none of the 3 has a dimension to select). */}
+      <div className="flex flex-col gap-2 border-t border-border pt-4">
+        <p className="text-sm font-medium text-foreground">Сопоставление</p>
+        <p className="text-sm text-muted-foreground">
+          Соедините {MATCHING_PAIR_COUNT} польских слов из текущей выборки с их переводами.
+        </p>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={handleStartMatching}
+          disabled={!matchingWordIds}
+          className="min-h-11"
+        >
+          Начать
+        </Button>
+        {!matchingWordIds && (
+          <p className="text-sm text-muted-foreground">
+            Нужно как минимум {MATCHING_PAIR_COUNT} слов в текущей выборке — ослабьте фильтры.
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2 border-t border-border pt-4">
+        <p className="text-sm font-medium text-foreground">Найди лишний перевод</p>
+        <p className="text-sm text-muted-foreground">
+          Из {EXTRA_BATCH_SIZE} слов — среди 4 переводов один не подходит.
+        </p>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => handleStartExtra('odd-one-out')}
+          className="min-h-11"
+        >
+          Начать
+        </Button>
+      </div>
+
+      <div className="flex flex-col gap-2 border-t border-border pt-4">
+        <p className="text-sm font-medium text-foreground">Быстрая классификация части речи</p>
+        <p className="text-sm text-muted-foreground">
+          {EXTRA_BATCH_SIZE} слов — определите часть речи каждого.
+        </p>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => handleStartExtra('pos-classify')}
+          className="min-h-11"
+        >
+          Начать
+        </Button>
+      </div>
 
       <div className="flex flex-col gap-3 border-t border-border pt-4">
         <p role="status" aria-live="polite" className="text-sm text-muted-foreground">

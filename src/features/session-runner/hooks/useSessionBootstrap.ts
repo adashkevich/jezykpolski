@@ -42,6 +42,7 @@ import { getIncompleteSession } from '@/db/repositories/sessions.repository.ts'
 import { useSessionStore } from '@/stores/session.store.ts'
 import { SessionContentCache } from '../lib/session-content-context.ts'
 import {
+  generateExtraForWord,
   generateForSkill,
   materializePracticeItem,
   materializeQueueItem,
@@ -50,8 +51,10 @@ import {
 import {
   resolvePracticeCandidateWords,
   resolveSessionCandidates,
+  type PracticeExtraVariant,
   type SessionScope,
 } from '../lib/session-scope.ts'
+import { getIndexStore } from '@/content/index-store.ts'
 
 export interface SessionRuntime {
   readonly sessionId: number
@@ -170,8 +173,37 @@ export function useSessionBootstrap(scope: SessionScope) {
 
     let materialized: MaterializedQueueEntry[]
     let forceCategory: ExerciseCategory | undefined
+    // Task 27's `{ kind: 'practice-extra' }` — set only for that scope; every instance below
+    // is then built via `generateExtraForWord` instead of `generateForSkill`/`pickExerciseType`.
+    let extraVariant: PracticeExtraVariant | undefined
 
-    if (scope.kind === 'practice') {
+    if (scope.kind === 'practice-extra') {
+      // FR-56/FR-57 — see `session-scope.ts`'s own header on this scope: "лишний
+      // перевод"/"часть речи" are single-slot, auto-graded exercises that still go through
+      // the ordinary queue/registry path, just with `pickExerciseType` bypassed entirely.
+      extraVariant = scope.variant
+      const wordIds = scope.wordIds.filter(
+        (wordId) => !args.excludeSkillIds.has(encodeSkillId(wordId, 'vocab:pl-ru')),
+      )
+      if (wordIds.length === 0) {
+        await handleEmptyPlan(args.existingSessionId, now)
+        return
+      }
+
+      materialized = []
+      for (const wordId of wordIds) {
+        const word = getIndexStore().byId.get(wordId)
+        if (!word) continue
+        // `materializeQueueItem`'s `'new'` branch never actually reads `item.word` (it
+        // re-fetches the entry from the already-preloaded cache) — reused as-is rather than
+        // duplicating its `ensureSkill(vocab:pl-ru)` + `enumerateSkills` logic here.
+        materialized.push(await materializeQueueItem({ source: 'new', word, wordId }, cache))
+      }
+      if (materialized.length === 0) {
+        await handleEmptyPlan(args.existingSessionId, now)
+        return
+      }
+    } else if (scope.kind === 'practice') {
       // Task 19 — see `learning/session/build-practice-queue.ts`'s and
       // `session-scope.ts#resolvePracticeCandidateWords`'s own headers for why this is a
       // completely separate pipeline from `buildLearnQueue`'s due/new model: the user
@@ -235,7 +267,9 @@ export function useSessionBootstrap(scope: SessionScope) {
     const instances: ExerciseInstance[] = []
     for (const { descriptor, skill } of materialized) {
       descriptors.set(descriptor.skillId, descriptor)
-      const instance = generateForSkill(descriptor, skill, cache, 0, hintMode, forceCategory)
+      const instance = extraVariant
+        ? generateExtraForWord(extraVariant, descriptor, cache, 0)
+        : generateForSkill(descriptor, skill, cache, 0, hintMode, forceCategory)
       skillByInstanceId.set(instance.id, skill)
       instances.push(instance)
     }
@@ -277,7 +311,11 @@ export function useSessionBootstrap(scope: SessionScope) {
       // `'mistakes'`/`'practice'`, precisely so its SRS update is not suppressed/damped (see
       // `session-scope.ts`'s `resolveSkillScope` doc comment).
       const mode: SessionMode =
-        scope.kind === 'mistake' ? 'mistakes' : scope.kind === 'practice' ? 'practice' : 'learn'
+        scope.kind === 'mistake'
+          ? 'mistakes'
+          : scope.kind === 'practice' || scope.kind === 'practice-extra'
+            ? 'practice'
+            : 'learn'
       await buildAndStart({ mode, excludeSkillIds: new Set(), prefillFirstAnswers: new Map() })
     } catch (error: unknown) {
       if (aliveRef.current) setStatus({ phase: 'error', message: errorMessage(error) })

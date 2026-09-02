@@ -252,6 +252,13 @@ describe('AppRouter', () => {
     expect(await screen.findByText('kobieta', { selector: 'h2' })).toBeInTheDocument()
   })
 
+  // Task 27 (`spec/tasks/27-context-and-error-analysis.md` §4, FR-55).
+  it('renders the /practice/matching screen (no router state -> "not provided" message)', () => {
+    renderAt('/practice/matching')
+    expect(screen.getByRole('heading', { name: 'Сопоставление' })).toBeInTheDocument()
+    expect(screen.getByText(/начните из экрана/i)).toBeInTheDocument()
+  })
+
   it('renders NotFoundPage for an unknown path instead of a blank screen', () => {
     // NotFoundPage's message comes from the shared EmptyState component (deliberately a <p>,
     // not an <h1> — EmptyState is also used for in-page "no results" states where it must

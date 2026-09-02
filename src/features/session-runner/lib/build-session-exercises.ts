@@ -13,13 +13,18 @@
  * to invent its own cache-invalidation story for a `SkillDescriptor` cache.
  */
 import { enumerateSkills, type SkillDescriptor } from '@/learning/skills/enumerate.ts'
-import { generateExercise } from '@/learning/exercises/generate.ts'
+import {
+  generateExercise,
+  generateOddOneOutExercise,
+  generatePosClassifyExercise,
+} from '@/learning/exercises/generate.ts'
 import type { ExerciseCategory } from '@/learning/exercises/picker.ts'
 import type { ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import type { HintMode } from '@/learning/exercises/hint-mode.ts'
 import type { LearnQueueItem, PracticeQueueItem } from '@/learning/session/session.types.ts'
 import { ensureSkill } from '@/db/repositories/skills.repository.ts'
 import type { SkillRecord } from '@/types/progress.ts'
+import type { PracticeExtraVariant } from './session-scope.ts'
 import { seedFor } from './seed.ts'
 import type { SessionContentCache } from './session-content-context.ts'
 
@@ -117,4 +122,32 @@ export function generateForSkill(
   const ctx = cache.toContentContext()
   const seed = seedFor(descriptor.skillId, attempt)
   return generateExercise(descriptor, srsRecord, ctx, seed, { hintMode, forceCategory })
+}
+
+/**
+ * Task 27 (`spec/tasks/27-context-and-error-analysis.md` §4, FR-56/FR-57) — the
+ * `{ kind: 'practice-extra' }` counterpart of `generateForSkill` above: instead of
+ * `generateExercise`/`pickExerciseType` (which would only ever pick a plain vocab
+ * `choice`/`input` for a `vocab:pl-ru` skill), this calls `generate.ts`'s dedicated
+ * `generateOddOneOutExercise`/`generatePosClassifyExercise` builders directly — the "явный
+ * forced-type, в обход pickExerciseType" the task text asks for. `descriptor` is still the
+ * word's `vocab:pl-ru` `SkillDescriptor` (see `useSessionBootstrap.ts`'s practice-extra
+ * branch: it materializes exactly that skill, via `materializeQueueItem`'s existing
+ * 'new'-word path, purely so `reviewLogs`/FSRS bookkeeping has a real skill to attach to —
+ * these 2 exercise types have no dimension of their own to test, "лишний перевод"/"часть
+ * речи" are both vocabulary-adjacent facts about the whole word).
+ */
+export function generateExtraForWord(
+  variant: PracticeExtraVariant,
+  descriptor: SkillDescriptor,
+  cache: SessionContentCache,
+  attempt: number,
+): ExerciseInstance {
+  const ctx = cache.toContentContext()
+  const seed = seedFor(descriptor.skillId, attempt)
+  const exercise =
+    variant === 'odd-one-out'
+      ? generateOddOneOutExercise(descriptor.wordId, ctx, seed)
+      : generatePosClassifyExercise(descriptor.wordId, ctx)
+  return { id: `${descriptor.skillId}::${variant}::${seed}`, skillId: descriptor.skillId, exercise }
 }

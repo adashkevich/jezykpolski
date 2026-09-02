@@ -1,11 +1,12 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
+import { __resetLoaderCachesForTest, loadSensesShard } from '@/content/loader.ts'
 import type { DecodedForm } from '@/content/codec.ts'
 import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import type { Paradigm, WordIndexEntry } from '@/types/content.ts'
 import type { SkillRecord, SkillState } from '@/types/progress.ts'
 import type { ContentContext } from './exercise.types.ts'
-import { generateExercise } from './generate.ts'
+import { generateExercise, generateOddOneOutExercise, generatePosClassifyExercise } from './generate.ts'
 
 // ---------------------------------------------------------------------------
 // Fixtures — a tiny word pool (so `pickVocabDistractors`'s naive same-POS sampling has
@@ -80,6 +81,24 @@ const NOUN_SKILL: SkillDescriptor = {
   acceptedAnswers: ['kobiety'],
 }
 
+/**
+ * Task 27 (`spec/tasks/27-context-and-error-analysis.md` §2): `noun:sg:genitive` is one of
+ * the 4 dimensions `picker.ts` now substitutes `context-sentence` for on recognition states
+ * — every pre-existing `form-choice`-specific assertion in this file that generates with an
+ * `undefined`/`'new'`-ish `srs` for `NOUN_SKILL` therefore needs a dimension task 27 doesn't
+ * touch. `noun:sg:accusative` (real form `kobietę`, already in `KOBIETA_FORMS`) is that
+ * substitute, used ONLY where the test is specifically about `form-choice`'s own shape, not
+ * about picker state transitions in general (those already used `srs('review')`, which
+ * `context-sentence` never substitutes for `form-input`, and are unaffected by this task).
+ */
+const NOUN_SKILL_ACCUSATIVE: SkillDescriptor = {
+  skillId: 'kobieta|NOUN::noun:sg:accusative',
+  wordId: 'kobieta|NOUN',
+  kind: 'noun',
+  dimension: 'noun:sg:accusative',
+  acceptedAnswers: ['kobietę'],
+}
+
 function srs(state: SkillState, reps = 0): SkillRecord {
   return {
     skillId: VOCAB_SKILL.skillId,
@@ -101,6 +120,7 @@ function srs(state: SkillState, reps = 0): SkillRecord {
 
 beforeEach(() => {
   __resetIndexStoreForTest()
+  __resetLoaderCachesForTest()
   initIndexStore([
     KOBIETA_ENTRY,
     entry({ lemma: 'człowiek', pos: 'NOUN', rank: 2, primaryRu: 'человек' }),
@@ -108,6 +128,22 @@ beforeEach(() => {
     entry({ lemma: 'stół', pos: 'NOUN', rank: 8, primaryRu: 'стол' }),
   ])
 })
+
+/** Same convention as `distractors.test.ts`'s own `stubContentFetch` — a minimal fetch stub
+ *  keyed by a substring of the requested URL, for warming `content/loader.ts`'s senses-shard
+ *  cache so `generateOddOneOutExercise`'s `resolveTranslations` sees more than just
+ *  `primaryRu`. */
+function stubContentFetch(routes: Record<string, unknown>): void {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: unknown) => {
+      const href = String(url)
+      const key = Object.keys(routes).find((k) => href.includes(k))
+      if (key === undefined) return { ok: false, status: 404, json: async () => ({}) } as Response
+      return { ok: true, json: async () => routes[key] } as Response
+    }),
+  )
+}
 
 // ---------------------------------------------------------------------------
 // Acceptance: "generateExercise с одинаковым seed даёт побайтово одинаковый результат".
@@ -193,12 +229,12 @@ describe('generateExercise — vocab input', () => {
 describe('generateExercise — morphology (form-choice / form-input)', () => {
   it("form-choice: correct is the skill's first accepted answer, options never repeat it as a distractor", () => {
     const ctx = makeContext()
-    const { exercise } = generateExercise(NOUN_SKILL, undefined, ctx, 9)
+    const { exercise } = generateExercise(NOUN_SKILL_ACCUSATIVE, undefined, ctx, 9)
     expect(exercise.type).toBe('form-choice')
     if (exercise.type !== 'form-choice') throw new Error('unreachable')
-    expect(exercise.correct).toBe('kobiety')
+    expect(exercise.correct).toBe('kobietę')
     expect(exercise.lemma).toBe('kobieta')
-    expect(exercise.slot).toBe('noun:sg:genitive')
+    expect(exercise.slot).toBe('noun:sg:accusative')
     expect(exercise.options.filter((o) => o === exercise.correct)).toHaveLength(1)
   })
 
@@ -213,7 +249,49 @@ describe('generateExercise — morphology (form-choice / form-input)', () => {
 
   it('form-choice throws when the word has no paradigm', () => {
     const ctx = makeContext({ getParadigm: () => null })
-    expect(() => generateExercise(NOUN_SKILL, undefined, ctx, 1)).toThrow()
+    expect(() => generateExercise(NOUN_SKILL_ACCUSATIVE, undefined, ctx, 1)).toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Task 27 (`spec/tasks/27-context-and-error-analysis.md` §2, FR-63): `context-sentence`,
+// picked instead of `form-choice` for `noun:sg:<genitive|dative|instrumental|locative>` on
+// a recognition-state skill (`picker.ts`'s own eligibility check — exercised directly in
+// `picker.test.ts`; this describes what `generate.ts#buildContextSentence` actually builds).
+// ---------------------------------------------------------------------------
+
+describe('generateExercise — context-sentence (task 27, FR-63)', () => {
+  it('picks a template sentence for the skill\'s case, with the correct answer and singular-only distractors', () => {
+    const ctx = makeContext()
+    const { exercise } = generateExercise(NOUN_SKILL, undefined, ctx, 9)
+    expect(exercise.type).toBe('context-sentence')
+    if (exercise.type !== 'context-sentence') throw new Error('unreachable')
+
+    expect(exercise.correct).toBe('kobiety')
+    expect(exercise.slot).toBe('noun:sg:genitive')
+    // One of the 2 genitive templates, containing the literal blank marker.
+    expect(['Nie ma ___.', 'Szukam ___.']).toContain(exercise.sentence)
+    expect(exercise.options).toContain('kobiety')
+    // Distractors are other SINGULAR forms of the same word (dative "kobiecie", accusative
+    // "kobietę", instrumental "kobietą") — never the plural nominative/genitive forms also
+    // present in `KOBIETA_FORMS`.
+    for (const option of exercise.options) {
+      expect(['kobiety', 'kobieta', 'kobiecie', 'kobietę', 'kobietą']).toContain(option)
+    }
+    expect(exercise.options).not.toContain('kobiet') // plural genitive — excluded
+  })
+
+  it('is deterministic: identical seed -> identical sentence/options/correct', () => {
+    const ctx = makeContext()
+    const a = generateExercise(NOUN_SKILL, undefined, ctx, 555)
+    const b = generateExercise(NOUN_SKILL, undefined, ctx, 555)
+    expect(a).toEqual(b)
+  })
+
+  it('forceCategory: recall (form-input) is never substituted, even for this dimension', () => {
+    const ctx = makeContext()
+    const { exercise } = generateExercise(NOUN_SKILL, undefined, ctx, 9, { forceCategory: 'recall' })
+    expect(exercise.type).toBe('form-input')
   })
 })
 
@@ -312,7 +390,7 @@ describe('generateExercise — ADJ degree of comparison (task 22, FR-69)', () =>
 describe('generateExercise — hintMode / promptMode (task 18 acceptance)', () => {
   it('defaults to promptMode "lemma" when hintMode is omitted', () => {
     const ctx = makeContext()
-    const { exercise } = generateExercise(NOUN_SKILL, undefined, ctx, 9)
+    const { exercise } = generateExercise(NOUN_SKILL_ACCUSATIVE, undefined, ctx, 9)
     if (exercise.type !== 'form-choice') throw new Error('unreachable')
     expect(exercise.promptMode).toBe('lemma')
   })
@@ -427,5 +505,68 @@ describe('generateExercise — correct-answer position distribution (task 10 acc
       expect(count).toBeGreaterThan(expectedShare * 0.7)
       expect(count).toBeLessThan(expectedShare * 1.3)
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Task 27 §4/§5 (FR-56/FR-57): `generateOddOneOutExercise`/`generatePosClassifyExercise` —
+// Practice-only builders, called directly (never through `generateExercise`/`picker.ts`).
+// ---------------------------------------------------------------------------
+
+describe('generateOddOneOutExercise (task 27, FR-56)', () => {
+  it('3 real translations + 1 odd one, oddIndex points at the actual non-translation', async () => {
+    stubContentFetch({
+      'senses/000.json': {
+        'kobieta|NOUN': [{ ru: ['женщина', 'дама', 'баба'], primary: true }],
+      },
+    })
+    await loadSensesShard(0) // KOBIETA_ENTRY.sensesShard === 0
+
+    const ctx = makeContext()
+    const exercise = generateOddOneOutExercise('kobieta|NOUN', ctx, 3)
+    expect(exercise.type).toBe('odd-one-out')
+    if (exercise.type !== 'odd-one-out') throw new Error('unreachable')
+
+    expect(exercise.prompt).toBe('kobieta')
+    expect(exercise.options).toHaveLength(4)
+    const odd = exercise.options[exercise.oddIndex]!
+    const realTranslations = ['женщина', 'дама', 'баба']
+    expect(realTranslations).not.toContain(odd)
+    // Every option other than the odd one IS a real translation.
+    exercise.options.forEach((option, index) => {
+      if (index === exercise.oddIndex) return
+      expect(realTranslations).toContain(option)
+    })
+  })
+
+  it('degrades to fewer options (never fabricates) when the word has < 3 real translations', () => {
+    // No stubContentFetch/loadSensesShard call — resolveTranslations falls back to just
+    // `primaryRu` ("женщина"), i.e. exactly 1 real translation.
+    const ctx = makeContext()
+    const exercise = generateOddOneOutExercise('kobieta|NOUN', ctx, 1)
+    if (exercise.type !== 'odd-one-out') throw new Error('unreachable')
+    expect(exercise.options).toHaveLength(2) // 1 real + 1 odd, not padded to 4
+    expect(exercise.options).toContain('женщина')
+  })
+
+  it('is deterministic: identical seed -> identical options/oddIndex', async () => {
+    stubContentFetch({
+      'senses/000.json': {
+        'kobieta|NOUN': [{ ru: ['женщина', 'дама', 'баба'], primary: true }],
+      },
+    })
+    await loadSensesShard(0)
+    const ctx = makeContext()
+    const a = generateOddOneOutExercise('kobieta|NOUN', ctx, 7)
+    const b = generateOddOneOutExercise('kobieta|NOUN', ctx, 7)
+    expect(a).toEqual(b)
+  })
+})
+
+describe('generatePosClassifyExercise (task 27, FR-57)', () => {
+  it('prompt is the lemma, correct is the real WordIndexEntry.pos', () => {
+    const ctx = makeContext()
+    const exercise = generatePosClassifyExercise('kobieta|NOUN', ctx)
+    expect(exercise).toEqual({ type: 'pos-classify', lemma: 'kobieta', correct: 'NOUN' })
   })
 })

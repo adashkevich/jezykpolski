@@ -26,6 +26,7 @@ import { SessionResultPage } from '@/pages/session/SessionResultPage.tsx'
 import { PracticeSetupPage } from '@/pages/practice/PracticeSetupPage.tsx'
 import { TablePracticePage } from '@/pages/practice/TablePracticePage.tsx'
 import { VerbTablePracticePage } from '@/pages/practice/VerbTablePracticePage.tsx'
+import { MatchingPracticePage } from '@/pages/practice/MatchingPracticePage.tsx'
 import { StatsPage } from '@/pages/stats/StatsPage.tsx'
 import { SettingsPage } from '@/pages/settings/SettingsPage.tsx'
 import { NotFoundPage } from '@/pages/not-found/NotFoundPage.tsx'
@@ -46,6 +47,7 @@ export function AppRouter() {
           <Route path="practice" element={<PracticeSetupPage />} />
           <Route path="practice/table/:wordId" element={<TablePracticePage />} />
           <Route path="practice/verb-table/:wordId/:tense" element={<VerbTablePracticePage />} />
+          <Route path="practice/matching" element={<MatchingPracticePage />} />
           <Route path="stats" element={<StatsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFoundPage />} />

@@ -26,6 +26,7 @@
  * ---------------------------------------------------------------------------------------
  */
 import { LEVEL_VALUES, type PosValue } from '@/content/codec.ts'
+import { CONFUSABLE_GROUPS } from '@/content/confusable-words.ts'
 import { peekParadigmShard, peekSensesShard } from '@/content/loader.ts'
 import { getIndexStore } from '@/content/index-store.ts'
 import { getFormsForSlot } from '@/content/paradigms.ts'
@@ -71,8 +72,14 @@ function seededSample<T>(items: readonly T[], n: number, seed: number): T[] {
 /** De-duplicated Russian translations across every sense, primary sense first — the
  *  synchronous, best-effort mirror of `content/senses.ts`'s `getAllTranslations` described
  *  in this file's header. Falls back to `primaryRu` alone when the word's senses shard
- *  hasn't resolved in memory yet. */
-function resolveTranslations(entry: WordIndexEntry): readonly string[] {
+ *  hasn't resolved in memory yet.
+ *
+ *  Exported (task 27, `spec/tasks/27-context-and-error-analysis.md` §4/§5) for
+ *  `generate.ts`'s `odd-one-out` builder, which needs the exact same "every real
+ *  translation, synchronously, best-effort" view this file already computes for its own
+ *  translation-overlap exclusion (step 4 below) — reusing it is what the task text's own
+ *  "не изобретай второй парсер переводов" instruction asks for. */
+export function resolveTranslations(entry: WordIndexEntry): readonly string[] {
   const shard = peekSensesShard(entry.sensesShard)
   const senses: readonly Sense[] | undefined = shard?.get(encodeWordId(entry.lemma, entry.pos))
   if (senses && senses.length > 0) {
@@ -151,6 +158,27 @@ function dedupeByDisplay(pool: readonly WordIndexEntry[], direction: Direction):
 }
 
 /**
+ * Task 27 (`spec/tasks/27-context-and-error-analysis.md` §3, FR-94) — `CONFUSABLE_GROUPS`
+ * members of `target`'s own group, PREFERRED over the general rank/level heuristic below
+ * but never bypassing the translation-overlap invariant (step 4 still applies to them: a
+ * "distractor" that's actually an acceptable translation would make the question
+ * ambiguous, which defeats the point regardless of how semantically close the two words
+ * are). Signature of `pickVocabDistractors` itself is unchanged — this is purely internal
+ * wiring, per the task text's explicit instruction.
+ */
+function confusableGroupCandidates(target: WordIndexEntry): WordIndexEntry[] {
+  const group = CONFUSABLE_GROUPS.find((g) => g.includes(target.lemma))
+  if (!group) return []
+  const result: WordIndexEntry[] = []
+  for (const lemma of group) {
+    if (lemma === target.lemma) continue
+    const entry = getIndexStore().byId.get(encodeWordId(lemma, target.pos))
+    if (entry) result.push(entry)
+  }
+  return result
+}
+
+/**
  * `spec/architecture.md` §7.4 / `spec/tasks/10-distractors.md` §1:
  * ```text
  * 1. пул = слова той же части речи
@@ -160,6 +188,10 @@ function dedupeByDisplay(pool: readonly WordIndexEntry[], direction: Direction):
  * 5. если кандидатов < n — последовательно ослаблять шаги 3, затем 2
  * 6. выбрать n детерминированно по seed
  * ```
+ * Extended by task 27 §3 (see `confusableGroupCandidates` above): `CONFUSABLE_GROUPS`
+ * siblings are tried FIRST, before this whole rank/level pipeline — falling back to it only
+ * for whatever slots the group didn't fill (no group, group too small, or every sibling
+ * excluded by the translation-overlap check).
  */
 export function pickVocabDistractors(
   target: WordIndexEntry,
@@ -173,6 +205,18 @@ export function pickVocabDistractors(
   )
   const targetTranslations = new Set(resolveTranslations(target))
 
+  // Task 27 §3 — confusable-group siblings, preferred over the general heuristic.
+  const groupPool = dedupeByDisplay(
+    excludeTranslationOverlap(confusableGroupCandidates(target), targetTranslations),
+    direction,
+  )
+  const groupPicked = seededSample(groupPool, Math.min(n, groupPool.length), seed)
+  if (groupPicked.length >= n) {
+    return groupPicked.map((entry) => displayText(entry, direction))
+  }
+  const groupDisplayTexts = new Set(groupPicked.map((entry) => displayText(entry, direction)))
+  const remaining = n - groupPicked.length
+
   // Steps 2 + 3.
   const rankFiltered = fullPool.filter((candidate) => withinRankWindow(candidate, target))
   const rankAndLevelFiltered = rankFiltered.filter((candidate) =>
@@ -183,7 +227,7 @@ export function pickVocabDistractors(
   let candidates = excludeTranslationOverlap(rankAndLevelFiltered, targetTranslations)
 
   // Step 5: relax the level filter (step 3) first...
-  if (candidates.length < n) {
+  if (candidates.length < remaining) {
     candidates = excludeTranslationOverlap(rankFiltered, targetTranslations)
   }
   // ...then widen the rank window (step 2) progressively — ×9, then ×27 — rather than
@@ -194,7 +238,7 @@ export function pickVocabDistractors(
   // gradually keeps distractors as close in frequency as the real neighbourhood allows,
   // instead of jumping straight to "any same-POS word whatsoever".
   for (const multiplier of RANK_RELAXATION_MULTIPLIERS) {
-    if (candidates.length >= n) break
+    if (candidates.length >= remaining) break
     const widerRankFiltered = fullPool.filter((candidate) =>
       withinRankWindow(candidate, target, multiplier),
     )
@@ -202,15 +246,17 @@ export function pickVocabDistractors(
   }
   // Last resort: same POS, no rank bound at all (task text, "Шаг 5 нужен для редких слов" —
   // mainly C1/C2 words or a POS with very few members overall).
-  if (candidates.length < n) {
+  if (candidates.length < remaining) {
     candidates = excludeTranslationOverlap(fullPool, targetTranslations)
   }
 
-  const deduped = dedupeByDisplay(candidates, direction)
+  const deduped = dedupeByDisplay(candidates, direction).filter(
+    (entry) => !groupDisplayTexts.has(displayText(entry, direction)),
+  )
 
   // Step 6.
-  const picked = seededSample(deduped, n, seed)
-  return picked.map((entry) => displayText(entry, direction))
+  const generalPicked = seededSample(deduped, remaining, seed)
+  return [...groupPicked, ...generalPicked].map((entry) => displayText(entry, direction))
 }
 
 // ---------------------------------------------------------------------------
