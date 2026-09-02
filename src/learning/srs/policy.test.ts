@@ -8,13 +8,22 @@ import {
   AGAIN,
   applyPracticeDamping,
   capRatingForMode,
+  createSwipeKnownState,
+  createSwipeUnknownState,
   EASY,
   GOOD,
   HARD,
   mapResultToRating,
   PRACTICE_INTERVAL_FACTOR,
   shouldApplySrs,
+  SWIPE_KNOWN_DUE_DAYS,
+  SWIPE_KNOWN_INITIAL_STABILITY,
 } from './policy.ts'
+import {
+  KNOWN_THRESHOLD,
+  MASTERED_THRESHOLD,
+  TARGET_STABILITY_DAYS,
+} from '@/learning/progress/aggregate.ts'
 
 const NOW = Date.UTC(2026, 8, 1, 12, 0, 0)
 
@@ -111,5 +120,53 @@ describe('Rule 2 / FR-112 — applyPracticeDamping', () => {
     )
 
     expect(practiceNext.due - NOW).toBeLessThan(learnEasy.due - NOW)
+  })
+})
+
+describe('Swipe triage (task 16, FR-29) — SWIPE_KNOWN_INITIAL_STABILITY', () => {
+  it('maturity (stability / TARGET_STABILITY_DAYS) lands inside the "known" band, never "mastered"', () => {
+    // The whole point of this constant (app-design.md §3's critical rule: swipe-right must
+    // NOT mean "выучено"): plugging it into aggregate.ts's own thresholds must read as
+    // `known`, never `mastered`, and this must keep holding even if those thresholds are
+    // retuned later — hence comfortable margin on both sides, not just clearing the bar.
+    const maturity = SWIPE_KNOWN_INITIAL_STABILITY / TARGET_STABILITY_DAYS
+    expect(maturity).toBeGreaterThanOrEqual(KNOWN_THRESHOLD)
+    expect(maturity).toBeLessThan(MASTERED_THRESHOLD)
+  })
+
+  it('is a positive, moderate number of days (not 0, not TARGET_STABILITY_DAYS itself)', () => {
+    expect(SWIPE_KNOWN_INITIAL_STABILITY).toBeGreaterThan(0)
+    expect(SWIPE_KNOWN_INITIAL_STABILITY).toBeLessThan(TARGET_STABILITY_DAYS)
+  })
+})
+
+describe('createSwipeKnownState', () => {
+  it('produces a "review"-state skill at SWIPE_KNOWN_INITIAL_STABILITY, self-reported as just reviewed', () => {
+    const state = createSwipeKnownState(NOW)
+    expect(state.state).toBe('review')
+    expect(state.stability).toBe(SWIPE_KNOWN_INITIAL_STABILITY)
+    expect(state.reps).toBe(1)
+    expect(state.lapses).toBe(0)
+    expect(state.lastReviewAt).toBe(NOW)
+    expect(state.difficulty).toBeGreaterThan(0)
+  })
+
+  it('schedules the next due date a few days out — SWIPE_KNOWN_DUE_DAYS, not the stability itself', () => {
+    const state = createSwipeKnownState(NOW)
+    const DAY_MS = 24 * 60 * 60 * 1000
+    expect(state.due - NOW).toBe(SWIPE_KNOWN_DUE_DAYS * DAY_MS)
+    // The critical part of the app-design.md §3 rule restated numerically: due must come
+    // much sooner than the moderate stability chosen above would "normally" imply (a real
+    // FSRS review at this app's default 90% request_retention schedules ~stability days
+    // out) — a swipe is a self-report the app deliberately rechecks soon, not a trusted
+    // full-length review.
+    expect(SWIPE_KNOWN_DUE_DAYS).toBeLessThan(SWIPE_KNOWN_INITIAL_STABILITY)
+    expect((state.due - NOW) / DAY_MS).toBeLessThan(14) // "несколько дней, а не месяцы"
+  })
+})
+
+describe('createSwipeUnknownState', () => {
+  it('is exactly a brand-new card — state "new", due now, zero stability/difficulty/reps/lapses', () => {
+    expect(createSwipeUnknownState(NOW)).toEqual(createInitialState(NOW))
   })
 })

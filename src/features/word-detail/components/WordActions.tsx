@@ -1,8 +1,9 @@
 /**
- * "Знаю" / "Учить" / "Сбросить прогресс" — `spec/tasks/08-word-detail.md` §5, FR-48.
+ * "Знаю" / "Не знаю" / "Учить" / "Сбросить прогресс" — `spec/tasks/08-word-detail.md` §5,
+ * FR-48, `spec/tasks/16-swipe-triage.md` §5.
  *
- * This task's three actions land at three different depths, per the supervisor's explicit
- * resolution for task 08 (recorded in this task's decision log / final report):
+ * This task's actions land at different depths, per the supervisor's explicit resolution for
+ * task 08 (recorded in that task's decision log / final report) and task 16 (this file):
  *
  *  - "Сбросить прогресс" is fully real: confirm (`ResetProgressDialog`) -> delete every
  *    `SkillRecord` for the word (`skills.repository.ts#resetWord`, task 05) -> recompute the
@@ -21,22 +22,26 @@
  *    `WordQuery` without abusing `search` for exact-lemma matching (unreliable: `search` is
  *    substring, not exact), so this is its own, equally-provisional shape for task 13 to
  *    read a "just this one word" scope from.
- *  - "Знаю" is visible (`app-design.md` §4 puts it in the button row) but genuinely inert:
- *    the task text's own description — "перевести vocab-навыки в состояние `known` с
- *    умеренной начальной стабильностью" — is verbatim the swipe-triage policy task 16 owns
- *    (`spec/tasks/16-swipe-triage.md` §5, `SWIPE_KNOWN_INITIAL_STABILITY`), which itself
- *    needs the FSRS adapter (task 11) neither of which are dependencies of task 08 (only 04,
- *    05, 07 are). Implementing a task-08-local approximation would create a second,
- *    divergent "what does пометить-as-known mean" policy right before task 16 defines the
- *    real one. So: rendered, `disabled`, with a `title` tooltip explaining why — not a
- *    silent no-op button, not a fake progress update.
+ *  - "Знаю" / "Не знаю" (task 16, this file — task 08 left "Знаю" `disabled` with a "see task
+ *    16" tooltip specifically because the SRS policy it needs, `SWIPE_KNOWN_INITIAL_STABILITY`,
+ *    didn't exist yet) call the exact same `db/repositories/swipe.repository.ts` functions the
+ *    `/words` list's swipe gesture uses (`markWordKnown`/`markWordUnknown` + `undoTriage`),
+ *    via the same shared `useUndoableAction` hook — one non-gesture button-equivalent for
+ *    each direction, on the card, per NFR-11 and the task's explicit instruction that the
+ *    triage functionality must not exist only as a swipe. "Не знаю" wasn't in app-design.md
+ *    §4's original card mockup (only "Знаю"/"Учить" are drawn there) — added per the
+ *    supervisor's explicit instruction for this task, since FR-29's "Не знаю" needs a
+ *    non-gesture equivalent somewhere, and the card is the other place task 16 names for it.
  */
 import { useState } from 'react'
-import { Check, GraduationCap, RotateCcw } from 'lucide-react'
+import { Check, GraduationCap, RotateCcw, X } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button.tsx'
+import { UndoToast } from '@/components/app/UndoToast.tsx'
 import { resetWord } from '@/db/repositories/skills.repository.ts'
 import { recomputeWordProgress } from '@/db/repositories/words-progress.repository.ts'
+import { markWordKnown, markWordUnknown, undoTriage } from '@/db/repositories/swipe.repository.ts'
+import { useUndoableAction } from '@/hooks/useUndoableAction.ts'
 import type { WordId } from '@/learning/skills/skill-id.ts'
 import { ResetProgressDialog } from './ResetProgressDialog.tsx'
 
@@ -45,6 +50,7 @@ export function WordActions({ wordId, lemma }: { wordId: WordId; lemma: string }
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
   const [resetError, setResetError] = useState<string | null>(null)
+  const { pending, show, confirmUndo, dismiss } = useUndoableAction()
 
   async function handleConfirmReset() {
     setIsResetting(true)
@@ -62,28 +68,41 @@ export function WordActions({ wordId, lemma }: { wordId: WordId; lemma: string }
     }
   }
 
+  async function handleMarkKnown() {
+    const snapshot = await markWordKnown(wordId)
+    show(`«${lemma}»: знаю`, () => undoTriage(snapshot))
+  }
+
+  async function handleMarkUnknown() {
+    const snapshot = await markWordUnknown(wordId)
+    show(`«${lemma}»: не знаю — добавлено к изучению`, () => undoTriage(snapshot))
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-2">
         <Button
           type="button"
-          variant="secondary"
-          disabled
-          title="Появится в задаче 16 — оценка «Знаю» через SRS-политику свайпов"
+          variant="outline"
+          onClick={handleMarkUnknown}
           className="min-h-11 flex-1"
         >
+          <X aria-hidden="true" className="size-4" />
+          Не знаю
+        </Button>
+        <Button type="button" variant="secondary" onClick={handleMarkKnown} className="min-h-11 flex-1">
           <Check aria-hidden="true" className="size-4" />
           Знаю
         </Button>
-        <Button
-          type="button"
-          onClick={() => navigate('/session', { state: { wordId } })}
-          className="min-h-11 flex-1"
-        >
-          <GraduationCap aria-hidden="true" className="size-4" />
-          Учить
-        </Button>
       </div>
+      <Button
+        type="button"
+        onClick={() => navigate('/session', { state: { wordId } })}
+        className="min-h-11"
+      >
+        <GraduationCap aria-hidden="true" className="size-4" />
+        Учить
+      </Button>
       <Button
         type="button"
         variant="outline"
@@ -107,6 +126,8 @@ export function WordActions({ wordId, lemma }: { wordId: WordId; lemma: string }
         isPending={isResetting}
         error={resetError}
       />
+
+      {pending && <UndoToast message={pending.message} onUndo={confirmUndo} onDismiss={dismiss} />}
     </div>
   )
 }

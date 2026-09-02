@@ -497,10 +497,47 @@ describe('acceptance 8 — "Сбросить прогресс" deletes the word\
   })
 })
 
-describe('"Знаю" / "Учить" (FR-48)', () => {
-  it('"Знаю" is visible but disabled', async () => {
+describe('"Знаю" / "Не знаю" / "Учить" (FR-48, task 16 FR-29)', () => {
+  it('"Знаю" moves vocab:pl-ru and vocab:ru-pl to state "review" and shows an undo toast', async () => {
+    const user = userEvent.setup()
     renderWordDetail(KOBIETA_ID)
-    expect(screen.getByRole('button', { name: /знаю/i })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: 'Знаю' }))
+
+    await waitFor(async () => {
+      const skills = await getSkillsForWord(KOBIETA_ID)
+      expect(skills).toHaveLength(2)
+      expect(skills.every((s) => s.state === 'review')).toBe(true)
+    })
+    const toast = await screen.findByRole('status')
+    expect(toast).toHaveTextContent('kobieta')
+    expect(screen.getByRole('button', { name: /отменить/i })).toBeInTheDocument()
+  })
+
+  it('"Не знаю" resets only vocab:pl-ru to state "new", due now', async () => {
+    const user = userEvent.setup()
+    renderWordDetail(KOBIETA_ID)
+
+    await user.click(screen.getByRole('button', { name: 'Не знаю' }))
+
+    await waitFor(async () => {
+      const skills = await getSkillsForWord(KOBIETA_ID)
+      expect(skills).toHaveLength(1)
+      expect(skills[0]!.dimension).toBe('vocab:pl-ru')
+      expect(skills[0]!.state).toBe('new')
+    })
+  })
+
+  it('the toast\'s "Отменить" fully reverts a "Знаю" write in Dexie', async () => {
+    const user = userEvent.setup()
+    renderWordDetail(KOBIETA_ID)
+
+    await user.click(screen.getByRole('button', { name: 'Знаю' }))
+    await waitFor(async () => expect(await getSkillsForWord(KOBIETA_ID)).toHaveLength(2))
+
+    await user.click(await screen.findByRole('button', { name: /отменить/i }))
+
+    await waitFor(async () => expect(await getSkillsForWord(KOBIETA_ID)).toHaveLength(0))
   })
 
   it('"Учить" navigates to /session carrying only this word as router state', async () => {

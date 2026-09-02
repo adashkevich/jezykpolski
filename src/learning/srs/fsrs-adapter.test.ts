@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createInitialState,
+  initialDifficultyFor,
   isDue,
   previewIntervals,
   review,
@@ -131,6 +132,23 @@ describe('isDue', () => {
     expect(isDue(state, NOW)).toBe(true)
     expect(isDue(state, NOW - 1)).toBe(false)
     expect(isDue({ ...state, due: NOW + DAY_MS }, NOW)).toBe(false)
+  })
+})
+
+describe('initialDifficultyFor (task 16, swipe-triage)', () => {
+  it('matches the difficulty a real first review() with the same rating would produce', () => {
+    const viaHelper = initialDifficultyFor(GOOD, NOW)
+    const viaRealReview = review(createInitialState(NOW), GOOD, NOW).next.difficulty
+    expect(viaHelper).toBe(viaRealReview)
+  })
+
+  it('is within FSRS\'s documented difficulty range [1, 10]', () => {
+    expect(initialDifficultyFor(GOOD, NOW)).toBeGreaterThanOrEqual(1)
+    expect(initialDifficultyFor(GOOD, NOW)).toBeLessThanOrEqual(10)
+  })
+
+  it('does not mutate any shared scheduler state — calling it twice is idempotent', () => {
+    expect(initialDifficultyFor(GOOD, NOW)).toBe(initialDifficultyFor(GOOD, NOW))
   })
 })
 

@@ -181,3 +181,21 @@ export function previewIntervals(state: SrsState, now: number): Record<Rating, n
 export function isDue(state: SrsState, now: number): boolean {
   return state.due <= now
 }
+
+/**
+ * FSRS's own "first-ever rating" difficulty (`init_difficulty(rating)` — see the excerpt in
+ * this function's call site, `policy.ts#createSwipeKnownState`) for a brand-new card, without
+ * running a real `review()` (there is no exercise/grading event behind a swipe — task 16,
+ * `spec/tasks/16-swipe-triage.md` §2). Exposed here rather than hand-copying the constant
+ * `ts-fsrs`'s default weights currently produce, so a swiped-known skill's `difficulty` stays
+ * whatever the *installed* `ts-fsrs` version's weights say a first "Good" is worth, even if a
+ * future dependency bump changes them — this is the one file allowed to know that.
+ * `stability`/`due` are deliberately NOT read off this same `next()` call — see the policy
+ * module for why swipe-triage picks those independently instead of trusting a fresh card's
+ * real first-review numbers (they'd be far too low: a brand-new card's first "Good" stability
+ * is a couple of days, not the "already know this word" signal a swipe means).
+ */
+export function initialDifficultyFor(rating: Rating, now: number): number {
+  const { card } = scheduler.next(createEmptyCard(new Date(now)), new Date(now), rating as Grade)
+  return card.difficulty
+}

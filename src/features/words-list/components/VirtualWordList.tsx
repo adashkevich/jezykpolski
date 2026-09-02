@@ -14,6 +14,15 @@
  * Fixed row height (`WORD_ROW_HEIGHT` from `WordRow.tsx`) per the task text ("проще и
  * быстрее динамической") — `estimateSize` is therefore also the *actual* size, so no
  * `measureElement`/`ResizeObserver` wiring is needed.
+ *
+ * `<WordRow key={wordId}>` (task 16, `spec/tasks/16-swipe-triage.md` acceptance point 7):
+ * `@tanstack/react-virtual` deliberately reuses each *wrapper* `<div>` for whichever word
+ * scrolls into that slot next — that's the whole performance point of virtualization — but a
+ * `WordRow` instance's in-progress swipe-gesture `useState` must NOT survive onto a different
+ * word occupying the same recycled slot. Keying the inner component (not the outer
+ * `virtualRow.key`-keyed wrapper, which must stay stable for the virtualizer itself) on
+ * `wordId` makes React unmount/remount just that inner component whenever the word changes,
+ * resetting its gesture state for free without any manual "did the prop change" effect.
  */
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useLayoutEffect, useRef } from 'react'
@@ -28,10 +37,16 @@ export function VirtualWordList({
   words,
   progress,
   showFormsBar,
+  onMarkKnown,
+  onMarkUnknown,
 }: {
   words: readonly WordIndexEntry[]
   progress: ReadonlyMap<WordId, WordProgressRecord>
   showFormsBar: boolean
+  /** Swipe-right / "Знаю" button (task 16, FR-29) — forwarded straight to every `WordRow`. */
+  onMarkKnown: (entry: WordIndexEntry) => void
+  /** Swipe-left / "Не знаю" button (task 16, FR-29) — forwarded straight to every `WordRow`. */
+  onMarkUnknown: (entry: WordIndexEntry) => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -95,7 +110,14 @@ export function VirtualWordList({
                 transform: `translateY(${virtualRow.start}px)`,
               }}
             >
-              <WordRow entry={entry} progress={progress.get(wordId)} showFormsBar={showFormsBar} />
+              <WordRow
+                key={wordId}
+                entry={entry}
+                progress={progress.get(wordId)}
+                showFormsBar={showFormsBar}
+                onMarkKnown={onMarkKnown}
+                onMarkUnknown={onMarkUnknown}
+              />
             </div>
           )
         })}
