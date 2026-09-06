@@ -22,6 +22,15 @@
  * Автозавершение (`onComplete`) вызывается прямо из обработчика события (`onChange`/клика
  * по кнопке), не из эффекта — `react-hooks/purity` и `react-hooks/set-state-in-effect`
  * запрещают импуры/`setState` в эффектах в этом проекте.
+ *
+ * Прогрессивное раскрытие ячеек (`spec/tasks/30-progressive-letter-slots.md`, FR-53/FR-59
+ * (переформулирован)/FR-136/FR-84-86): длина слова — сильная подсказка сама по себе, поэтому
+ * рисуется не весь `attempt.cells`, а только `attempt.cells.slice(0, attempt.visibleCount)` —
+ * вся арифметика того, что считается видимым, живёт в чистом
+ * `letter-attempt.ts#computeVisibleCount`, этот компонент только берёт готовое число. Ширина
+ * ячейки — фиксированная константа (не зависит от длины слова, это тоже было утечкой длины),
+ * ряд переносится `flex-wrap` и скроллится по горизонтали внутри своего контейнера, если не
+ * помещается — страница целиком по горизонтали не скроллится.
  */
 import { Eye, Lightbulb } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react'
@@ -55,14 +64,13 @@ const CELL_CLASS: Readonly<Record<CellState, string>> = {
   separator: 'border-transparent',
 }
 
-/** Слоты должны влезать в 320px даже для самых длинных форм (`będziemy robić` — 14 букв +
- *  пробел) — критерий приёмки MVP №14. Ширина падает по мере роста слова, ряд ещё и
- *  переносится (`flex-wrap`) на случай совсем длинных фраз. */
-function slotWidthClass(letterCount: number): string {
-  if (letterCount <= 10) return 'w-8 text-lg'
-  if (letterCount <= 14) return 'w-7 text-base'
-  return 'w-6 text-sm'
-}
+/** Фиксированная ширина ячейки (задача 30 §2 п.2) — раньше она вычислялась от количества
+ *  букв ради умещения самых длинных форм в 320px, но это прямая утечка длины слова через
+ *  вёрстку ещё до первого нажатия. Ширина больше не зависит от слова: тач-таргет ≥44px по
+ *  высоте (критерий приёмки MVP №14) держит `h-11`/`min-w-11`, ряд переносится `flex-wrap`, а
+ *  контейнер скроллится по горизонтали (`overflow-x-auto`), если много слотов всё равно не
+ *  помещается в одну строку — страница на 320px по-прежнему не скроллится вбок. */
+const SLOT_CLASS = 'h-11 min-w-11 text-lg'
 
 export interface LetterSlotsInputProps {
   readonly accepted: readonly string[]
@@ -105,9 +113,8 @@ export function LetterSlotsInput({
     inputRef.current?.focus()
   }, [])
 
-  const letterCount = attempt.cells.filter((cell) => cell.state !== 'separator').length
-  const widthClass = slotWidthClass(letterCount)
   const frozen = disabled || answered || attempt.complete
+  const visibleCells = attempt.cells.slice(0, attempt.visibleCount)
 
   function commitIfComplete(next: LetterAttempt) {
     setAttempt(next)
@@ -195,30 +202,31 @@ export function LetterSlotsInput({
           className="absolute inset-0 h-full w-full cursor-text opacity-0 disabled:cursor-not-allowed"
         />
         <p id={descriptionId} className="sr-only">
-          Слово из {letterCount} букв. Вводите буквы по порядку — неверная буква заменяется
-          следующим нажатием.
+          Вводите буквы по порядку — неверная буква заменяется следующим нажатием.
         </p>
         <div
           aria-hidden="true"
-          className="flex flex-wrap justify-center gap-1 rounded-lg border border-transparent px-2 py-1"
+          className="overflow-x-auto rounded-lg border border-transparent px-2 py-1"
         >
-          {attempt.cells.map((cell, index) =>
-            cell.state === 'separator' ? (
-              <span key={index} className="w-3" />
-            ) : (
-              <span
-                key={index}
-                data-cell-state={cell.state}
-                className={cn(
-                  'flex h-12 items-end justify-center border-b-2 pb-1 font-mono transition-colors motion-reduce:transition-none',
-                  widthClass,
-                  CELL_CLASS[cell.state],
-                )}
-              >
-                {cell.shown ?? '_'}
-              </span>
-            ),
-          )}
+          <div className="flex flex-wrap justify-start gap-1">
+            {visibleCells.map((cell, index) =>
+              cell.state === 'separator' ? (
+                <span key={index} className="w-3" />
+              ) : (
+                <span
+                  key={index}
+                  data-cell-state={cell.state}
+                  className={cn(
+                    'flex items-end justify-center border-b-2 pb-1 font-mono transition-colors motion-reduce:transition-none',
+                    SLOT_CLASS,
+                    CELL_CLASS[cell.state],
+                  )}
+                >
+                  {cell.shown ?? '_'}
+                </span>
+              ),
+            )}
+          </div>
         </div>
       </div>
 

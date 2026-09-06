@@ -1,8 +1,8 @@
 /**
  * `LetterSlotsInput` component tests (`spec/tasks/29-letter-by-letter-input.md` §3-4, FR-59,
- * FR-84, FR-85). This is where the actual keystroke/click behavior that `InputExercise` and
- * `FormInputExercise` both delegate to lives — their own tests only check prompt rendering
- * and prop wiring.
+ * FR-84, FR-85; progressive reveal per `spec/tasks/30-progressive-letter-slots.md` §2). This
+ * is where the actual keystroke/click behavior that `InputExercise` and `FormInputExercise`
+ * both delegate to lives — their own tests only check prompt rendering and prop wiring.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
@@ -30,13 +30,28 @@ function renderInput(overrides?: Partial<Parameters<typeof LetterSlotsInput>[0]>
 }
 
 describe('LetterSlotsInput — rendering', () => {
-  it('renders one slot per letter and no visible textbox value', () => {
+  it('renders exactly one empty slot on mount, however long the answer is (progressive reveal, task 30)', () => {
     renderInput({ accepted: ['kotek'] })
     const cells = document.querySelectorAll('[data-cell-state]')
-    expect(cells).toHaveLength(5)
-    for (const cell of cells) {
-      expect(cell.getAttribute('data-cell-state')).toBe('empty')
-    }
+    expect(cells).toHaveLength(1)
+    expect(cells[0]!.getAttribute('data-cell-state')).toBe('empty')
+  })
+
+  it('renders exactly one empty slot on mount for a much longer answer too — the DOM never reveals word length up front', () => {
+    renderInput({ accepted: ['będziemy robić'] })
+    expect(document.querySelectorAll('[data-cell-state]')).toHaveLength(1)
+  })
+
+  it('the cell width is fixed regardless of word length, and each cell is a ≥44px touch target', () => {
+    renderInput({ accepted: ['będziemy robić'] })
+    const cell = document.querySelector('[data-cell-state]')!
+    expect(cell.className).toMatch(/\bh-11\b/)
+    expect(cell.className).toMatch(/\bmin-w-11\b/)
+  })
+
+  it('the hidden field aria-label never names the letter count', () => {
+    renderInput({ accepted: ['kotek'], ariaLabel: 'Ответ по-польски' })
+    expect(screen.getByRole('textbox')).toHaveAccessibleName('Ответ по-польски')
   })
 
   it('the letter row is aria-hidden — a screen reader reads the field value, not letter-by-letter', () => {
@@ -59,9 +74,19 @@ describe('LetterSlotsInput — rendering', () => {
     expect(screen.queryByRole('button', { name: 'Проверить' })).not.toBeInTheDocument()
   })
 
-  it('renders separate cells for spaces in a multi-word form', () => {
+  it('a separator becomes visible together with the slot of the letter right after it, not before (task 30 §1 p.2)', async () => {
+    const user = userEvent.setup()
     renderInput({ accepted: ['a b'] })
-    expect(document.querySelectorAll('[data-cell-state]')).toHaveLength(2)
+    // Before typing anything, only the first letter's slot is visible — the space and the
+    // second word haven't appeared in the DOM at all yet.
+    expect(document.querySelectorAll('[data-cell-state]')).toHaveLength(1)
+
+    await user.type(screen.getByRole('textbox'), 'a')
+    // Typing the correct first letter reveals the separator *and* the next slot together.
+    const cells = document.querySelectorAll('[data-cell-state]')
+    expect(cells).toHaveLength(2)
+    expect(cells[0]!.getAttribute('data-cell-state')).toBe('correct')
+    expect(cells[1]!.getAttribute('data-cell-state')).toBe('empty')
   })
 })
 
@@ -81,7 +106,23 @@ describe('LetterSlotsInput — typing', () => {
     await user.type(screen.getByRole('textbox'), 'z')
     const cells = document.querySelectorAll('[data-cell-state]')
     expect(cells[0]!.getAttribute('data-cell-state')).toBe('wrong')
-    expect(cells[1]!.getAttribute('data-cell-state')).toBe('empty')
+  })
+
+  it('an incorrect letter does not add a new slot (task 30 §1 p.3)', async () => {
+    const user = userEvent.setup()
+    renderInput({ accepted: ['kot'] })
+    await user.type(screen.getByRole('textbox'), 'z')
+    expect(document.querySelectorAll('[data-cell-state]')).toHaveLength(1)
+  })
+
+  it('backspace erases the wrong letter without ever revealing a slot further out than before it was typed', async () => {
+    const user = userEvent.setup()
+    renderInput({ accepted: ['kot'] })
+    await user.type(screen.getByRole('textbox'), 'z')
+    await user.type(screen.getByRole('textbox'), '{Backspace}')
+    const cells = document.querySelectorAll('[data-cell-state]')
+    expect(cells).toHaveLength(1)
+    expect(cells[0]!.getAttribute('data-cell-state')).toBe('empty')
   })
 
   it('the next keystroke replaces a wrong letter instead of appending after it', async () => {
@@ -174,6 +215,7 @@ describe('LetterSlotsInput — «Показать слово» (reveal)', () => 
     await user.click(screen.getByRole('button', { name: 'Показать слово' }))
 
     const cells = document.querySelectorAll('[data-cell-state]')
+    expect(cells).toHaveLength(5)
     for (const cell of cells) {
       expect(cell.getAttribute('data-cell-state')).toBe('revealed')
     }

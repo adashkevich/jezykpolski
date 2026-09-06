@@ -120,7 +120,7 @@
 | 27 | [Контекстные предложения и анализ ошибок](27-context-and-error-analysis.md) | [x] |
 | 28 | [Два этапа изучения слова и побуквенная проверка](28-two-stage-vocabulary-and-letter-diff.md) | [x] |
 | 29 | [Побуквенный ввод ответа](29-letter-by-letter-input.md) | [x] |
-| 30 | [Растущий ряд слотов: длина слова скрыта](30-progressive-letter-slots.md) | [ ] |
+| 30 | [Растущий ряд слотов: длина слова скрыта](30-progressive-letter-slots.md) | [x] |
 | 31 | [Practice: лексические дриллы вместо викторин](31-practice-vocabulary-drills.md) | [ ] |
 | 32 | [Экран тренировки: сворачиваемые блоки](32-training-setup-collapsible-blocks.md) | [ ] |
 | 33 | [Ранжирование блоков по использованию](33-training-block-usage-ranking.md) | [ ] |

@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   attemptValue,
+  computeVisibleCount,
   createLetterAttempt,
   eraseLetter,
   outcomeOf,
@@ -27,6 +28,12 @@ describe('createLetterAttempt', () => {
     expect(states(attempt)).toEqual(['empty', 'empty', 'empty', 'empty', 'empty'])
     expect(attempt.cursor).toBe(0)
     expect(attempt.complete).toBe(false)
+  })
+
+  it('новая попытка показывает ровно один слот, независимо от длины эталона (задача 30 §1)', () => {
+    expect(createLetterAttempt(['no']).visibleCount).toBe(1)
+    expect(createLetterAttempt(['kotek']).visibleCount).toBe(1)
+    expect(createLetterAttempt(['będziemy robić']).visibleCount).toBe(1)
   })
 
   it('пробел, дефис и апостроф становятся отдельными ячейками-разделителями', () => {
@@ -246,6 +253,79 @@ describe('outcomeOf', () => {
     expect(outcome.mistakes).toBe(1)
     expect(outcome.hintsUsed).toBe(1)
     expect(outcome.revealed).toBe(false)
+  })
+})
+
+describe('visibleCount — прогрессивное раскрытие (задача 30 §1)', () => {
+  it('после каждой верной буквы visibleCount растёт на 1', () => {
+    let attempt = createLetterAttempt(['kot'])
+    expect(attempt.visibleCount).toBe(1)
+    attempt = typeLetter(attempt, 'k')
+    expect(attempt.visibleCount).toBe(2)
+    attempt = typeLetter(attempt, 'o')
+    expect(attempt.visibleCount).toBe(3)
+  })
+
+  it('разделитель всплывает вместе со слотом следующей за ним буквы, а не раньше', () => {
+    let attempt = createLetterAttempt(['będziemy robić'])
+    attempt = typeLetters(attempt, 'będziem')
+    // Ещё не набрана последняя буква первого слова — пробел не должен быть виден.
+    expect(attempt.visibleCount).toBe(8)
+    expect(attempt.cells[7]!.state).toBe('empty') // 'y'
+    attempt = typeLetter(attempt, 'y')
+    // Последняя буква "będziemy" набрана верно — пробел и слот "r" появляются вместе, одним
+    // прыжком (+2 к visibleCount, а не +1).
+    expect(attempt.visibleCount).toBe(10)
+    expect(attempt.cells[8]!.state).toBe('separator')
+    expect(attempt.cells[9]!.state).toBe('empty') // 'r'
+  })
+
+  it('на неверной букве visibleCount не растёт — активный слот остаётся тем же', () => {
+    let attempt = createLetterAttempt(['kot'])
+    attempt = typeLetter(attempt, 'k')
+    expect(attempt.visibleCount).toBe(2)
+    attempt = typeLetter(attempt, 'z') // неверная буква на второй ячейке
+    expect(attempt.visibleCount).toBe(2)
+    expect(attempt.cells[1]).toMatchObject({ state: 'wrong' })
+  })
+
+  it('eraseLetter возвращает visibleCount к значению до неверной буквы', () => {
+    let attempt = createLetterAttempt(['kot'])
+    attempt = typeLetter(attempt, 'k')
+    const beforeWrongLetter = attempt.visibleCount
+    attempt = typeLetter(attempt, 'z')
+    expect(attempt.visibleCount).toBe(beforeWrongLetter) // неверная буква не меняла его
+    attempt = eraseLetter(attempt)
+    expect(attempt.visibleCount).toBe(beforeWrongLetter)
+  })
+
+  it('на последней верной букве complete === true и visibleCount === cells.length', () => {
+    const attempt = typeLetters(createLetterAttempt(['no']), 'no')
+    expect(attempt.complete).toBe(true)
+    expect(attempt.visibleCount).toBe(attempt.cells.length)
+  })
+
+  it('revealCurrentLetter (подсказка) двигает visibleCount ровно на один слот вперёд', () => {
+    let attempt = createLetterAttempt(['kot'])
+    expect(attempt.visibleCount).toBe(1)
+    attempt = revealCurrentLetter(attempt)
+    expect(attempt.visibleCount).toBe(2)
+  })
+
+  it('revealAll открывает весь ряд', () => {
+    const attempt = revealAll(createLetterAttempt(['kotek']))
+    expect(attempt.visibleCount).toBe(attempt.cells.length)
+    expect(attempt.visibleCount).toBe(5)
+  })
+})
+
+describe('computeVisibleCount', () => {
+  it('курсор плюс один активный слот, зажатый сверху длиной cells', () => {
+    const cells = createLetterAttempt(['kotek']).cells
+    expect(computeVisibleCount(cells, 0)).toBe(1)
+    expect(computeVisibleCount(cells, 2)).toBe(3)
+    expect(computeVisibleCount(cells, cells.length)).toBe(cells.length)
+    expect(computeVisibleCount(cells, cells.length + 1)).toBe(cells.length)
   })
 })
 

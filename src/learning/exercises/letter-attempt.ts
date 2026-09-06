@@ -61,6 +61,11 @@ export interface LetterAttempt {
   readonly hintsUsed: number
   readonly revealed: boolean
   readonly complete: boolean
+  /** Сколько первых ячеек `cells` разрешено показывать (задача 30, FR-53/FR-59/FR-136/
+   *  FR-84-86): все заполненные, разделители сразу за ними, и один активный пустой слот,
+   *  если слово ещё не закончилось. Никогда не больше `cells.length`. Чисто про отрисовку —
+   *  проверка букв и автозавершение работают по полному `cells`. */
+  readonly visibleCount: number
 }
 
 /** `!/\p{L}/u` одним правилом покрывает пробел, дефис, апостроф — без списка исключений. */
@@ -86,6 +91,17 @@ function buildCells(canonical: readonly string[]): LetterCell[] {
   )
 }
 
+/** Сколько первых ячеек `cells` разрешено показывать (задача 30, FR-53/FR-59/FR-136/
+ *  FR-84-86): все уже заполненные буквенные ячейки плюс один активный слот на `cursor`.
+ *  `cursor` — уже сырой индекс в `cells` (см. `nextCursor`), и он получается, только пройдя
+ *  все разделители перед активной буквой, так что отдельно их подсчитывать не нужно — они
+ *  сидят на индексах меньше `cursor` и попадают в `cells.slice(0, visibleCount)` сами по себе;
+ *  это и есть «разделитель всплывает вместе со слотом следующей за ним буквы» из спеки.
+ *  `cursor >= cells.length` (слово набрано/раскрыто) — открыт весь ряд. */
+export function computeVisibleCount(cells: readonly LetterCell[], cursor: number): number {
+  return Math.min(cursor + 1, cells.length)
+}
+
 export function createLetterAttempt(accepted: readonly string[]): LetterAttempt {
   if (accepted.length === 0) {
     throw new Error('createLetterAttempt: accepted must not be empty')
@@ -95,15 +111,17 @@ export function createLetterAttempt(accepted: readonly string[]): LetterAttempt 
     .map(collapseWhitespace)
     .filter((candidate) => Array.from(candidate).length === canonical.length)
   const cells = buildCells(canonical)
+  const cursor = nextCursor(cells, 0)
   return {
     cells,
     candidates,
     expected: candidates[0]!,
-    cursor: nextCursor(cells, 0),
+    cursor,
     mistakes: 0,
     hintsUsed: 0,
     revealed: false,
     complete: false,
+    visibleCount: computeVisibleCount(cells, cursor),
   }
 }
 
@@ -139,18 +157,21 @@ export function typeLetter(state: LetterAttempt, char: string): LetterAttempt {
       expected: matching[0]!,
       cursor,
       complete: cursor >= cells.length,
+      visibleCount: computeVisibleCount(cells, cursor),
     }
   }
 
   // Неверная буква. Ошибка считается один раз на ячейку — повторный неверный набор в той же
   // ячейке (пока не угадал) не увеличивает счётчик, иначе перебор вариантов на одном слоте
-  // штрафовался бы сильнее, чем одна ошибка в другом слоте.
+  // штрафовался бы сильнее, чем одна ошибка в другом слоте. Курсор не двигается, значит и
+  // `visibleCount` не растёт (задача 30: неверная буква не должна открывать новый слот).
   const cells = state.cells.slice()
   cells[index] = { ...cell, shown: char, state: 'wrong' }
   return {
     ...state,
     cells,
     mistakes: state.mistakes + (cell.state === 'wrong' ? 0 : 1),
+    visibleCount: computeVisibleCount(cells, state.cursor),
   }
 }
 
@@ -175,7 +196,11 @@ export function eraseLetter(state: LetterAttempt): LetterAttempt {
   if (!cell || cell.state !== 'wrong') return state
   const cells = state.cells.slice()
   cells[index] = { ...cell, shown: null, state: 'empty' }
-  return { ...state, cells }
+  // Курсор стирание не двигает (стирается только ячейка на текущем курсоре), так что
+  // `visibleCount` возвращается ровно к значению, которое было до неверной буквы — задача 30
+  // §1 п.3: бэкспейс не должен становиться способом «прощупать» длину слова, отматывая ряд
+  // дальше назад, чем он был.
+  return { ...state, cells, visibleCount: computeVisibleCount(cells, state.cursor) }
 }
 
 /** Кнопка «Подсказка» — открывает текущую (следующую незаполненную/неверную) букву. */
@@ -193,6 +218,7 @@ export function revealCurrentLetter(state: LetterAttempt): LetterAttempt {
     hintsUsed: state.hintsUsed + 1,
     cursor,
     complete: cursor >= cells.length,
+    visibleCount: computeVisibleCount(cells, cursor),
   }
 }
 
@@ -206,7 +232,10 @@ export function revealAll(state: LetterAttempt): LetterAttempt {
       ? { ...cell, shown: cell.expected, state: 'revealed' as const }
       : cell,
   )
-  return { ...state, cells, revealed: true, complete: true, cursor: cells.length }
+  // «Показать слово» раскрывает ряд целиком (FR-85) — `visibleCount` выставляется в
+  // `cells.length` напрямую, а не через `computeVisibleCount`, это единственное
+  // предусмотренное спекой (задача 30 §1 п.4) исключение из «курсор + 1».
+  return { ...state, cells, revealed: true, complete: true, cursor: cells.length, visibleCount: cells.length }
 }
 
 /** Строка для `value` скрытого `<input>` — конкатенация того, что сейчас показано. Пустые
