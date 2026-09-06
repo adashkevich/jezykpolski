@@ -19,6 +19,7 @@
 import { expect, test } from '@playwright/test'
 import { answerChoiceExercise } from './support/exercise.ts'
 import { expectNoAxeViolations, setDarkTheme } from './support/axe.ts'
+import { openTrainingBlock } from './support/training.ts'
 
 test.describe('accessibility (axe) — light theme, real screens', () => {
   test('home (/)', async ({ page }) => {
@@ -87,7 +88,15 @@ test.describe('accessibility (axe) — light theme, real screens', () => {
   test('practice setup (/practice)', async ({ page }) => {
     await page.goto('/practice')
     await expect(page.getByRole('tablist', { name: 'Раздел' })).toBeVisible()
-    await expectNoAxeViolations(page, '/practice')
+    // Task 32 (`spec/tasks/32-training-setup-collapsible-blocks.md` §4/acceptance) — the scan
+    // must pass with every block collapsed (the screen's default) AND with the forms
+    // configurator expanded (collapsed controls must never reach the axe scan either, but the
+    // expanded state is the one with the most controls on screen at once).
+    await expectNoAxeViolations(page, '/practice (collapsed)')
+
+    await openTrainingBlock(page, 'Настроить тренировку форм')
+    await expect(page.getByRole('button', { name: 'Начать: тренировку форм слов' })).toBeVisible()
+    await expectNoAxeViolations(page, '/practice (forms configurator expanded)')
   })
 
   test('table practice (/practice/table/:wordId)', async ({ page }) => {
