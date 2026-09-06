@@ -20,7 +20,8 @@
  *  4. "Начать" persists `config` and navigates to `/session` with `{ practiceConfig: config
  *     }` — `session-scope.ts#parseSessionScope` picks it up as `{ kind: 'practice' }`.
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { PageContainer } from '@/components/app/PageContainer.tsx'
 import { PageHeader } from '@/components/app/PageHeader.tsx'
@@ -41,9 +42,15 @@ import {
 } from '../lib/practice-config.ts'
 import type { PracticeExtraVariant } from '@/features/session-runner/lib/session-scope.ts'
 import { usePracticeCandidateWords } from '../hooks/usePracticeCandidateWords.ts'
+import { useTrainingBlockOrder } from '../hooks/useTrainingBlockOrder.ts'
 import { CheckboxRow } from './CheckboxRow.tsx'
 import { DimensionGroupFieldset } from './DimensionGroupFieldset.tsx'
 import { TrainingBlock } from './TrainingBlock.tsx'
+
+/** Task 32's fixed block order (§1.2/§1.3), now task 33's `defaultOrder` — the order shown
+ *  before any usage has been recorded, and the tiebreak order forever after (`block-usage.ts`'s
+ *  `orderBlocks` doc comment). Must match `TrainingBlock`'s `id` props below literally. */
+const DEFAULT_BLOCK_ORDER = ['vocab-choice', 'vocab-spelling', 'matching', 'forms'] as const
 
 const STATUS_OPTIONS: ReadonlyArray<{ value: WordStatus; label: string }> = [
   { value: 'new', label: 'Новые' },
@@ -184,6 +191,11 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
     ? Math.min(VOCAB_DRILL_BATCH_SIZE, vocabDrillWordIds.length)
     : 0
 
+  // Task 33 (`spec/tasks/33-training-block-usage-ranking.md` §3) — the 4 preset/forms blocks
+  // below render in `order`, not the fixed `DEFAULT_BLOCK_ORDER`; declared before the
+  // `if (!config)` early return like the two `useMemo`s above (`react-hooks/rules-of-hooks`).
+  const { order, recordRun } = useTrainingBlockOrder(DEFAULT_BLOCK_ORDER)
+
   if (!config) {
     return (
       <PageContainer>
@@ -242,6 +254,7 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
   async function handleStart() {
     if (!config || !canStart) return
     setStarting(true)
+    recordRun('forms')
     await settingsRepo.set(PRACTICE_CONFIG_SETTING_KEY, config)
     navigate('/session', { state: { practiceConfig: config } })
   }
@@ -263,12 +276,14 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
 
   function handleStartMatching() {
     if (!matchingWordIds) return
+    recordRun('matching')
     const wordIds = seededSample(matchingWordIds, MATCHING_PAIR_COUNT, Date.now())
     navigate('/practice/matching', { state: { wordIds } })
   }
 
   function handleStartVocabDrill(variant: PracticeExtraVariant) {
     if (!vocabDrillWordIds) return
+    recordRun(variant)
     const wordIds = seededSample(vocabDrillWordIds, VOCAB_DRILL_BATCH_SIZE, Date.now())
     navigate('/session', { state: { practiceExtra: { variant, wordIds } } })
   }
@@ -282,6 +297,188 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
       : plan
         ? `Найдено ${plan.totalMatchingWordCount.toLocaleString('ru-RU')} слов, ${plan.totalMatchingSkillCount.toLocaleString('ru-RU')} форм`
         : ''
+
+  // Task 33 — one JSX subtree per rankable block, looked up by `id` and rendered in `order`
+  // just below. Content/behavior is otherwise untouched from task 32: same collapsed-by-
+  // default `TrainingBlock`s, same "Начать" handlers, now each also calling `recordRun`.
+  const blocksById: Record<string, ReactNode> = {
+    'vocab-choice': (
+      <TrainingBlock
+        id="vocab-choice"
+        title="Выбор перевода (PL → RU)"
+        summary={`${vocabDrillCount} слов из текущей выборки: выберите правильный перевод из четырёх вариантов.`}
+        open={openBlockId === 'vocab-choice'}
+        onOpenChange={(open) => handleBlockOpenChange('vocab-choice', open)}
+      >
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => handleStartVocabDrill('vocab-choice')}
+          disabled={!vocabDrillWordIds}
+          aria-label="Начать: выбор перевода"
+          className="min-h-11"
+        >
+          Начать
+        </Button>
+        {!vocabDrillWordIds && (
+          <p className="text-sm text-muted-foreground">
+            Нужно хотя бы 1 слово в текущей выборке — ослабьте фильтры.
+          </p>
+        )}
+      </TrainingBlock>
+    ),
+
+    'vocab-spelling': (
+      <TrainingBlock
+        id="vocab-spelling"
+        title="Написание по-польски (RU → PL)"
+        summary={`${vocabDrillCount} слов из текущей выборки: наберите польское слово по буквам.`}
+        open={openBlockId === 'vocab-spelling'}
+        onOpenChange={(open) => handleBlockOpenChange('vocab-spelling', open)}
+      >
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => handleStartVocabDrill('vocab-spelling')}
+          disabled={!vocabDrillWordIds}
+          aria-label="Начать: написание по-польски"
+          className="min-h-11"
+        >
+          Начать
+        </Button>
+        {!vocabDrillWordIds && (
+          <p className="text-sm text-muted-foreground">
+            Нужно хотя бы 1 слово в текущей выборке — ослабьте фильтры.
+          </p>
+        )}
+      </TrainingBlock>
+    ),
+
+    matching: (
+      <TrainingBlock
+        id="matching"
+        title="Сопоставление"
+        summary={`Соедините ${MATCHING_PAIR_COUNT} польских слов из текущей выборки с их переводами.`}
+        open={openBlockId === 'matching'}
+        onOpenChange={(open) => handleBlockOpenChange('matching', open)}
+      >
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={handleStartMatching}
+          disabled={!matchingWordIds}
+          aria-label="Начать: сопоставление"
+          className="min-h-11"
+        >
+          Начать
+        </Button>
+        {!matchingWordIds && (
+          <p className="text-sm text-muted-foreground">
+            Нужно как минимум {MATCHING_PAIR_COUNT} слов в текущей выборке — ослабьте фильтры.
+          </p>
+        )}
+      </TrainingBlock>
+    ),
+
+    // "Настроить тренировку форм" (task 32 §1.3) — the title is phrased as an action
+    // ("настроить", not "тренировка форм слов") since opening it is the "кнопка
+    // сконфигурировать" the task text calls for. Everything the old flat form had — "Что
+    // тренировать", dimension groups, "Тип задания", "Количество заданий", the
+    // empty-selection message, and the main "Начать" — lives inside this one block's body, in
+    // that same order, with "Начать" last.
+    forms: (
+      <TrainingBlock
+        id="forms"
+        title="Настроить тренировку форм"
+        summary="Что тренировать, измерения, тип и количество заданий — все настройки формы здесь."
+        open={openBlockId === 'forms'}
+        onOpenChange={(open) => handleBlockOpenChange('forms', open)}
+      >
+        <div className="flex flex-col gap-1">
+          <p className="mb-1 text-sm font-medium text-foreground">Что тренировать</p>
+          <CheckboxRow
+            checked={config.includeTranslation}
+            onChange={(checked) => updateConfig({ includeTranslation: checked })}
+          >
+            Перевод
+          </CheckboxRow>
+        </div>
+
+        {definition.dimensionGroups.map((group) => (
+          <DimensionGroupFieldset
+            key={group.key}
+            group={group}
+            selected={config.dimensionSelection[group.key] ?? []}
+            onChange={(values) =>
+              updateConfig({
+                dimensionSelection: { ...config.dimensionSelection, [group.key]: values },
+              })
+            }
+          />
+        ))}
+
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-medium text-foreground">Тип задания</p>
+          {/* Task 28: у перевода фиксированные два этапа (выбор из списка -> написание
+              по-польски, FR-80), поэтому ограничение применяется только к формам слов. */}
+          <p className="mb-1 text-xs text-muted-foreground">Влияет на формы слов</p>
+          <div className="grid grid-cols-2 gap-x-3">
+            <CheckboxRow
+              checked={config.exerciseTypes.choice}
+              onChange={(checked) =>
+                updateConfig({ exerciseTypes: { ...config.exerciseTypes, choice: checked } })
+              }
+            >
+              Выбор ответа
+            </CheckboxRow>
+            <CheckboxRow
+              checked={config.exerciseTypes.input}
+              onChange={(checked) =>
+                updateConfig({ exerciseTypes: { ...config.exerciseTypes, input: checked } })
+              }
+            >
+              Ввод ответа
+            </CheckboxRow>
+          </div>
+          {noExerciseTypeSelected && (
+            <p className="text-sm text-destructive">Выберите хотя бы один тип задания.</p>
+          )}
+        </div>
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+          Количество заданий
+          <select
+            value={config.targetSize}
+            onChange={(e) => updateConfig({ targetSize: Number(e.target.value) })}
+            className={selectClassName}
+          >
+            {TARGET_SIZE_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n} заданий
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {emptyResult && (
+          <p className="text-sm text-destructive">
+            Под эти фильтры не попало ни одного слова. Ослабьте фильтры или отметьте больше
+            вариантов в «Что тренировать»/«Падежи» и т.п.
+          </p>
+        )}
+
+        <Button
+          type="button"
+          onClick={() => void handleStart()}
+          disabled={!canStart}
+          aria-label="Начать: тренировку форм слов"
+          className="min-h-11"
+        >
+          Начать
+        </Button>
+      </TrainingBlock>
+    ),
+  }
 
   return (
     <PageContainer>
@@ -373,176 +570,15 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
         </p>
       </section>
 
-      {/* Preset blocks (task 32 §1.2) — no settings of their own, just a description and one
-          "Начать"; collapsed by default, fixed order (task 33 makes the order dynamic). */}
-      <TrainingBlock
-        id="vocab-choice"
-        title="Выбор перевода (PL → RU)"
-        summary={`${vocabDrillCount} слов из текущей выборки: выберите правильный перевод из четырёх вариантов.`}
-        open={openBlockId === 'vocab-choice'}
-        onOpenChange={(open) => handleBlockOpenChange('vocab-choice', open)}
-      >
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => handleStartVocabDrill('vocab-choice')}
-          disabled={!vocabDrillWordIds}
-          aria-label="Начать: выбор перевода"
-          className="min-h-11"
-        >
-          Начать
-        </Button>
-        {!vocabDrillWordIds && (
-          <p className="text-sm text-muted-foreground">
-            Нужно хотя бы 1 слово в текущей выборке — ослабьте фильтры.
-          </p>
-        )}
-      </TrainingBlock>
-
-      <TrainingBlock
-        id="vocab-spelling"
-        title="Написание по-польски (RU → PL)"
-        summary={`${vocabDrillCount} слов из текущей выборки: наберите польское слово по буквам.`}
-        open={openBlockId === 'vocab-spelling'}
-        onOpenChange={(open) => handleBlockOpenChange('vocab-spelling', open)}
-      >
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => handleStartVocabDrill('vocab-spelling')}
-          disabled={!vocabDrillWordIds}
-          aria-label="Начать: написание по-польски"
-          className="min-h-11"
-        >
-          Начать
-        </Button>
-        {!vocabDrillWordIds && (
-          <p className="text-sm text-muted-foreground">
-            Нужно хотя бы 1 слово в текущей выборке — ослабьте фильтры.
-          </p>
-        )}
-      </TrainingBlock>
-
-      <TrainingBlock
-        id="matching"
-        title="Сопоставление"
-        summary={`Соедините ${MATCHING_PAIR_COUNT} польских слов из текущей выборки с их переводами.`}
-        open={openBlockId === 'matching'}
-        onOpenChange={(open) => handleBlockOpenChange('matching', open)}
-      >
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={handleStartMatching}
-          disabled={!matchingWordIds}
-          aria-label="Начать: сопоставление"
-          className="min-h-11"
-        >
-          Начать
-        </Button>
-        {!matchingWordIds && (
-          <p className="text-sm text-muted-foreground">
-            Нужно как минимум {MATCHING_PAIR_COUNT} слов в текущей выборке — ослабьте фильтры.
-          </p>
-        )}
-      </TrainingBlock>
-
-      {/* "Настроить тренировку форм" (task 32 §1.3) — last block, collapsed by default; the
-          title is phrased as an action ("настроить", not "тренировка форм слов") since
-          opening it is the "кнопка сконфигурировать" the task text calls for. Everything the
-          old flat form had — "Что тренировать", dimension groups, "Тип задания", "Количество
-          заданий", the empty-selection message, and the main "Начать" — lives inside this one
-          block's body, in that same order, with "Начать" last. */}
-      <TrainingBlock
-        id="forms"
-        title="Настроить тренировку форм"
-        summary="Что тренировать, измерения, тип и количество заданий — все настройки формы здесь."
-        open={openBlockId === 'forms'}
-        onOpenChange={(open) => handleBlockOpenChange('forms', open)}
-      >
-        <div className="flex flex-col gap-1">
-          <p className="mb-1 text-sm font-medium text-foreground">Что тренировать</p>
-          <CheckboxRow
-            checked={config.includeTranslation}
-            onChange={(checked) => updateConfig({ includeTranslation: checked })}
-          >
-            Перевод
-          </CheckboxRow>
-        </div>
-
-        {definition.dimensionGroups.map((group) => (
-          <DimensionGroupFieldset
-            key={group.key}
-            group={group}
-            selected={config.dimensionSelection[group.key] ?? []}
-            onChange={(values) =>
-              updateConfig({
-                dimensionSelection: { ...config.dimensionSelection, [group.key]: values },
-              })
-            }
-          />
-        ))}
-
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium text-foreground">Тип задания</p>
-          {/* Task 28: у перевода фиксированные два этапа (выбор из списка -> написание
-              по-польски, FR-80), поэтому ограничение применяется только к формам слов. */}
-          <p className="mb-1 text-xs text-muted-foreground">Влияет на формы слов</p>
-          <div className="grid grid-cols-2 gap-x-3">
-            <CheckboxRow
-              checked={config.exerciseTypes.choice}
-              onChange={(checked) =>
-                updateConfig({ exerciseTypes: { ...config.exerciseTypes, choice: checked } })
-              }
-            >
-              Выбор ответа
-            </CheckboxRow>
-            <CheckboxRow
-              checked={config.exerciseTypes.input}
-              onChange={(checked) =>
-                updateConfig({ exerciseTypes: { ...config.exerciseTypes, input: checked } })
-              }
-            >
-              Ввод ответа
-            </CheckboxRow>
-          </div>
-          {noExerciseTypeSelected && (
-            <p className="text-sm text-destructive">Выберите хотя бы один тип задания.</p>
-          )}
-        </div>
-
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
-          Количество заданий
-          <select
-            value={config.targetSize}
-            onChange={(e) => updateConfig({ targetSize: Number(e.target.value) })}
-            className={selectClassName}
-          >
-            {TARGET_SIZE_OPTIONS.map((n) => (
-              <option key={n} value={n}>
-                {n} заданий
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {emptyResult && (
-          <p className="text-sm text-destructive">
-            Под эти фильтры не попало ни одного слова. Ослабьте фильтры или отметьте больше
-            вариантов в «Что тренировать»/«Падежи» и т.п.
-          </p>
-        )}
-
-        <Button
-          type="button"
-          onClick={() => void handleStart()}
-          disabled={!canStart}
-          aria-label="Начать: тренировку форм слов"
-          className="min-h-11"
-        >
-          Начать
-        </Button>
-      </TrainingBlock>
+      {/* Preset blocks (task 32 §1.2) + the forms configurator (task 32 §1.3) below — no
+          fixed order any more: task 33 renders them in `order`
+          (`useTrainingBlockOrder(DEFAULT_BLOCK_ORDER)` above), keyed by the same `id`s
+          `TrainingBlockProps.id` and `recordRun` both use. Each block's JSX lives in
+          `blocksById`, a plain lookup table rather than 4 more `<TrainingBlock>`s inlined in
+          document order — the whole point being that document order is no longer fixed. */}
+      {order.map((id) => (
+        <Fragment key={id}>{blocksById[id]}</Fragment>
+      ))}
     </PageContainer>
   )
 }
