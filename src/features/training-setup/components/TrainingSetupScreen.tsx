@@ -39,8 +39,8 @@ import {
   defaultConfigForSection,
   sectionFromFilterPos,
 } from '../lib/practice-config.ts'
+import type { PracticeExtraVariant } from '@/features/session-runner/lib/session-scope.ts'
 import { usePracticeCandidateWords } from '../hooks/usePracticeCandidateWords.ts'
-import { pickPracticeExtraWordIds } from '../lib/practice-extra-words.ts'
 import { CheckboxRow } from './CheckboxRow.tsx'
 import { DimensionGroupFieldset } from './DimensionGroupFieldset.tsx'
 
@@ -61,10 +61,14 @@ const TOP_N_OPTIONS: ReadonlyArray<{ value: PracticeConfig['topN']; label: strin
 
 const TARGET_SIZE_OPTIONS: readonly number[] = [10, 20, 30, 50]
 
-/** Task 27 (`spec/tasks/27-context-and-error-analysis.md` §4/§5) — batch sizes for the 3
- *  "extra" Practice entry points below (matching pairs / odd-one-out+pos-classify batch). */
+/** Task 27 (`spec/tasks/27-context-and-error-analysis.md` §4/§5) — "Сопоставление" batch
+ *  size, unchanged by task 31. */
 const MATCHING_PAIR_COUNT = 5
-const EXTRA_BATCH_SIZE = 8
+
+/** Task 31 (`spec/tasks/31-practice-vocabulary-drills.md` §3) — one batch-size constant for
+ *  both lexical drills below ("Выбор перевода" / "Написание по-польски"). Fewer words are
+ *  used when the current on-screen selection has fewer than this many (never padded). */
+const VOCAB_DRILL_BATCH_SIZE = 10
 
 const selectClassName =
   'h-11 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
@@ -74,12 +78,12 @@ const selectClassName =
  *  see `build-practice-queue.ts`'s own header) is enough for this live preview. */
 const PREVIEW_SEED = 1
 
-/** Task 27's "Сопоставление" entry point below: a seeded sample of `n` distinct word ids
- *  out of this screen's own already-resolved `candidateWords` — same small local
- *  mulberry32 duplicate every other seeded-sample site in this codebase uses (see
- *  `learning/session/build-practice-queue.ts`'s own header on why it's copied rather than
- *  imported). */
-function seededSampleForMatching<T>(items: readonly T[], n: number, seed: number): T[] {
+/** Task 27's "Сопоставление" entry point and task 31's two vocab-drill entry points below all
+ *  draw from the same seeded sample of `n` distinct items out of this screen's own
+ *  already-resolved `candidateWords` — same small local mulberry32 duplicate every other
+ *  seeded-sample site in this codebase uses (see `learning/session/build-practice-queue.ts`'s
+ *  own header on why it's copied rather than imported). */
+function seededSample<T>(items: readonly T[], n: number, seed: number): T[] {
   let a = seed >>> 0
   const rng = () => {
     a = (a + 0x6d2b79f5) | 0
@@ -157,6 +161,19 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
     return ids.length >= MATCHING_PAIR_COUNT ? ids : null
   }, [candidateWords])
 
+  // Task 31's (`spec/tasks/31-practice-vocabulary-drills.md` §3) two lexical drills — same
+  // `candidateWords` source as "Сопоставление" above, but unlike it there is no minimum: a
+  // batch of fewer than `VOCAB_DRILL_BATCH_SIZE` words is still a useful drill, only an
+  // empty selection disables the button.
+  const vocabDrillWordIds = useMemo(() => {
+    if (!candidateWords) return null
+    const ids = [...new Set(candidateWords.map((w) => w.wordId))]
+    return ids.length > 0 ? ids : null
+  }, [candidateWords])
+  const vocabDrillCount = vocabDrillWordIds
+    ? Math.min(VOCAB_DRILL_BATCH_SIZE, vocabDrillWordIds.length)
+    : 0
+
   if (!config) {
     return (
       <PageContainer>
@@ -220,26 +237,29 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
   }
 
   // ---------------------------------------------------------------------------------------
-  // Task 27 (`spec/tasks/27-context-and-error-analysis.md` §4/§5) — 3 more entry points on
-  // this same screen, "по духу" identical to "Начать" above but each bypassing the whole
-  // `PracticeConfig`/`dimensionSelection` machinery (none of the 3 new exercise types has a
-  // dimension to select): "Сопоставление" reuses THIS screen's own already-resolved
-  // `candidateWords` (same section/level/status/frequency filter the user is currently
-  // looking at — the task text's explicit "переиспользуй, не пиши новый источник
-  // кандидатов" for `matching`); "Найди лишний перевод"/"Быстрая классификация" use a
-  // separate, POS-agnostic frequency sample (`practice-extra-words.ts`'s own header explains
-  // why `candidateWords` — locked to one of NOUN/VERB/ADJ — doesn't fit `pos-classify`).
+  // 3 more entry points on this same screen, "по духу" identical to "Начать" above but each
+  // bypassing the whole `PracticeConfig`/`dimensionSelection` machinery (none of the 3 has a
+  // dimension to select) — all 3 reuse THIS screen's own already-resolved `candidateWords`
+  // (same section/level/status/frequency filter the user is currently looking at):
+  // "Сопоставление" (task 27, `spec/tasks/27-context-and-error-analysis.md` §4/§5) samples
+  // pairs from it; the two lexical drills below (task 31,
+  // `spec/tasks/31-practice-vocabulary-drills.md` §3/§4) sample a batch of up to
+  // `VOCAB_DRILL_BATCH_SIZE` words from the exact same pool instead of a separate frequency
+  // sampler — task 27's original two "extra" entry points (a pair of Practice-only quiz
+  // types testing translation-spotting and part-of-speech classification) used such a
+  // separate sampler; task 31 removed both (FR-56/FR-57 cancelled) and replaced them with
+  // these two.
   // ---------------------------------------------------------------------------------------
 
   function handleStartMatching() {
     if (!matchingWordIds) return
-    const wordIds = seededSampleForMatching(matchingWordIds, MATCHING_PAIR_COUNT, Date.now())
+    const wordIds = seededSample(matchingWordIds, MATCHING_PAIR_COUNT, Date.now())
     navigate('/practice/matching', { state: { wordIds } })
   }
 
-  function handleStartExtra(variant: 'odd-one-out' | 'pos-classify') {
-    const wordIds = pickPracticeExtraWordIds(EXTRA_BATCH_SIZE, Date.now())
-    if (wordIds.length === 0) return
+  function handleStartVocabDrill(variant: PracticeExtraVariant) {
+    if (!vocabDrillWordIds) return
+    const wordIds = seededSample(vocabDrillWordIds, VOCAB_DRILL_BATCH_SIZE, Date.now())
     navigate('/session', { state: { practiceExtra: { variant, wordIds } } })
   }
 
@@ -389,8 +409,9 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
         </select>
       </label>
 
-      {/* Task 27 (`spec/tasks/27-context-and-error-analysis.md` §4/§5) — 3 more Practice-only
-          exercise types, each its own mini-section with its own "Начать", independent of the
+      {/* Task 27 (`spec/tasks/27-context-and-error-analysis.md` §4/§5) / task 31
+          (`spec/tasks/31-practice-vocabulary-drills.md` §4) — 3 more Practice-only entry
+          points, each its own mini-section with its own "Начать", independent of the
           `PracticeConfig`/dimension form above (none of the 3 has a dimension to select). */}
       <div className="flex flex-col gap-2 border-t border-border pt-4">
         <p className="text-sm font-medium text-foreground">Сопоставление</p>
@@ -414,33 +435,46 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border pt-4">
-        <p className="text-sm font-medium text-foreground">Найди лишний перевод</p>
+        <p className="text-sm font-medium text-foreground">Выбор перевода (PL → RU)</p>
         <p className="text-sm text-muted-foreground">
-          Из {EXTRA_BATCH_SIZE} слов — среди 4 переводов один не подходит.
+          {vocabDrillCount} слов из текущей выборки: выберите правильный перевод из четырёх
+          вариантов.
         </p>
         <Button
           type="button"
           variant="secondary"
-          onClick={() => handleStartExtra('odd-one-out')}
+          onClick={() => handleStartVocabDrill('vocab-choice')}
+          disabled={!vocabDrillWordIds}
           className="min-h-11"
         >
           Начать
         </Button>
+        {!vocabDrillWordIds && (
+          <p className="text-sm text-muted-foreground">
+            Нужно хотя бы 1 слово в текущей выборке — ослабьте фильтры.
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border pt-4">
-        <p className="text-sm font-medium text-foreground">Быстрая классификация части речи</p>
+        <p className="text-sm font-medium text-foreground">Написание по-польски (RU → PL)</p>
         <p className="text-sm text-muted-foreground">
-          {EXTRA_BATCH_SIZE} слов — определите часть речи каждого.
+          {vocabDrillCount} слов из текущей выборки: наберите польское слово по буквам.
         </p>
         <Button
           type="button"
           variant="secondary"
-          onClick={() => handleStartExtra('pos-classify')}
+          onClick={() => handleStartVocabDrill('vocab-spelling')}
+          disabled={!vocabDrillWordIds}
           className="min-h-11"
         >
           Начать
         </Button>
+        {!vocabDrillWordIds && (
+          <p className="text-sm text-muted-foreground">
+            Нужно хотя бы 1 слово в текущей выборке — ослабьте фильтры.
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col gap-3 border-t border-border pt-4">

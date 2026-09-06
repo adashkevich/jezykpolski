@@ -16,7 +16,6 @@
  */
 import type { Dimension } from '@/learning/skills/dimensions.ts'
 import type { WordId } from '@/learning/skills/skill-id.ts'
-import type { PosValue } from '@/content/codec.ts'
 import type { Paradigm, WordIndexEntry } from '@/types/content.ts'
 
 /** Which way translation is being tested: Polish shown / Russian typed-or-picked, or the
@@ -109,27 +108,6 @@ export type Exercise =
    * eligibility check for exactly which skills route here instead of `form-choice`.
    */
   | { type: 'context-sentence'; sentence: string; slot: SlotLabel; options: string[]; correct: string }
-  /**
-   * Task 27 §4 (FR-56, "Найди лишний перевод") — Practice-only, never routed through
-   * `picker.ts` (see that module's own header: it only ever picks between the SRS
-   * recognition/recall pair). `prompt` is a Polish lemma; `options` are 4 Russian words,
-   * exactly one of which (`oddIndex`) is NOT a real translation of `prompt` — the other 3
-   * are. Deliberately no separate `correct: string` field (unlike `choice`/`form-choice`):
-   * the thing being graded is which *option is the odd one out*, not which one matches a
-   * single canonical string, so `oddIndex` alone is both the generator's ground truth and
-   * `grade.ts`'s accepted-answer key (`options[oddIndex]`).
-   */
-  | { type: 'odd-one-out'; prompt: string; options: string[]; oddIndex: number }
-  /**
-   * Task 27 §4 (FR-57, "Быстрая классификация части речи") — Practice-only, same reasoning
-   * as `odd-one-out` above. `prompt` is just `lemma` (kept as a distinct field name from
-   * `choice`'s `prompt: string` only because every other field here already reads as "the
-   * word being asked about", not because the shape differs) with all 4 `POS_VALUES` as the
-   * fixed answer set — the UI never needs a stored `options` array for this one, unlike
-   * `odd-one-out`, since the option set is always the same 4 constants
-   * (`content/codec.ts#POS_VALUES`) regardless of `lemma`.
-   */
-  | { type: 'pos-classify'; lemma: string; correct: PosValue }
 
 export interface ExerciseInstance {
   /** Deterministic given (skillId, seed) — see `generate.ts`'s decision log for why this is

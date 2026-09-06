@@ -252,12 +252,14 @@ describe('grade — choice / form-choice / self-assess', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Task 27 (`spec/tasks/27-context-and-error-analysis.md`): the 3 new single-slot exercise
-// types, added alongside `choice`/`form-choice` above rather than duplicating that whole
-// describe block.
+// Task 27 (`spec/tasks/27-context-and-error-analysis.md`): `context-sentence`, added
+// alongside `choice`/`form-choice` above rather than duplicating that whole describe block.
+// Its two Practice-only quiz siblings from the same task were removed by task 31
+// (`spec/tasks/31-practice-vocabulary-drills.md`, FR-56/FR-57 cancelled) along with their
+// tests here.
 // ---------------------------------------------------------------------------
 
-describe('grade — context-sentence / odd-one-out / pos-classify (task 27)', () => {
+describe('grade — context-sentence (task 27)', () => {
   it('context-sentence: matches the single `correct` value (Polish, diacritic-sensitive)', () => {
     const exercise: Exercise = {
       type: 'context-sentence',
@@ -279,24 +281,6 @@ describe('grade — context-sentence / odd-one-out / pos-classify (task 27)', ()
       correct: 'kobiecie',
     }
     expect(grade(diacriticExercise, 'kobiecie').correct).toBe(true)
-  })
-
-  it('odd-one-out: correct pick is options[oddIndex], graded as Russian (case-insensitive)', () => {
-    const exercise: Exercise = {
-      type: 'odd-one-out',
-      prompt: 'wiedzieć',
-      options: ['знать', 'понимать', 'ведать', 'думать'],
-      oddIndex: 3,
-    }
-    expect(grade(exercise, 'думать').correct).toBe(true)
-    expect(grade(exercise, 'ДУМАТЬ').correct).toBe(true)
-    expect(grade(exercise, 'знать').correct).toBe(false)
-  })
-
-  it('pos-classify: matches the single `correct` PosValue', () => {
-    const exercise: Exercise = { type: 'pos-classify', lemma: 'kobieta', correct: 'NOUN' }
-    expect(grade(exercise, 'NOUN').correct).toBe(true)
-    expect(grade(exercise, 'VERB').correct).toBe(false)
   })
 })
 

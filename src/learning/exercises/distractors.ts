@@ -74,12 +74,11 @@ function seededSample<T>(items: readonly T[], n: number, seed: number): T[] {
  *  in this file's header. Falls back to `primaryRu` alone when the word's senses shard
  *  hasn't resolved in memory yet.
  *
- *  Exported (task 27, `spec/tasks/27-context-and-error-analysis.md` §4/§5) for
- *  `generate.ts`'s `odd-one-out` builder, which needs the exact same "every real
- *  translation, synchronously, best-effort" view this file already computes for its own
- *  translation-overlap exclusion (step 4 below) — reusing it is what the task text's own
- *  "не изобретай второй парсер переводов" instruction asks for. */
-export function resolveTranslations(entry: WordIndexEntry): readonly string[] {
+ *  Was briefly exported (task 27, `spec/tasks/27-context-and-error-analysis.md` §4/§5) for
+ *  a Practice-only quiz builder in `generate.ts` — task 31 removed that builder (FR-56
+ *  cancelled), so this is private again, used only by this file's own translation-overlap
+ *  exclusion (step 4 below). */
+function resolveTranslations(entry: WordIndexEntry): readonly string[] {
   const shard = peekSensesShard(entry.sensesShard)
   const senses: readonly Sense[] | undefined = shard?.get(encodeWordId(entry.lemma, entry.pos))
   if (senses && senses.length > 0) {

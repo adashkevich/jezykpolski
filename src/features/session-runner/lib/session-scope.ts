@@ -100,15 +100,19 @@ import type { SkillRecord } from '@/types/progress.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 
 /**
- * Task 27 (`spec/tasks/27-context-and-error-analysis.md` §4, FR-56/FR-57) — which of the 2
- * Practice-only, picker-bypassing exercise types a `{ kind: 'practice-extra' }` scope forces.
- * "Найди лишний перевод" and "Быстрая классификация части речи" are both single-slot,
- * auto-graded exercises (unlike `matching`/`table`), so — per that task's own instruction —
- * they DO go through the ordinary `SessionRunner` queue/registry path; what makes them
- * "extra" is that `useSessionBootstrap.ts` forces this exact `Exercise['type']` instead of
- * ever calling `pickExerciseType` for the word's `vocab:pl-ru` skill.
+ * Task 31 (`spec/tasks/31-practice-vocabulary-drills.md` §2, FR-137/FR-138) — which of the 2
+ * lexical drills a `{ kind: 'practice-extra' }` scope runs. Replaces task 27's original pair
+ * of Practice-only quiz types (FR-56/FR-57, cancelled — neither exercised a real `vocab:*`
+ * skill): `vocab-choice` is этап 1 of word learning (узнавание, PL→RU `choice`
+ * over `vocab:pl-ru`), `vocab-spelling` is этап 2 (воспроизведение, RU→PL `input` over
+ * `vocab:ru-pl`) — the same two stages task 28 already made the normal Learn progression,
+ * just forced on demand from a Practice batch instead of waiting for FSRS to schedule them.
+ * Both are single-slot, auto-graded exercises that go through the ordinary `SessionRunner`
+ * queue/registry path unchanged — what makes them "extra" is only that
+ * `useSessionBootstrap.ts` materializes the specific `vocab:*` skill this variant needs
+ * instead of picking whichever skill happens to be due.
  */
-export type PracticeExtraVariant = 'odd-one-out' | 'pos-classify'
+export type PracticeExtraVariant = 'vocab-choice' | 'vocab-spelling'
 
 export type SessionScope =
   | { readonly kind: 'global' }

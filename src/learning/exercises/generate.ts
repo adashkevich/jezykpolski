@@ -12,8 +12,6 @@
  */
 import type { CaseValue, GenderValue } from '@/content/codec.ts'
 import { CONTEXT_TEMPLATES, type ContextTemplateCase } from '@/content/context-templates.ts'
-import { CONFUSABLE_GROUPS } from '@/content/confusable-words.ts'
-import { getIndexStore } from '@/content/index-store.ts'
 import { enumerateSkills, type SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import {
   CASE_DISPLAY_ORDER,
@@ -23,10 +21,9 @@ import {
   type Dimension,
   type NounDimension,
 } from '@/learning/skills/dimensions.ts'
-import { encodeWordId, type SkillId, type WordId } from '@/learning/skills/skill-id.ts'
+import type { SkillId, WordId } from '@/learning/skills/skill-id.ts'
 import type { SkillRecord } from '@/types/progress.ts'
-import type { WordIndexEntry } from '@/types/content.ts'
-import { pickFormDistractors, pickVocabDistractors, resolveTranslations } from './distractors.ts'
+import { pickFormDistractors, pickVocabDistractors } from './distractors.ts'
 import type {
   ContentContext,
   Direction,
@@ -512,101 +509,9 @@ export function generateVerbTableExercise(
   return { type: 'table', lemma: entry.lemma, cells }
 }
 
-// ---------------------------------------------------------------------------
-// generateOddOneOutExercise / generatePosClassifyExercise — task 27 §4 (FR-56/FR-57).
-// Practice-only, like `generateTableExercise` above: never routed through `pickExerciseType`
-// (that module's own header: it only ever picks between the SRS recognition/recall pair),
-// called directly by a Practice-only caller instead (`features/practice-extra/**`, this
-// task's own new feature folder). Both are single-slot, auto-graded exercises
-// (`grade.ts` already has `odd-one-out`/`pos-classify` cases), so — unlike `table`/
-// `matching` — they DO fit `SessionRunner`'s normal one-`onAnswer` queue path; the reason
-// they're not picker-driven is that they test something `pickExerciseType`'s SRS-state
-// model has no slot for (a word's identity among distractors of the SAME word's own
-// translations, or its POS), not that they need a different UI shape.
-// ---------------------------------------------------------------------------
-
-/** The `CONFUSABLE_GROUPS` entry containing `lemma`, if any — every group is
- *  POS-homogeneous by construction (`content/confusable-words.ts`'s own header: verbs then
- *  adjectives, never mixed), so a sibling's `WordId` can safely reuse `entry.pos`. */
-function findConfusableGroup(lemma: string): readonly string[] | undefined {
-  return CONFUSABLE_GROUPS.find((group) => group.includes(lemma))
-}
-
-/** Step "предпочтительно из CONFUSABLE_GROUPS" (task 27 §5): a translation belonging to a
- *  same-group sibling word, not already one of `entry`'s own translations. `null` when
- *  `entry` isn't in any group, or no sibling yields a usable candidate — the caller falls
- *  back to the ordinary distractor pool in that case. */
-function pickFakeFromConfusableGroup(
-  entry: WordIndexEntry,
-  excluded: ReadonlySet<string>,
-  seed: number,
-): string | null {
-  const group = findConfusableGroup(entry.lemma)
-  if (!group) return null
-
-  const candidates: string[] = []
-  const seen = new Set<string>()
-  for (const siblingLemma of group) {
-    if (siblingLemma === entry.lemma) continue
-    const siblingId = encodeWordId(siblingLemma, entry.pos)
-    const siblingEntry = getIndexStore().byId.get(siblingId)
-    if (!siblingEntry) continue
-    for (const translation of resolveTranslations(siblingEntry)) {
-      if (!excluded.has(translation) && !seen.has(translation)) {
-        seen.add(translation)
-        candidates.push(translation)
-      }
-    }
-  }
-  if (candidates.length === 0) return null
-  return seededSample(candidates, 1, seed)[0] ?? null
-}
-
-/**
- * `odd-one-out` (FR-56, "Найди лишний перевод"): `options` holds up to
- * `DEFAULT_DISTRACTOR_COUNT` (3) of `wordId`'s own real translations plus exactly one fake
- * (`oddIndex`). When the word genuinely has fewer than 3 distinct translations, this
- * deliberately returns FEWER than 4 options (real-count + 1) rather than padding the "real"
- * side with more wrong words to hit 4 — the task text's own literal reading ("остальные 3 —
- * реальные переводы") would otherwise be violated by whatever padded that bucket; this
- * task's own decision, recorded here per its instruction to document deviations, mirrors
- * the same "не выдумывай, покажи сколько есть" rule this task's `context-sentence` builder
- * above already follows for a structurally identical shortage.
- */
-export function generateOddOneOutExercise(
-  wordId: WordId,
-  ctx: ContentContext,
-  seed: number,
-): Exercise {
-  const entry = ctx.getWordEntry(wordId)
-  const allTranslations = [...new Set(resolveTranslations(entry))]
-  const excluded = new Set(allTranslations)
-  const realCount = Math.min(DEFAULT_DISTRACTOR_COUNT, allTranslations.length)
-  const realOptions = seededSample(allTranslations, realCount, seed)
-
-  const fake =
-    pickFakeFromConfusableGroup(entry, excluded, seed) ??
-    pickVocabDistractors(entry, 'pl-ru', 1, seed)[0]
-  if (!fake) {
-    throw new Error(
-      `generateOddOneOutExercise: no usable "odd" distractor found for "${wordId}" — the ` +
-        `corpus has no other word of the same part of speech with a non-overlapping translation`,
-    )
-  }
-
-  const options = insertAtSeededPosition(realOptions, fake, seed)
-  const oddIndex = options.indexOf(fake)
-  return { type: 'odd-one-out', prompt: entry.lemma, options, oddIndex }
-}
-
-/**
- * `pos-classify` (FR-57, "Быстрая классификация части речи"): no randomness needed at all —
- * `correct` is simply `entry.pos`, and the fixed 4-way option set (`POS_VALUES`) is a
- * content-layer constant the UI component reads directly rather than something this
- * generator needs to thread through `Exercise` itself (see that type's own doc comment in
- * `exercise.types.ts`).
- */
-export function generatePosClassifyExercise(wordId: WordId, ctx: ContentContext): Exercise {
-  const entry = ctx.getWordEntry(wordId)
-  return { type: 'pos-classify', lemma: entry.lemma, correct: entry.pos }
-}
+// Task 27 §4 (FR-56/FR-57) used to have 2 more builders here — "Найди лишний перевод" /
+// "Быстрая классификация части речи", a pair of Practice-only quiz exercises. Task 31
+// (`spec/tasks/31-practice-vocabulary-drills.md`) removed both along with the cancelled
+// requirements: neither exercised a real `vocab:*` skill. The `{ kind: 'practice-extra' }`
+// scope that used to call them now generates plain `choice`/`input` vocab exercises via the
+// ordinary `generateExercise` below instead (`build-session-exercises.ts#generateExtraForWord`).

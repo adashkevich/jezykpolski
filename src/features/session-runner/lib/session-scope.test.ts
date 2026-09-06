@@ -133,26 +133,26 @@ describe('parseSessionScope', () => {
     })
   })
 
-  // Task 27 (`spec/tasks/27-context-and-error-analysis.md` §4/§5, FR-56/FR-57).
+  // Task 31 (`spec/tasks/31-practice-vocabulary-drills.md` §2, FR-137/FR-138).
   it('narrows { practiceExtra } router state to the practice-extra scope', () => {
     expect(
       parseSessionScope({
-        practiceExtra: { variant: 'odd-one-out', wordIds: ['a|NOUN', 'b|VERB'] },
+        practiceExtra: { variant: 'vocab-choice', wordIds: ['a|NOUN', 'b|VERB'] },
       }),
-    ).toEqual({ kind: 'practice-extra', variant: 'odd-one-out', wordIds: ['a|NOUN', 'b|VERB'] })
+    ).toEqual({ kind: 'practice-extra', variant: 'vocab-choice', wordIds: ['a|NOUN', 'b|VERB'] })
 
     expect(
-      parseSessionScope({ practiceExtra: { variant: 'pos-classify', wordIds: ['c|ADJ'] } }),
-    ).toEqual({ kind: 'practice-extra', variant: 'pos-classify', wordIds: ['c|ADJ'] })
+      parseSessionScope({ practiceExtra: { variant: 'vocab-spelling', wordIds: ['c|ADJ'] } }),
+    ).toEqual({ kind: 'practice-extra', variant: 'vocab-spelling', wordIds: ['c|ADJ'] })
   })
 
   it('{ practiceExtra } takes priority over every other key if a caller somehow sent both', () => {
     expect(
       parseSessionScope({
-        practiceExtra: { variant: 'odd-one-out', wordIds: ['a|NOUN'] },
+        practiceExtra: { variant: 'vocab-choice', wordIds: ['a|NOUN'] },
         wordId: 'b|NOUN',
       }),
-    ).toEqual({ kind: 'practice-extra', variant: 'odd-one-out', wordIds: ['a|NOUN'] })
+    ).toEqual({ kind: 'practice-extra', variant: 'vocab-choice', wordIds: ['a|NOUN'] })
   })
 })
 

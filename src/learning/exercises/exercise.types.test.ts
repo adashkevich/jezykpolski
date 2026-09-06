@@ -26,8 +26,6 @@ describe('Exercise union — registry-friendliness (acceptance)', () => {
       table: 'renders as a full paradigm table',
       matching: 'renders as a matching pairs grid',
       'context-sentence': 'renders as a fill-the-blank sentence with choices',
-      'odd-one-out': 'renders as pick-the-non-translation',
-      'pos-classify': 'renders as pick-the-part-of-speech',
     } satisfies Record<Exercise['type'], string>
 
     expect(Object.keys(registry).sort()).toEqual(
@@ -40,8 +38,6 @@ describe('Exercise union — registry-friendliness (acceptance)', () => {
         'table',
         'matching',
         'context-sentence',
-        'odd-one-out',
-        'pos-classify',
       ].sort(),
     )
   })

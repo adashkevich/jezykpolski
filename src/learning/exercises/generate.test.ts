@@ -1,12 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
-import { __resetLoaderCachesForTest, loadSensesShard } from '@/content/loader.ts'
+import { __resetLoaderCachesForTest } from '@/content/loader.ts'
 import type { DecodedForm } from '@/content/codec.ts'
 import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import type { Paradigm, WordIndexEntry } from '@/types/content.ts'
 import type { SkillRecord, SkillState } from '@/types/progress.ts'
 import type { ContentContext } from './exercise.types.ts'
-import { generateExercise, generateOddOneOutExercise, generatePosClassifyExercise } from './generate.ts'
+import { generateExercise } from './generate.ts'
 
 // ---------------------------------------------------------------------------
 // Fixtures — a tiny word pool (so `pickVocabDistractors`'s naive same-POS sampling has
@@ -128,22 +128,6 @@ beforeEach(() => {
     entry({ lemma: 'stół', pos: 'NOUN', rank: 8, primaryRu: 'стол' }),
   ])
 })
-
-/** Same convention as `distractors.test.ts`'s own `stubContentFetch` — a minimal fetch stub
- *  keyed by a substring of the requested URL, for warming `content/loader.ts`'s senses-shard
- *  cache so `generateOddOneOutExercise`'s `resolveTranslations` sees more than just
- *  `primaryRu`. */
-function stubContentFetch(routes: Record<string, unknown>): void {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async (url: unknown) => {
-      const href = String(url)
-      const key = Object.keys(routes).find((k) => href.includes(k))
-      if (key === undefined) return { ok: false, status: 404, json: async () => ({}) } as Response
-      return { ok: true, json: async () => routes[key] } as Response
-    }),
-  )
-}
 
 // ---------------------------------------------------------------------------
 // Acceptance: "generateExercise с одинаковым seed даёт побайтово одинаковый результат".
@@ -512,65 +496,6 @@ describe('generateExercise — correct-answer position distribution (task 10 acc
   })
 })
 
-// ---------------------------------------------------------------------------
-// Task 27 §4/§5 (FR-56/FR-57): `generateOddOneOutExercise`/`generatePosClassifyExercise` —
-// Practice-only builders, called directly (never through `generateExercise`/`picker.ts`).
-// ---------------------------------------------------------------------------
-
-describe('generateOddOneOutExercise (task 27, FR-56)', () => {
-  it('3 real translations + 1 odd one, oddIndex points at the actual non-translation', async () => {
-    stubContentFetch({
-      'senses/000.json': {
-        'kobieta|NOUN': [{ ru: ['женщина', 'дама', 'баба'], primary: true }],
-      },
-    })
-    await loadSensesShard(0) // KOBIETA_ENTRY.sensesShard === 0
-
-    const ctx = makeContext()
-    const exercise = generateOddOneOutExercise('kobieta|NOUN', ctx, 3)
-    expect(exercise.type).toBe('odd-one-out')
-    if (exercise.type !== 'odd-one-out') throw new Error('unreachable')
-
-    expect(exercise.prompt).toBe('kobieta')
-    expect(exercise.options).toHaveLength(4)
-    const odd = exercise.options[exercise.oddIndex]!
-    const realTranslations = ['женщина', 'дама', 'баба']
-    expect(realTranslations).not.toContain(odd)
-    // Every option other than the odd one IS a real translation.
-    exercise.options.forEach((option, index) => {
-      if (index === exercise.oddIndex) return
-      expect(realTranslations).toContain(option)
-    })
-  })
-
-  it('degrades to fewer options (never fabricates) when the word has < 3 real translations', () => {
-    // No stubContentFetch/loadSensesShard call — resolveTranslations falls back to just
-    // `primaryRu` ("женщина"), i.e. exactly 1 real translation.
-    const ctx = makeContext()
-    const exercise = generateOddOneOutExercise('kobieta|NOUN', ctx, 1)
-    if (exercise.type !== 'odd-one-out') throw new Error('unreachable')
-    expect(exercise.options).toHaveLength(2) // 1 real + 1 odd, not padded to 4
-    expect(exercise.options).toContain('женщина')
-  })
-
-  it('is deterministic: identical seed -> identical options/oddIndex', async () => {
-    stubContentFetch({
-      'senses/000.json': {
-        'kobieta|NOUN': [{ ru: ['женщина', 'дама', 'баба'], primary: true }],
-      },
-    })
-    await loadSensesShard(0)
-    const ctx = makeContext()
-    const a = generateOddOneOutExercise('kobieta|NOUN', ctx, 7)
-    const b = generateOddOneOutExercise('kobieta|NOUN', ctx, 7)
-    expect(a).toEqual(b)
-  })
-})
-
-describe('generatePosClassifyExercise (task 27, FR-57)', () => {
-  it('prompt is the lemma, correct is the real WordIndexEntry.pos', () => {
-    const ctx = makeContext()
-    const exercise = generatePosClassifyExercise('kobieta|NOUN', ctx)
-    expect(exercise).toEqual({ type: 'pos-classify', lemma: 'kobieta', correct: 'NOUN' })
-  })
-})
+// Task 27 §4/§5 (FR-56/FR-57, cancelled) used to have 2 more test blocks here, for the 2
+// Practice-only quiz builders that task 31 (`spec/tasks/31-practice-vocabulary-drills.md`)
+// removed along with the builders themselves.

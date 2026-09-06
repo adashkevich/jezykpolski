@@ -13,11 +13,7 @@
  * to invent its own cache-invalidation story for a `SkillDescriptor` cache.
  */
 import { enumerateSkills, type SkillDescriptor } from '@/learning/skills/enumerate.ts'
-import {
-  generateExercise,
-  generateOddOneOutExercise,
-  generatePosClassifyExercise,
-} from '@/learning/exercises/generate.ts'
+import { generateExercise } from '@/learning/exercises/generate.ts'
 import type { ExerciseCategory } from '@/learning/exercises/picker.ts'
 import type { ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import type { HintMode } from '@/learning/exercises/hint-mode.ts'
@@ -37,9 +33,16 @@ export interface MaterializedQueueEntry {
 
 /**
  * Resolves the `SkillDescriptor` for `item` and, for a `'new'` word, materializes exactly
- * its `vocab:pl-ru` skill via `ensureSkill` — never `vocab:ru-pl` (task rule 4, FR-81's
- * "progression isn't front-loaded in one sitting"): этап 2 is opened later, by
+ * one vocab skill via `ensureSkill` — `newWordDimension` (default `'vocab:pl-ru'`, every
+ * ordinary Learn caller's implicit choice, task rule 4 / FR-81's "progression isn't
+ * front-loaded in one sitting"): этап 2 is normally opened later, by
  * `answer-pipeline.ts#unlockProductionStage`, once узнавание graduates.
+ *
+ * Task 31 (`spec/tasks/31-practice-vocabulary-drills.md` §3) widens this to
+ * `'vocab:ru-pl'` too: `useSessionBootstrap.ts`'s `{ kind: 'practice-extra', variant:
+ * 'vocab-spelling' }` branch needs a brand-new word's *production* skill materialized
+ * on demand, the same `ensureSkill` path task 28 already made routine for Learn — no new
+ * materialization logic, just a caller-chosen dimension instead of the hard-coded one.
  *
  * Task 28's backfill: a `'due'` item that is an already-graduated `vocab:pl-ru` also gets
  * `vocab:ru-pl` ensured here. Words learned *before* task 28 existed never went through the
@@ -50,6 +53,7 @@ export interface MaterializedQueueEntry {
 export async function materializeQueueItem(
   item: LearnQueueItem,
   cache: SessionContentCache,
+  newWordDimension: 'vocab:pl-ru' | 'vocab:ru-pl' = 'vocab:pl-ru',
 ): Promise<MaterializedQueueEntry> {
   const wordId = item.source === 'due' ? item.skill.wordId : item.wordId
   await cache.preload(wordId)
@@ -72,11 +76,11 @@ export async function materializeQueueItem(
     return { descriptor, skill: item.skill }
   }
 
-  const descriptor = descriptors.find((d) => d.dimension === 'vocab:pl-ru')
+  const descriptor = descriptors.find((d) => d.dimension === newWordDimension)
   if (!descriptor) {
-    throw new Error(`materializeQueueItem: "${wordId}" has no vocab:pl-ru descriptor at all`)
+    throw new Error(`materializeQueueItem: "${wordId}" has no ${newWordDimension} descriptor at all`)
   }
-  const skill = await ensureSkill(descriptor.skillId, wordId, 'vocab', 'vocab:pl-ru')
+  const skill = await ensureSkill(descriptor.skillId, wordId, 'vocab', newWordDimension)
   return { descriptor, skill }
 }
 
@@ -135,29 +139,36 @@ export function generateForSkill(
 }
 
 /**
- * Task 27 (`spec/tasks/27-context-and-error-analysis.md` §4, FR-56/FR-57) — the
- * `{ kind: 'practice-extra' }` counterpart of `generateForSkill` above: instead of
- * `generateExercise`/`pickExerciseType` (which would only ever pick a plain vocab
- * `choice`/`input` for a `vocab:pl-ru` skill), this calls `generate.ts`'s dedicated
- * `generateOddOneOutExercise`/`generatePosClassifyExercise` builders directly — the "явный
- * forced-type, в обход pickExerciseType" the task text asks for. `descriptor` is still the
- * word's `vocab:pl-ru` `SkillDescriptor` (see `useSessionBootstrap.ts`'s practice-extra
- * branch: it materializes exactly that skill, via `materializeQueueItem`'s existing
- * 'new'-word path, purely so `reviewLogs`/FSRS bookkeeping has a real skill to attach to —
- * these 2 exercise types have no dimension of their own to test, "лишний перевод"/"часть
- * речи" are both vocabulary-adjacent facts about the whole word).
+ * Task 31 (`spec/tasks/31-practice-vocabulary-drills.md` §3) — the
+ * `{ kind: 'practice-extra' }` counterpart of `generateForSkill` above. Task 27's version of
+ * this function called 2 dedicated Practice-only builders directly, bypassing
+ * `generateExercise` entirely; those 2 exercise types are gone (FR-56/FR-57 cancelled), and
+ * this version calls the ordinary `generateExercise` instead — the same call Learn makes for
+ * any vocab skill. `descriptor` is already the exact `vocab:pl-ru` (variant `'vocab-choice'`)
+ * or `vocab:ru-pl` (`'vocab-spelling'`) `SkillDescriptor` `useSessionBootstrap.ts`'s
+ * practice-extra branch materialized via `materializeQueueItem`'s `newWordDimension`
+ * parameter — `picker.ts#vocabExerciseType` reads a vocab skill's type off its *dimension*
+ * alone (never `srs`/`state`), so passing that descriptor through `generateExercise`
+ * deterministically yields `choice` for `vocab:pl-ru` and `input` for `vocab:ru-pl`, without
+ * this function ever needing to force a type of its own.
  */
 export function generateExtraForWord(
   variant: PracticeExtraVariant,
   descriptor: SkillDescriptor,
+  srsRecord: SkillRecord,
   cache: SessionContentCache,
   attempt: number,
 ): ExerciseInstance {
-  const ctx = cache.toContentContext()
-  const seed = seedFor(descriptor.skillId, attempt)
-  const exercise =
-    variant === 'odd-one-out'
-      ? generateOddOneOutExercise(descriptor.wordId, ctx, seed)
-      : generatePosClassifyExercise(descriptor.wordId, ctx)
-  return { id: `${descriptor.skillId}::${variant}::${seed}`, skillId: descriptor.skillId, exercise }
+  // Defensive wiring check, not a real runtime case: `useSessionBootstrap.ts` materializes
+  // `descriptor` via `materializeQueueItem`'s `newWordDimension` argument, which it derives
+  // from this exact `variant` (session-scope.ts's own table) — the two can only disagree if
+  // that call site itself has a bug.
+  const expectedDimension = variant === 'vocab-choice' ? 'vocab:pl-ru' : 'vocab:ru-pl'
+  if (descriptor.dimension !== expectedDimension) {
+    throw new Error(
+      `generateExtraForWord: variant "${variant}" expects a "${expectedDimension}" ` +
+        `descriptor, got "${descriptor.dimension}"`,
+    )
+  }
+  return generateForSkill(descriptor, srsRecord, cache, attempt)
 }

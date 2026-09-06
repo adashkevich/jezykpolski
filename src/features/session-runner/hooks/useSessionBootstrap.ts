@@ -173,17 +173,22 @@ export function useSessionBootstrap(scope: SessionScope) {
 
     let materialized: MaterializedQueueEntry[]
     let forceCategory: ExerciseCategory | undefined
-    // Task 27's `{ kind: 'practice-extra' }` — set only for that scope; every instance below
-    // is then built via `generateExtraForWord` instead of `generateForSkill`/`pickExerciseType`.
+    // Task 31's (`spec/tasks/31-practice-vocabulary-drills.md` §2/§3) `{ kind:
+    // 'practice-extra' }` — set only for that scope; every instance below is then built via
+    // `generateExtraForWord` instead of the plain `generateForSkill` call.
     let extraVariant: PracticeExtraVariant | undefined
 
     if (scope.kind === 'practice-extra') {
-      // FR-56/FR-57 — see `session-scope.ts`'s own header on this scope: "лишний
-      // перевод"/"часть речи" are single-slot, auto-graded exercises that still go through
-      // the ordinary queue/registry path, just with `pickExerciseType` bypassed entirely.
+      // FR-137/FR-138 — see `session-scope.ts`'s own header on this scope: "Выбор перевода"
+      // (`vocab-choice`) drills `vocab:pl-ru`, "Написание по-польски" (`vocab-spelling`)
+      // drills `vocab:ru-pl` — both single-slot, auto-graded exercises that go through the
+      // ordinary queue/registry path, `generateExercise` deciding `choice` vs `input` purely
+      // from the materialized skill's own dimension (`picker.ts#vocabExerciseType`).
       extraVariant = scope.variant
+      const dimension: 'vocab:pl-ru' | 'vocab:ru-pl' =
+        scope.variant === 'vocab-choice' ? 'vocab:pl-ru' : 'vocab:ru-pl'
       const wordIds = scope.wordIds.filter(
-        (wordId) => !args.excludeSkillIds.has(encodeSkillId(wordId, 'vocab:pl-ru')),
+        (wordId) => !args.excludeSkillIds.has(encodeSkillId(wordId, dimension)),
       )
       if (wordIds.length === 0) {
         await handleEmptyPlan(args.existingSessionId, now)
@@ -196,8 +201,11 @@ export function useSessionBootstrap(scope: SessionScope) {
         if (!word) continue
         // `materializeQueueItem`'s `'new'` branch never actually reads `item.word` (it
         // re-fetches the entry from the already-preloaded cache) — reused as-is rather than
-        // duplicating its `ensureSkill(vocab:pl-ru)` + `enumerateSkills` logic here.
-        materialized.push(await materializeQueueItem({ source: 'new', word, wordId }, cache))
+        // duplicating its `ensureSkill(dimension)` + `enumerateSkills` logic here, just with
+        // this variant's own dimension instead of the default `vocab:pl-ru`.
+        materialized.push(
+          await materializeQueueItem({ source: 'new', word, wordId }, cache, dimension),
+        )
       }
       if (materialized.length === 0) {
         await handleEmptyPlan(args.existingSessionId, now)
@@ -268,7 +276,7 @@ export function useSessionBootstrap(scope: SessionScope) {
     for (const { descriptor, skill } of materialized) {
       descriptors.set(descriptor.skillId, descriptor)
       const instance = extraVariant
-        ? generateExtraForWord(extraVariant, descriptor, cache, 0)
+        ? generateExtraForWord(extraVariant, descriptor, skill, cache, 0)
         : generateForSkill(descriptor, skill, cache, 0, hintMode, forceCategory)
       skillByInstanceId.set(instance.id, skill)
       instances.push(instance)

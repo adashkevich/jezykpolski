@@ -18,7 +18,7 @@ import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.
 import { encodeSkillId, encodeWordId } from '@/learning/skills/skill-id.ts'
 import type { LearnQueueItem } from '@/learning/session/session.types.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
-import { generateForSkill, materializeQueueItem } from './build-session-exercises.ts'
+import { generateExtraForWord, generateForSkill, materializeQueueItem } from './build-session-exercises.ts'
 import { SessionContentCache } from './session-content-context.ts'
 
 function entry(
@@ -94,6 +94,36 @@ describe('materializeQueueItem', () => {
     expect(persisted.map((s) => s.dimension)).toEqual(['vocab:pl-ru'])
   })
 
+  // Task 31 (`spec/tasks/31-practice-vocabulary-drills.md` §3) — the `newWordDimension`
+  // parameter `useSessionBootstrap.ts`'s `{ kind: 'practice-extra', variant: 'vocab-spelling'
+  // }` branch relies on to materialize a brand-new word's *production* skill on demand,
+  // instead of the default `vocab:pl-ru`.
+  it('a "new" item materializes vocab:ru-pl instead when newWordDimension asks for it', async () => {
+    const wordId = encodeWordId('stol', 'NOUN')
+    const item: LearnQueueItem = {
+      source: 'new',
+      word: entry({ lemma: 'stol', rank: 4, primaryRu: 'стол' }),
+      wordId,
+    }
+    const ensureSpy = vi.spyOn(skillsRepo, 'ensureSkill')
+    const cache = new SessionContentCache()
+
+    const { descriptor, skill } = await materializeQueueItem(item, cache, 'vocab:ru-pl')
+
+    expect(descriptor.dimension).toBe('vocab:ru-pl')
+    expect(skill.skillId).toBe(encodeSkillId(wordId, 'vocab:ru-pl'))
+    expect(ensureSpy).toHaveBeenCalledTimes(1)
+    expect(ensureSpy).toHaveBeenCalledWith(
+      encodeSkillId(wordId, 'vocab:ru-pl'),
+      wordId,
+      'vocab',
+      'vocab:ru-pl',
+    )
+
+    const persisted = await skillsRepo.getSkillsForWord(wordId)
+    expect(persisted.map((s) => s.dimension)).toEqual(['vocab:ru-pl'])
+  })
+
   it('a "due" item resolves the SkillDescriptor for the already-existing SkillRecord, without calling ensureSkill', async () => {
     const wordId = encodeWordId('kot', 'NOUN')
     const skillId = encodeSkillId(wordId, 'vocab:pl-ru')
@@ -134,5 +164,52 @@ describe('generateForSkill', () => {
     expect(first).toEqual(again)
     // A different attempt -> a different seed -> a different instance id, at minimum.
     expect(retry.id).not.toBe(first.id)
+  })
+})
+
+// Task 31 (`spec/tasks/31-practice-vocabulary-drills.md` §3) — the `{ kind: 'practice-extra'
+// }` counterpart of `generateForSkill`: no dedicated builders any more, just the ordinary
+// `generateExercise` call, with `vocab-choice`/`vocab-spelling` mapping onto whichever
+// dimension the caller already materialized.
+describe('generateExtraForWord', () => {
+  it('vocab-choice over a vocab:pl-ru descriptor produces a "choice" exercise', async () => {
+    const wordId = encodeWordId('dom', 'NOUN')
+    const item: LearnQueueItem = {
+      source: 'new',
+      word: entry({ lemma: 'dom', rank: 1, primaryRu: 'дом' }),
+      wordId,
+    }
+    const cache = new SessionContentCache()
+    const { descriptor, skill } = await materializeQueueItem(item, cache, 'vocab:pl-ru')
+
+    const instance = generateExtraForWord('vocab-choice', descriptor, skill, cache, 0)
+    expect(instance.exercise.type).toBe('choice')
+  })
+
+  it('vocab-spelling over a vocab:ru-pl descriptor produces an "input" exercise', async () => {
+    const wordId = encodeWordId('kot', 'NOUN')
+    const item: LearnQueueItem = {
+      source: 'new',
+      word: entry({ lemma: 'kot', rank: 2, primaryRu: 'кот' }),
+      wordId,
+    }
+    const cache = new SessionContentCache()
+    const { descriptor, skill } = await materializeQueueItem(item, cache, 'vocab:ru-pl')
+
+    const instance = generateExtraForWord('vocab-spelling', descriptor, skill, cache, 0)
+    expect(instance.exercise.type).toBe('input')
+  })
+
+  it('throws when the variant and the materialized descriptor disagree (wiring bug guard)', async () => {
+    const wordId = encodeWordId('dom', 'NOUN')
+    const item: LearnQueueItem = {
+      source: 'new',
+      word: entry({ lemma: 'dom', rank: 1, primaryRu: 'дом' }),
+      wordId,
+    }
+    const cache = new SessionContentCache()
+    const { descriptor, skill } = await materializeQueueItem(item, cache, 'vocab:pl-ru')
+
+    expect(() => generateExtraForWord('vocab-spelling', descriptor, skill, cache, 0)).toThrow()
   })
 })
