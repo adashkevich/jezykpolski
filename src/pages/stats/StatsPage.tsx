@@ -34,6 +34,7 @@ import { levelProgress, posProgress } from '@/db/repositories/stats.repository.t
 import { StatProgressBar } from '@/features/stats/components/StatProgressBar.tsx'
 import { ConfusionCard } from '@/features/stats/components/ConfusionCard.tsx'
 import { useConfusionMatrix } from '@/hooks/useConfusionMatrix.ts'
+import { useLevelGate } from '@/hooks/useLevelGate.ts'
 import { useMorphologyProgress } from '@/hooks/useMorphologyProgress.ts'
 import { useReviewCounts } from '@/hooks/useReviewCounts.ts'
 import { useWordProgressSummary } from '@/hooks/useWordProgressSummary.ts'
@@ -73,6 +74,7 @@ export function StatsPage() {
   const reviewCounts = useReviewCounts(now)
   const morphology = useMorphologyProgress()
   const confusionMatrix = useConfusionMatrix()
+  const levelGate = useLevelGate()
 
   const loading = summary === undefined
   const hasAnyProgress = (summary?.learningTotal ?? 0) + (summary?.learnedTotal ?? 0) > 0
@@ -102,9 +104,23 @@ export function StatsPage() {
               <CardTitle>По уровням</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
-              {levelProgress(summary).map((row) => (
-                <StatProgressBar key={row.key} label={row.key} value={row.percent} />
-              ))}
+              {levelProgress(summary).map((row) => {
+                // Task 35 (`spec/tasks/35-level-gated-new-words.md` §4): mark which levels
+                // the daily session's new-word gate currently has open — no new query/bucket,
+                // `useLevelGate` reuses `computeLevelPoolCounts`/`unlockedLevels` from the
+                // same `wordProgress` read `useWordProgressSummary` already triggers.
+                // `levelGate === undefined` (still loading) shows every row as-is rather than
+                // flashing every level as "locked" for one frame.
+                const isUnlocked = !levelGate || levelGate.unlocked.includes(row.key)
+                return (
+                  <StatProgressBar
+                    key={row.key}
+                    label={isUnlocked ? row.key : `${row.key} · откроется позже`}
+                    value={row.percent}
+                    muted={!isUnlocked}
+                  />
+                )
+              })}
             </CardContent>
           </Card>
 

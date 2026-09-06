@@ -49,6 +49,7 @@ import type { PosValue } from '@/content/codec.ts'
 import { getIndexStore } from '@/content/index-store.ts'
 import { useDailyStats } from '@/hooks/useDailyStats.ts'
 import { useDueCount } from '@/hooks/useDueCount.ts'
+import { useLevelGate } from '@/hooks/useLevelGate.ts'
 import { useWordProgressSummary } from '@/hooks/useWordProgressSummary.ts'
 import { toLocalDateKey } from '@/lib/dates.ts'
 import { useFiltersStore } from '@/stores/filters.store.ts'
@@ -81,6 +82,7 @@ export function HomePage() {
   const dueCount = useDueCount()
   const summary = useWordProgressSummary()
   const dailyStats = useDailyStats(today)
+  const levelGate = useLevelGate()
 
   const loading = dueCount === undefined || summary === undefined
 
@@ -98,6 +100,19 @@ export function HomePage() {
     useFiltersStore.getState().setPos(pos ?? null)
     navigate('/words')
   }
+
+  // Task 35 (`spec/tasks/35-level-gated-new-words.md` §4): the level gate quietly changes
+  // which new words a session introduces, so it must be visible somewhere — otherwise it
+  // reads as a bug ("почему больше не появляются новые слова"). Hidden entirely once the
+  // whole corpus is started (`totalUnstarted === 0`): that's the existing "нет новых слов"
+  // state (`ctaLabel`/`reviewDescription` above already cover it), not a new empty screen.
+  const totalUnstarted = levelGate
+    ? Object.values(levelGate.unstartedByLevel).reduce((sum, n) => sum + n, 0)
+    : 0
+  const levelGateLine =
+    levelGate && totalUnstarted > 0 && levelGate.unlocked.length > 0
+      ? `Сейчас изучаем: ${levelGate.unlocked.join(' + ')} · осталось ${levelGate.unstartedByLevel[levelGate.unlocked[0]!]} ${pluralize(levelGate.unstartedByLevel[levelGate.unlocked[0]!]!, ['слово', 'слова', 'слов'])}`
+      : null
 
   let ctaLabel: string
   let reviewDescription: string | null
@@ -139,6 +154,11 @@ export function HomePage() {
           >
             {ctaLabel}
           </Button>
+          {levelGateLine && (
+            <p className="text-xs text-muted-foreground" aria-live="polite">
+              {levelGateLine}
+            </p>
+          )}
         </CardContent>
       </Card>
 

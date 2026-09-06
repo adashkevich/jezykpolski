@@ -11,12 +11,13 @@
  * `loader.ts#getParadigm` already has.
  */
 import { db } from '../database.ts'
-import type { LevelValue, PosValue } from '@/content/codec.ts'
+import { LEVEL_VALUES, type LevelValue, type PosValue } from '@/content/codec.ts'
 import { getIndexStore } from '@/content/index-store.ts'
 import { getParadigm } from '@/content/paradigms.ts'
 import { aggregateWord, deriveStatus } from '@/learning/progress/aggregate.ts'
 import { enumerateSkills } from '@/learning/skills/enumerate.ts'
-import { decodeWordId, type SkillId, type WordId } from '@/learning/skills/skill-id.ts'
+import { decodeWordId, encodeWordId, type SkillId, type WordId } from '@/learning/skills/skill-id.ts'
+import type { LevelPoolCounts } from '@/learning/session/level-gate.ts'
 import type { SkillRecord, WordProgressRecord } from '@/types/progress.ts'
 
 export async function getWordProgress(wordId: WordId): Promise<WordProgressRecord | undefined> {
@@ -85,6 +86,46 @@ export async function getWordProgressSummary(): Promise<WordProgressSummary> {
     learnedByPos,
     learnedByLevel,
   }
+}
+
+/**
+ * `LevelPoolCounts` for `learning/session/level-gate.ts#unlockedLevels` (task 35,
+ * `spec/tasks/35-level-gated-new-words.md` §2) — a synchronous fold over the already-decoded
+ * content index (`getIndexStore().byLevel`, 7998 in-memory entries) plus an already-fetched
+ * `progress` map, never a Dexie query of its own. Kept here (rather than inside
+ * `level-gate.ts`) specifically so it CAN read `getIndexStore()`: `learning/**` is a pure
+ * domain layer that may depend on `content/codec.ts`'s plain dictionaries but not on
+ * `content/index-store.ts` (the loader/store half of the content layer, per
+ * `types/content.ts`'s own header) — this repository already imports it for
+ * `getWordProgressSummary` above, so the level-pool tally lives next to it instead.
+ *
+ * A word counts as "started" the moment it has a `wordProgress` row at all — `wordProgress`
+ * rows are only ever written once a word has at least one `SkillRecord`
+ * (`computeWordProgress` returns `undefined`, and the row is deleted, when `skillsForWord` is
+ * empty), so a row's mere presence already rules out status `'new'` regardless of which of
+ * `learning`/`known`/`mastered` it actually holds.
+ */
+export function computeLevelPoolCounts(
+  progress: ReadonlyMap<WordId, WordProgressRecord>,
+): LevelPoolCounts {
+  const unstartedByLevel = Object.fromEntries(LEVEL_VALUES.map((level) => [level, 0])) as Record<
+    LevelValue,
+    number
+  >
+  const startedByLevel = Object.fromEntries(
+    LEVEL_VALUES.map((level) => [level, false]),
+  ) as Record<LevelValue, boolean>
+
+  for (const entry of getIndexStore().byLevel) {
+    const wordId = encodeWordId(entry.lemma, entry.pos)
+    if (progress.has(wordId)) {
+      startedByLevel[entry.level] = true
+    } else {
+      unstartedByLevel[entry.level] += 1
+    }
+  }
+
+  return { unstartedByLevel, startedByLevel }
 }
 
 /**

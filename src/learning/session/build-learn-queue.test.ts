@@ -81,7 +81,28 @@ describe('buildLearnQueue', () => {
     expect(plan.items).toEqual([])
   })
 
-  it('takes new words by ascending rank, capped at newWordsBudget', () => {
+  it('takes new words in the order the caller already sorted them, capped at newWordsBudget', () => {
+    // Task 35: `buildLearnQueue` no longer sorts `candidateNewWords` itself — the caller
+    // (`session-scope.ts#resolveGlobalScope`, via `level-gate.ts#orderNewWordCandidates`)
+    // is responsible for ordering, so this fixture is handed in already sorted by rank.
+    const words = [
+      word({ lemma: 'a', rank: 10 }),
+      word({ lemma: 'b', rank: 20 }),
+      word({ lemma: 'c', rank: 30 }),
+    ]
+    const plan = buildLearnQueue({
+      now: 1000,
+      dueSkills: [],
+      newWordsBudget: 2,
+      candidateNewWords: words,
+      targetSize: 20,
+    })
+    expect(plan.items).toHaveLength(2)
+    const lemmas = plan.items.map((i) => (i.source === 'new' ? i.word.lemma : null))
+    expect(lemmas).toEqual(['a', 'b'])
+  })
+
+  it('does not re-sort candidateNewWords — takes them in caller order even if that is not rank-ascending', () => {
     const words = [
       word({ lemma: 'c', rank: 30 }),
       word({ lemma: 'a', rank: 10 }),
@@ -96,7 +117,7 @@ describe('buildLearnQueue', () => {
     })
     expect(plan.items).toHaveLength(2)
     const lemmas = plan.items.map((i) => (i.source === 'new' ? i.word.lemma : null))
-    expect(lemmas).toEqual(['a', 'b'])
+    expect(lemmas).toEqual(['c', 'a'])
   })
 
   it('creates only a vocab:pl-ru-shaped item for new words (the union carries no skill yet)', () => {

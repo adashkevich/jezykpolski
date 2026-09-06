@@ -11,10 +11,17 @@
  * Priority (task text, verbatim):
  *   1. overdue reviews (`due < now`), oldest `due` first;
  *   2. `learning`/`relearning` skills;
- *   3. new words, up to `newWordsBudget`, by ascending `rank`.
+ *   3. new words, up to `newWordsBudget`, in the order the caller already put them in.
  * "Overdue reviews earlier than new words" is satisfied structurally: every `'due'` item is
  * placed before interleaving even starts touching `'new'` items (see `interleaveNewWords`
  * below) — the first item of a non-empty due list is always the queue's first item.
+ *
+ * Task 35 (`spec/tasks/35-level-gated-new-words.md` §2): this function used to sort
+ * `candidateNewWords` by ascending `rank` itself. That sort is gone — `resolveGlobalScope`
+ * (`features/session-runner/lib/session-scope.ts`) now decides which levels are even
+ * eligible and interleaves them (`learning/session/level-gate.ts#orderNewWordCandidates`,
+ * 2:1 by level before rank), and a second unconditional rank-sort here would immediately
+ * undo that interleave. See `BuildLearnQueueInput.candidateNewWords` below.
  *
  * "New words are mixed throughout the queue, not appended as a trailing block" (task text's
  * explicit UX rationale: 20 reviews then 5 new words in a row is fatiguing and worse for
@@ -39,7 +46,13 @@ export interface BuildLearnQueueInput {
   readonly newWordsBudget: number
   /** Words the caller has already filtered to "not started yet" (status `'new'`) and to
    *  whatever scope applies (global / a `WordQuery` filter / a single word) — this function
-   *  only orders and trims the list, it never decides *which* words are eligible. */
+   *  never decides *which* words are eligible.
+   *
+   *  Already ordered by the caller (task 35): this function only *trims* the list to
+   *  whatever budget/space is left, it does not re-sort it. The global scope orders by
+   *  `learning/session/level-gate.ts#orderNewWordCandidates` (level gate + 2:1 mix, rank
+   *  ascending within a level); other scopes (a single word, a `WordQuery` filter) pass
+   *  their candidates pre-sorted by rank themselves where that still makes sense. */
   readonly candidateNewWords: readonly WordIndexEntry[]
   /** Total queue size — reviews are prioritized into this budget first; new words only fill
    *  whatever room is left after that (task text: overdue reviews crowd out new words when
@@ -119,8 +132,7 @@ export function buildLearnQueue(input: BuildLearnQueueInput): QueuePlan {
   const remainingForNew = Math.max(0, targetSize - reviewItems.length)
   const newCount = Math.min(newWordsBudget, remainingForNew, input.candidateNewWords.length)
 
-  const sortedCandidates = [...input.candidateNewWords].sort((a, b) => a.rank - b.rank)
-  const newItems: LearnQueueItem[] = sortedCandidates.slice(0, newCount).map((word) => ({
+  const newItems: LearnQueueItem[] = input.candidateNewWords.slice(0, newCount).map((word) => ({
     source: 'new',
     word,
     wordId: encodeWordId(word.lemma, word.pos),

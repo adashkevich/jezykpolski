@@ -83,7 +83,10 @@
  */
 import { ensureSkill, getDueSkills, getSkill } from '@/db/repositories/skills.repository.ts'
 import { getSkillsForWord } from '@/db/repositories/skills.repository.ts'
-import { getAllWordProgress } from '@/db/repositories/words-progress.repository.ts'
+import {
+  computeLevelPoolCounts,
+  getAllWordProgress,
+} from '@/db/repositories/words-progress.repository.ts'
 import * as settingsRepo from '@/db/repositories/settings.repository.ts'
 import { queryWords, type WordQuery } from '@/content/query.ts'
 import { getIndexStore } from '@/content/index-store.ts'
@@ -95,6 +98,12 @@ import {
   type SkillId,
   type WordId,
 } from '@/learning/skills/skill-id.ts'
+import {
+  NEW_WORDS_START_LEVEL_DEFAULT,
+  NEW_WORDS_START_LEVEL_SETTING_KEY,
+  orderNewWordCandidates,
+  unlockedLevels,
+} from '@/learning/session/level-gate.ts'
 import type { PracticeCandidateWord, PracticeConfig } from '@/learning/session/session.types.ts'
 import type { SkillRecord } from '@/types/progress.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
@@ -274,14 +283,40 @@ async function resolveSkillScope(skillIds: readonly SkillId[]): Promise<SessionC
   }
 }
 
+/**
+ * Task 35 (`spec/tasks/35-level-gated-new-words.md` §2) — the ONLY scope the level gate
+ * applies to (see this file's header for why `resolveFilterScope`/`resolveWordScope`/
+ * `resolveSkillScope`/the mistake scope/Practice are all deliberately left alone): a plain
+ * `/session` launch with no router state is the one place "the algorithm decides everything"
+ * end to end, so it's the one place a hidden level-ordering rule can live without silently
+ * overriding a choice the user already made elsewhere.
+ *
+ * `LevelPoolCounts` is folded from the SAME `progress` map already fetched below for the
+ * `queryWords` call (no second `getAllWordProgress()`) plus the in-memory content index
+ * (`words-progress.repository.ts#computeLevelPoolCounts`) — a 7998-entry in-memory pass, not
+ * a new Dexie query. `unlockedLevels` then narrows `queryWords`'s `levels` filter (task 04's
+ * `WordQuery.levels`, already existed) before `orderNewWordCandidates` interleaves the result
+ * 2:1 by level — `buildLearnQueue` no longer re-sorts this list itself (task 35 also removed
+ * its internal `rank` sort, see that module's header), so whatever order comes out of here is
+ * exactly what ends up in the queue.
+ */
 async function resolveGlobalScope(now: number): Promise<SessionCandidates> {
-  const [progress, targetSize, newWordsBudget, dueSkills] = await Promise.all([
+  const [progress, targetSize, newWordsBudget, dueSkills, startLevel] = await Promise.all([
     getAllWordProgress(),
     settingsRepo.get(DEFAULT_TARGET_SIZE_KEY, DEFAULT_TARGET_SIZE),
     settingsRepo.get(DEFAULT_NEW_WORDS_BUDGET_KEY, DEFAULT_NEW_WORDS_BUDGET),
     getDueSkills(now, DUE_SKILLS_FETCH_LIMIT),
+    settingsRepo.get(NEW_WORDS_START_LEVEL_SETTING_KEY, NEW_WORDS_START_LEVEL_DEFAULT),
   ])
-  const candidateNewWords = queryWords({ sort: 'frequency', status: ['new'] }, progress)
+
+  const levelPoolCounts = computeLevelPoolCounts(progress)
+  const unlocked = unlockedLevels(levelPoolCounts, startLevel)
+  const eligibleNewWords = queryWords(
+    { sort: 'frequency', status: ['new'], levels: unlocked },
+    progress,
+  )
+  const candidateNewWords = orderNewWordCandidates(eligibleNewWords, unlocked)
+
   return { dueSkills, candidateNewWords, targetSize, newWordsBudget }
 }
 

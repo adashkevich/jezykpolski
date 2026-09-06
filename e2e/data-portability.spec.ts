@@ -90,9 +90,15 @@ test('export -> reset -> import restores progress identically', async ({ page })
 
   // --- Export ---
   await page.goto('/settings')
+  // `exact: true`: a plain substring `{ name: 'Скачать' }` is also a prefix of
+  // `ParadigmPrefetchToggle`'s unrelated "Скачать (64 шарда, ~1 МБ)" button (task 24, §1/§5)
+  // — whether that button has settled out of its async "checking" phase by this point is a
+  // timing race independent of this test's own scenario, so without `exact` this locator can
+  // resolve to two elements (Playwright strict-mode violation) depending on how fast that
+  // unrelated check happens to run.
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Скачать' }).click(),
+    page.getByRole('button', { name: 'Скачать', exact: true }).click(),
   ])
   await expect(page.getByText('Файл скачан.')).toBeVisible()
   const downloadPath = await download.path()

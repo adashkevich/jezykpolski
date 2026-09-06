@@ -16,17 +16,26 @@ export function StatProgressBar({
   label,
   value,
   className,
+  muted = false,
 }: {
   label: string
   /** 0..1 — clamped defensively, same posture as `MaturityBar`. */
   value: number
   className?: string
+  /** Task 35 (`spec/tasks/35-level-gated-new-words.md` §4) — a level the new-word gate
+   *  hasn't opened yet ("откроется позже"). Deliberately NOT plain `opacity-*` on the whole
+   *  row: that dims the label/percent text along with everything else and fails axe's
+   *  `color-contrast` rule (opacity halves effective contrast against the page background).
+   *  Only the label swaps to the already-accessible `text-muted-foreground` token (same one
+   *  the percent span already uses everywhere else on this screen) and the bar fill dims —
+   *  a non-text element `color-contrast` doesn't check. */
+  muted?: boolean
 }) {
   const percent = Math.round(Math.min(1, Math.max(0, value)) * 100)
   return (
     <div className={cn('flex flex-col gap-1', className)}>
       <div className="flex items-baseline justify-between text-sm">
-        <span className="text-foreground">{label}</span>
+        <span className={muted ? 'text-muted-foreground' : 'text-foreground'}>{label}</span>
         <span className="tabular-nums text-muted-foreground">{percent}%</span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -36,7 +45,10 @@ export function StatProgressBar({
           aria-valuenow={percent}
           aria-valuemin={0}
           aria-valuemax={100}
-          className="h-full rounded-full bg-primary transition-[width]"
+          className={cn(
+            'h-full rounded-full transition-[width]',
+            muted ? 'bg-muted-foreground/40' : 'bg-primary',
+          )}
           style={{ width: `${percent}%` }}
         />
       </div>

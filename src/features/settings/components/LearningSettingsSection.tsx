@@ -33,6 +33,11 @@ import {
   DEFAULT_EXERCISE_TYPES_SETTING_KEY,
   type ExerciseTypeSelection,
 } from '@/learning/exercises/default-exercise-type.ts'
+import {
+  NEW_WORDS_START_LEVEL_DEFAULT,
+  NEW_WORDS_START_LEVEL_SETTING_KEY,
+} from '@/learning/session/level-gate.ts'
+import { LEVEL_VALUES, type LevelValue } from '@/content/codec.ts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.tsx'
 import { CONTROL_CLASS } from '@/components/ui/control.ts'
 import { cn } from '@/lib/utils'
@@ -68,6 +73,10 @@ export function LearningSettingsSection() {
   const [exerciseTypes, setExerciseTypes] = useSetting<ExerciseTypeSelection>(
     DEFAULT_EXERCISE_TYPES_SETTING_KEY,
     DEFAULT_EXERCISE_TYPES_DEFAULT,
+  )
+  const [startLevel, setStartLevel] = useSetting<LevelValue>(
+    NEW_WORDS_START_LEVEL_SETTING_KEY,
+    NEW_WORDS_START_LEVEL_DEFAULT,
   )
 
   return (
@@ -153,6 +162,31 @@ export function LearningSettingsSection() {
             </CheckboxRow>
           </div>
         </div>
+
+        {/* Task 35 (`spec/tasks/35-level-gated-new-words.md` §3) — a valve for anyone who
+            isn't starting from zero: without it, a B1 learner would have to page through
+            ~2000 A1 words in the daily session before ever reaching their own level. Only
+            gates which NEW words the session may introduce (`level-gate.ts#unlockedLevels`,
+            wired in `session-scope.ts#resolveGlobalScope`) — changing it never touches
+            already-started words, which stay in their normal review schedule regardless. */}
+        <SettingRow label="Начинать с уровня">
+          <select
+            className={selectClassName}
+            value={startLevel ?? NEW_WORDS_START_LEVEL_DEFAULT}
+            onChange={(e) => setStartLevel(e.target.value as LevelValue)}
+            aria-label="Начинать с уровня"
+          >
+            {LEVEL_VALUES.map((level) => (
+              <option key={level} value={level}>
+                {level}
+              </option>
+            ))}
+          </select>
+        </SettingRow>
+        <p className="text-xs text-muted-foreground">
+          Новые слова в ежедневной сессии берутся с этого уровня и выше. Уровни ниже не
+          предлагаются.
+        </p>
       </CardContent>
     </Card>
   )
