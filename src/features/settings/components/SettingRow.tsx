@@ -13,8 +13,10 @@ export function SettingRow({ label, children }: { label: string; children: React
   )
 }
 
-/** Shared `<select>` styling — copied verbatim from `features/training-setup/components/
- *  TrainingSetupScreen.tsx`'s own `selectClassName` so every dropdown in the app (Practice
- * setup, `/settings`) looks identical rather than each screen inventing its own. */
-export const settingSelectClassName =
-  'h-9 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
+// `settingSelectClassName` used to live here as a plain string constant, but deriving it from
+// `CONTROL_CLASS` (task 34, `spec/tasks/34-viewport-zoom-fix.md` §2) makes it a `cn(...)` call
+// instead of a literal — `react-refresh/only-export-components`'s `allowConstantExport` only
+// exempts literal exports, not computed ones, so a non-component export like that would break
+// fast refresh for every file that imports this component. `LearningSettingsSection.tsx` and
+// `InterfaceSettingsSection.tsx` (its only two consumers) each now build the same class list
+// locally instead: `cn(CONTROL_CLASS, 'h-9 px-2.5')`, not exported from either.

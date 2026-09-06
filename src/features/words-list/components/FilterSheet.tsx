@@ -24,6 +24,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet.tsx'
+import { CONTROL_CLASS } from '@/components/ui/control.ts'
+import { cn } from '@/lib/utils'
 import { useFiltersStore, type SortOption, type TopNOption } from '@/stores/filters.store.ts'
 import type { WordStatus } from '@/types/progress.ts'
 
@@ -49,8 +51,7 @@ const SORT_OPTIONS: ReadonlyArray<{ value: SortOption; label: string }> = [
   { value: 'alphabetical', label: 'По алфавиту' },
 ]
 
-const selectClassName =
-  'h-11 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
+const selectClassName = cn(CONTROL_CLASS, 'px-3')
 
 export function FilterSheet({ resultCount }: { resultCount: number }) {
   const [open, setOpen] = useState(false)

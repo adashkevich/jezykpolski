@@ -199,7 +199,13 @@ export function LetterSlotsInput({
           onChange={handleChange}
           onSelect={pinCaretToEnd}
           onClick={pinCaretToEnd}
-          className="absolute inset-0 h-full w-full cursor-text opacity-0 disabled:cursor-not-allowed"
+          // `text-base` (16px, unconditionally — not `text-base md:text-sm` like
+          // `CONTROL_CLASS`): this field is `opacity-0` and only ever exists to catch focus/
+          // keyboard input for the visible slot row below it, so its own font-size is never
+          // seen at any width. It still needs to compute to ≥16px, though — iOS Safari's
+          // auto-zoom keys off the focused element's computed font-size regardless of
+          // visibility (task 34, `spec/tasks/34-viewport-zoom-fix.md` §2 point 3).
+          className="absolute inset-0 h-full w-full cursor-text text-base opacity-0 disabled:cursor-not-allowed"
         />
         <p id={descriptionId} className="sr-only">
           Вводите буквы по порядку — неверная буква заменяется следующим нажатием.

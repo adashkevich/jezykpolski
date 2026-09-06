@@ -20,6 +20,7 @@ import { AlertTriangle, CheckCircle2, XCircle, type LucideIcon } from 'lucide-re
 import { useRef, useState, type KeyboardEvent } from 'react'
 import { Button } from '@/components/ui/button.tsx'
 import { ExpectedDiffLine } from '@/components/app/AnswerDiff.tsx'
+import { CONTROL_CLASS } from '@/components/ui/control.ts'
 import { cn } from '@/lib/utils'
 import { describeDimension } from '@/learning/skills/dimensions.ts'
 import { ensureSkill } from '@/db/repositories/skills.repository.ts'
@@ -256,7 +257,8 @@ function VerbTableRow({
           onBlur={(event) => onSubmitCell(cell, event.target.value)}
           onKeyDown={handleKeyDown}
           className={cn(
-            'h-11 w-full rounded-md border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed',
+            CONTROL_CLASS,
+            'w-full rounded-md px-3 disabled:cursor-not-allowed',
             STATUS_BORDER[state.status],
           )}
         />

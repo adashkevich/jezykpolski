@@ -4,7 +4,17 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- `interactive-widget=resizes-content` (task 34, spec/tasks/34-viewport-zoom-fix.md §4):
+         without it, an Android soft keyboard just overlays the bottom of the layout viewport,
+         leaving the fixed BottomNavigation hidden underneath it instead of the content area
+         shrinking to make room. Deliberately NOT adding `maximum-scale`/`user-scalable=no`
+         here — that would ban the user's own pinch-zoom outright (NFR-11), which is not this
+         task's fix; the actual iOS auto-zoom-on-focus bug is fixed at the control level
+         instead (`src/components/ui/control.ts`'s `CONTROL_CLASS`). -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <!-- Two variants so the browser chrome (status bar / URL bar) matches whichever theme
          `prefers-color-scheme` actually renders (see globals.css) rather than always the
          dark value — light's --background is pure white (oklch(1 0 0)). -->

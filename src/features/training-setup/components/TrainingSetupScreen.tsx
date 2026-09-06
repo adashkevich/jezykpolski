@@ -26,6 +26,7 @@ import { useNavigate } from 'react-router'
 import { PageContainer } from '@/components/app/PageContainer.tsx'
 import { PageHeader } from '@/components/app/PageHeader.tsx'
 import { Button } from '@/components/ui/button.tsx'
+import { CONTROL_CLASS } from '@/components/ui/control.ts'
 import { cn } from '@/lib/utils'
 import { LEVEL_VALUES } from '@/content/codec.ts'
 import type { WordQuery } from '@/content/query.ts'
@@ -78,8 +79,7 @@ const MATCHING_PAIR_COUNT = 5
  *  used when the current on-screen selection has fewer than this many (never padded). */
 const VOCAB_DRILL_BATCH_SIZE = 10
 
-const selectClassName =
-  'h-11 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
+const selectClassName = cn(CONTROL_CLASS, 'px-3')
 
 /** Every dimension-content-affecting field a candidate-word refetch depends on — a single
  *  fixed, arbitrary seed (totals don't depend on it, only which *subset* becomes `items`;

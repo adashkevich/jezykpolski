@@ -34,12 +34,20 @@ import {
   type ExerciseTypeSelection,
 } from '@/learning/exercises/default-exercise-type.ts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.tsx'
+import { CONTROL_CLASS } from '@/components/ui/control.ts'
+import { cn } from '@/lib/utils'
 import { CheckboxRow } from '@/features/training-setup/components/CheckboxRow.tsx'
 import { useSetting } from '../hooks/useSetting.ts'
-import { SettingRow, settingSelectClassName } from './SettingRow.tsx'
+import { SettingRow } from './SettingRow.tsx'
 
 const NEW_WORDS_OPTIONS = [5, 10, 15, 20, 30]
 const TARGET_SIZE_OPTIONS = [10, 15, 20, 30, 50]
+
+/** Same select styling every dropdown in the app shares (`SearchInput.tsx`, `FilterSheet.tsx`,
+ *  `TrainingSetupScreen.tsx`'s own `selectClassName`) — task 34's `CONTROL_CLASS` plus this
+ *  screen's compact `h-9`/`px-2.5` sizing (`SettingRow.tsx`'s header explains why this isn't
+ *  a shared export from that file). */
+const selectClassName = cn(CONTROL_CLASS, 'h-9 px-2.5')
 
 const HINT_MODE_OPTIONS: ReadonlyArray<{ value: HintMode; label: string }> = [
   { value: 'lemma', label: 'Лемма' },
@@ -70,7 +78,7 @@ export function LearningSettingsSection() {
       <CardContent className="flex flex-col divide-y divide-border">
         <SettingRow label="Новых слов в день">
           <select
-            className={settingSelectClassName}
+            className={selectClassName}
             value={newWordsBudget ?? DEFAULT_NEW_WORDS_BUDGET}
             onChange={(e) => setNewWordsBudget(Number(e.target.value))}
             aria-label="Новых слов в день"
@@ -85,7 +93,7 @@ export function LearningSettingsSection() {
 
         <SettingRow label="Заданий в сессии">
           <select
-            className={settingSelectClassName}
+            className={selectClassName}
             value={targetSize ?? DEFAULT_TARGET_SIZE}
             onChange={(e) => setTargetSize(Number(e.target.value))}
             aria-label="Заданий в сессии"
@@ -100,7 +108,7 @@ export function LearningSettingsSection() {
 
         <SettingRow label="Подсказка в морфологии">
           <select
-            className={settingSelectClassName}
+            className={selectClassName}
             value={hintMode ?? NOUN_HINT_MODE_DEFAULT}
             onChange={(e) => setHintMode(e.target.value as HintMode)}
             aria-label="Подсказка в морфологии"

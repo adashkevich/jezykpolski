@@ -45,6 +45,7 @@ import { AlertTriangle, CheckCircle2, XCircle, type LucideIcon } from 'lucide-re
 import { useRef, useState, type KeyboardEvent } from 'react'
 import { Button } from '@/components/ui/button.tsx'
 import { ExpectedDiffLine } from '@/components/app/AnswerDiff.tsx'
+import { CONTROL_CLASS } from '@/components/ui/control.ts'
 import { cn } from '@/lib/utils'
 import { CASE_DISPLAY_ORDER, CASE_LABELS } from '@/learning/skills/dimensions.ts'
 import { ensureSkill } from '@/db/repositories/skills.repository.ts'
@@ -315,7 +316,8 @@ function TableCellSlot({
           onBlur={(event) => onSubmitCell(cell, event.target.value)}
           onKeyDown={handleKeyDown}
           className={cn(
-            'h-11 w-24 min-w-[5.5rem] rounded-md border bg-background px-2 text-sm text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed',
+            CONTROL_CLASS,
+            'w-24 min-w-[5.5rem] rounded-md px-2 disabled:cursor-not-allowed',
             STATUS_BORDER[state.status],
           )}
         />

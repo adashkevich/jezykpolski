@@ -124,7 +124,7 @@
 | 31 | [Practice: лексические дриллы вместо викторин](31-practice-vocabulary-drills.md) | [x] |
 | 32 | [Экран тренировки: сворачиваемые блоки](32-training-setup-collapsible-blocks.md) | [x] |
 | 33 | [Ранжирование блоков по использованию](33-training-block-usage-ranking.md) | [x] |
-| 34 | [Баг: автозум вьюпорта при вводе](34-viewport-zoom-fix.md) | [ ] |
+| 34 | [Баг: автозум вьюпорта при вводе](34-viewport-zoom-fix.md) | [x] |
 | 35 | [Новые слова по уровням: A1 → A2 → …](35-level-gated-new-words.md) | [ ] |
 
 ---

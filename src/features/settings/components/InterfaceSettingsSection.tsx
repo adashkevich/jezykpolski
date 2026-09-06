@@ -6,9 +6,15 @@
  * `applyTheme` call needed here.
  */
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.tsx'
+import { CONTROL_CLASS } from '@/components/ui/control.ts'
+import { cn } from '@/lib/utils'
 import { useSetting } from '../hooks/useSetting.ts'
-import { SettingRow, settingSelectClassName } from './SettingRow.tsx'
+import { SettingRow } from './SettingRow.tsx'
 import { THEME_DEFAULT, THEME_OPTIONS, THEME_SETTING_KEY, type ThemePreference } from '../lib/theme.ts'
+
+// Same rationale as `LearningSettingsSection.tsx`'s own local `selectClassName` — see
+// `SettingRow.tsx`'s header for why this isn't a shared export from that file.
+const selectClassName = cn(CONTROL_CLASS, 'h-9 px-2.5')
 
 export function InterfaceSettingsSection() {
   const [theme, setTheme] = useSetting<ThemePreference>(THEME_SETTING_KEY, THEME_DEFAULT)
@@ -21,7 +27,7 @@ export function InterfaceSettingsSection() {
       <CardContent>
         <SettingRow label="Тема">
           <select
-            className={settingSelectClassName}
+            className={selectClassName}
             value={theme ?? THEME_DEFAULT}
             onChange={(e) => setTheme(e.target.value as ThemePreference)}
             aria-label="Тема"

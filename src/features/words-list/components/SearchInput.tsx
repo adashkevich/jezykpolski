@@ -12,6 +12,8 @@
  */
 import { Search, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { CONTROL_CLASS } from '@/components/ui/control.ts'
+import { cn } from '@/lib/utils'
 import { useFiltersStore } from '@/stores/filters.store.ts'
 
 const DEBOUNCE_MS = 200
@@ -53,7 +55,7 @@ export function SearchInput() {
         placeholder="być или быть…"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        className="h-11 w-full rounded-lg border border-border bg-background pr-11 pl-9 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        className={cn(CONTROL_CLASS, 'w-full pr-11 pl-9 placeholder:text-muted-foreground')}
       />
       {value && (
         <button
