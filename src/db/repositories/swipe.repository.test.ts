@@ -94,6 +94,65 @@ describe('markWordKnown', () => {
     expect(updated?.state).toBe('review')
     expect(updated?.stability).toBe(SWIPE_KNOWN_INITIAL_STABILITY)
   })
+
+  it('never regresses a skill already at or above the known floor (e.g. 75% maturity from real reviews)', async () => {
+    const advanced: SkillRecord = {
+      skillId: 'kobieta|NOUN::vocab:pl-ru',
+      wordId: 'kobieta|NOUN',
+      kind: 'vocab',
+      dimension: 'vocab:pl-ru',
+      state: 'review',
+      stability: 45,
+      difficulty: 3,
+      due: NOW + 10 * DAY_MS,
+      reps: 6,
+      lapses: 0,
+      correct: 6,
+      incorrect: 0,
+      createdAt: NOW - 40 * DAY_MS,
+      updatedAt: NOW - 2 * DAY_MS,
+      lastReviewAt: NOW - 2 * DAY_MS,
+    }
+    await db.skills.put(advanced)
+
+    await markWordKnown('kobieta|NOUN', NOW)
+
+    const updated = await getSkill('kobieta|NOUN::vocab:pl-ru')
+    expect(updated?.stability).toBe(advanced.stability)
+    expect(updated?.state).toBe(advanced.state)
+    expect(updated?.due).toBe(advanced.due)
+    expect(updated?.reps).toBe(advanced.reps)
+    expect(updated?.lastReviewAt).toBe(advanced.lastReviewAt)
+  })
+
+  it('evaluates vocab:pl-ru and vocab:ru-pl independently — one can stay advanced while the other is newly raised', async () => {
+    const advanced: SkillRecord = {
+      skillId: 'kobieta|NOUN::vocab:pl-ru',
+      wordId: 'kobieta|NOUN',
+      kind: 'vocab',
+      dimension: 'vocab:pl-ru',
+      state: 'review',
+      stability: 45,
+      difficulty: 3,
+      due: NOW + 10 * DAY_MS,
+      reps: 6,
+      lapses: 0,
+      correct: 6,
+      incorrect: 0,
+      createdAt: NOW - 40 * DAY_MS,
+      updatedAt: NOW - 2 * DAY_MS,
+      lastReviewAt: NOW - 2 * DAY_MS,
+    }
+    await db.skills.put(advanced)
+
+    await markWordKnown('kobieta|NOUN', NOW)
+
+    const plRu = await getSkill('kobieta|NOUN::vocab:pl-ru')
+    expect(plRu?.stability).toBe(45)
+
+    const ruPl = await getSkill('kobieta|NOUN::vocab:ru-pl')
+    expect(ruPl?.stability).toBe(SWIPE_KNOWN_INITIAL_STABILITY)
+  })
 })
 
 describe('markWordUnknown', () => {
@@ -117,6 +176,34 @@ describe('markWordUnknown', () => {
     // vocab:ru-pl (materialized by the earlier "Знаю") is untouched by "Не знаю".
     const ruPl = await getSkill('kobieta|NOUN::vocab:ru-pl')
     expect(ruPl?.state).toBe('review')
+  })
+
+  it('still resets fully to new even when prior stability was already at/above the known floor — the monotonic guard added for markWordKnown must not apply here', async () => {
+    const advanced: SkillRecord = {
+      skillId: 'kobieta|NOUN::vocab:pl-ru',
+      wordId: 'kobieta|NOUN',
+      kind: 'vocab',
+      dimension: 'vocab:pl-ru',
+      state: 'review',
+      stability: 50,
+      difficulty: 3,
+      due: NOW + 10 * DAY_MS,
+      reps: 6,
+      lapses: 0,
+      correct: 6,
+      incorrect: 0,
+      createdAt: NOW - 40 * DAY_MS,
+      updatedAt: NOW - 2 * DAY_MS,
+      lastReviewAt: NOW - 2 * DAY_MS,
+    }
+    await db.skills.put(advanced)
+
+    await markWordUnknown('kobieta|NOUN', NOW)
+
+    const skill = await getSkill('kobieta|NOUN::vocab:pl-ru')
+    expect(skill?.state).toBe('new')
+    expect(skill?.stability).toBe(0)
+    expect(skill?.due).toBe(NOW)
   })
 })
 

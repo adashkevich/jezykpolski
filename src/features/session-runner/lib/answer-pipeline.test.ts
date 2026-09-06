@@ -483,3 +483,178 @@ describe('submitAnswer', () => {
     expect(logs[0]).toMatchObject({ srsApplied: false, correct: false })
   })
 })
+
+// ---------------------------------------------------------------------------
+// Task 29 (`spec/tasks/29-letter-by-letter-input.md` §3, FR-84/FR-85/FR-86): the
+// letter-by-letter attempt's outcome (`LetterSlotsInput`) drives the rating instead of the
+// plain "typed correctly -> Easy" rule, without changing what `grade()`/`GradeResult.correct`
+// report for the same final string.
+// ---------------------------------------------------------------------------
+
+describe('submitAnswer — typed letter-by-letter attempts (задача 29)', () => {
+  it('a clean attempt (no mistakes, no hints) still maps to Easy, same as before task 29', async () => {
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+
+    const result = await submitAnswer({
+      sessionId: 1,
+      mode: 'learn',
+      exercise: INPUT_EXERCISE,
+      skillId: SKILL_ID,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: 'женщина',
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now: 1_000_000,
+      attempt: { mistakes: 0, hintsUsed: 0, revealed: false, letterCount: 7 },
+    })
+
+    expect(result.gradeResult.correct).toBe(true)
+    expect(result.rating).toBe(4) // EASY
+
+    const logs = await getLogsForSession(1)
+    expect(logs[0]).toMatchObject({ correct: true, rating: 4, answerGiven: 'женщина' })
+  })
+
+  it('a mistake or a hint caps the rating at Hard, even though the finished answer is correct', async () => {
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+
+    const result = await submitAnswer({
+      sessionId: 1,
+      mode: 'learn',
+      exercise: INPUT_EXERCISE,
+      skillId: SKILL_ID,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: 'женщина',
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now: 1_000_000,
+      attempt: { mistakes: 1, hintsUsed: 0, revealed: false, letterCount: 7 },
+    })
+
+    // `grade()` still sees the final, fully-typed string — `correct` is unaffected by the
+    // mistake made along the way (FR-86: the *rating*, not `GradeResult.correct`, carries
+    // "assisted").
+    expect(result.gradeResult.correct).toBe(true)
+    expect(result.rating).toBe(2) // HARD, not AGAIN and not EASY
+
+    const logs = await getLogsForSession(1)
+    expect(logs[0]).toMatchObject({ correct: true, rating: 2, answerGiven: 'женщина' })
+  })
+
+  it('a revealed ("глазок") attempt maps to Again and logs only the confirmed prefix, not the full word', async () => {
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+
+    const result = await submitAnswer({
+      sessionId: 1,
+      mode: 'learn',
+      exercise: INPUT_EXERCISE,
+      skillId: SKILL_ID,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: 'жен', // LetterSlotsInput#submittedAnswer's confirmed prefix, not 'женщина'
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now: 1_000_000,
+      attempt: { mistakes: 0, hintsUsed: 0, revealed: true, letterCount: 7 },
+    })
+
+    expect(result.gradeResult.correct).toBe(false)
+    expect(result.rating).toBe(1) // AGAIN
+
+    const logs = await getLogsForSession(1)
+    expect(logs[0]).toMatchObject({ correct: false, rating: 1, answerGiven: 'жен' })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Task 28 (`spec/tasks/28-two-stage-vocabulary-and-letter-diff.md` §2, FR-80/FR-81):
+// верный выбор из списка выпускает узнавание в `review` и тем самым открывает этап 2 —
+// создаётся `vocab:ru-pl`, которого до этого момента физически не существует.
+// ---------------------------------------------------------------------------
+
+describe('submitAnswer — открытие этапа 2', () => {
+  const PRODUCTION_SKILL_ID = 'kobieta|NOUN::vocab:ru-pl'
+
+  async function answerChoice(overrides: Partial<Parameters<typeof submitAnswer>[0]> = {}) {
+    return submitAnswer({
+      sessionId: 1,
+      mode: 'learn',
+      exercise: CHOICE_EXERCISE,
+      skillId: SKILL_ID,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: 'женщина',
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now: 1_000_000,
+      ...overrides,
+    })
+  }
+
+  it('верный выбор графадуирует узнавание и создаёт навык написания', async () => {
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+    expect(await getSkill(PRODUCTION_SKILL_ID)).toBeUndefined()
+
+    await answerChoice()
+
+    expect((await getSkill(SKILL_ID))!.state).toBe('review')
+    const production = await getSkill(PRODUCTION_SKILL_ID)
+    expect(production).toBeDefined()
+    expect(production!.dimension).toBe('vocab:ru-pl')
+    expect(production!.kind).toBe('vocab')
+    // `due` в прошлом/настоящем: навык сразу «просрочен» и попадёт в ближайшую собранную
+    // очередь — но не в текущую сессию, чья очередь уже построена целиком (FR-81).
+    expect(production!.state).toBe('new')
+  })
+
+  it('неверный ответ оставляет узнавание в learning и этап 2 не открывает', async () => {
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+
+    await answerChoice({ answerGiven: 'мужчина' })
+
+    expect((await getSkill(SKILL_ID))!.state).not.toBe('review')
+    expect(await getSkill(PRODUCTION_SKILL_ID)).toBeUndefined()
+  })
+
+  it('в режиме mistakes SRS не применяется — этап 2 не открывается', async () => {
+    // `policy.ts#shouldApplySrs`: разбор ошибок вообще не двигает планировщик (FR-103), так
+    // что графадуировать там нечего.
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+
+    await answerChoice({ mode: 'mistakes' })
+
+    expect(await getSkill(PRODUCTION_SKILL_ID)).toBeUndefined()
+  })
+
+  it('Practice открывает этап 2 так же, как Learn — там SRS применяется, лишь демпфируется', async () => {
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+
+    await answerChoice({ mode: 'practice' })
+
+    expect((await getSkill(SKILL_ID))!.state).toBe('review')
+    expect(await getSkill(PRODUCTION_SKILL_ID)).toBeDefined()
+  })
+
+  it('повторный верный ответ не пересоздаёт уже открытый навык', async () => {
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+
+    await answerChoice()
+    const first = await getSkill(PRODUCTION_SKILL_ID)
+    expect(first).toBeDefined()
+
+    await answerChoice({ sessionId: 2, now: 2_000_000 })
+    const second = await getSkill(PRODUCTION_SKILL_ID)
+    expect(second!.createdAt).toBe(first!.createdAt)
+    expect(second!.reps).toBe(0)
+  })
+
+  it('слово остаётся learning, пока этап 2 только открыт, но не пройден (FR-83)', async () => {
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+    await answerChoice()
+
+    const progress = await getWordProgress(WORD_ID)
+    expect(progress!.status).toBe('learning')
+  })
+})

@@ -21,12 +21,18 @@
 import type { ComponentType } from 'react'
 import type { Exercise } from '@/learning/exercises/exercise.types.ts'
 import type { GradeResult } from '@/learning/exercises/grade.ts'
+import type { TypedAttemptOutcome } from '@/learning/exercises/letter-attempt.ts'
 
 export interface ExerciseProps<E extends Exercise> {
   readonly exercise: E
   /** Called once with the raw string the user picked/typed. The runner (task 13) is the one
-   *  that turns this into a `GradeResult` via `grade()` and feeds it back as `feedback`. */
-  onAnswer(answer: string): void
+   *  that turns this into a `GradeResult` via `grade()` and feeds it back as `feedback`.
+   *
+   *  Task 29: `input`/`form-input` also pass a second, optional `attempt` — the outcome of
+   *  the letter-by-letter attempt (`LetterSlotsInput`), which the runner forwards to
+   *  `submitAnswer` so the rating reflects mistakes/hints instead of always `Easy`. Every
+   *  other exercise component simply omits the second argument. */
+  onAnswer(answer: string, attempt?: TypedAttemptOutcome): void
   /** `null` before the current question has been answered; the `GradeResult` `grade()`
    *  produced once it has. */
   readonly feedback: GradeResult | null

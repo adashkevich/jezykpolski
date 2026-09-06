@@ -46,6 +46,10 @@ export interface MistakeEntry {
   readonly answerGiven: string
   /** The accepted answer that graded this attempt (`ReviewLogRecord.expected`). */
   readonly expected: string
+  /** Был ли ответ набран, а не выбран из списка (`ReviewLogRecord.exerciseType`). Только для
+   *  таких строк побуквенное сравнение (task 28, FR-58) что-то значит: у `choice`-ответа
+   *  «кот» против «собака» посимвольный дифф — шум, а не подсказка. */
+  readonly typedAnswer: boolean
 }
 
 export interface HardestDimensionEntry {
@@ -111,6 +115,7 @@ export function buildSessionSummary(
         dimensionLabel: dimensionGroup(dimension).label,
         answerGiven: log.answerGiven,
         expected: log.expected,
+        typedAnswer: log.exerciseType === 'input' || log.exerciseType === 'form-input',
       }
     })
 

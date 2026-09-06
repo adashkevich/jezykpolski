@@ -48,7 +48,8 @@ import { getSkill } from '@/db/repositories/skills.repository.ts'
 import { completeSession, deleteSession } from '@/db/repositories/sessions.repository.ts'
 import type { Exercise, ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import type { GradeResult } from '@/learning/exercises/grade.ts'
-import { AGAIN } from '@/learning/srs/policy.ts'
+import type { TypedAttemptOutcome } from '@/learning/exercises/letter-attempt.ts'
+import { AGAIN, HARD } from '@/learning/srs/policy.ts'
 import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import type { SkillId } from '@/learning/skills/skill-id.ts'
 import type { SessionMode } from '@/types/progress.ts'
@@ -215,6 +216,10 @@ function ActiveQuestion({
   newSkillIdsRef,
 }: ActiveQuestionProps) {
   const [feedback, setFeedback] = useState<GradeResult | null>(null)
+  // The outcome of a letter-by-letter attempt (task 29), kept only so the feedback panel can
+  // show the "assisted" status (mistakes/hints used) — `null` for every non-typed exercise
+  // and reset per question same as `feedback`.
+  const [typedAttempt, setTypedAttempt] = useState<TypedAttemptOutcome | null>(null)
   const [submitting, setSubmitting] = useState(false)
   // Lazy initializer -> runs exactly once, at this component's mount — see file header.
   const [questionShownAt] = useState(() => Date.now())
@@ -244,13 +249,13 @@ function ActiveQuestion({
   const ExerciseComponent = registry[instance.exercise.type] as
     | ComponentType<{
         exercise: Exercise
-        onAnswer(answer: string): void
+        onAnswer(answer: string, attempt?: TypedAttemptOutcome): void
         feedback: GradeResult | null
         disabled: boolean
       }>
     | undefined
 
-  async function handleAnswer(answer: string) {
+  async function handleAnswer(answer: string, attempt?: TypedAttemptOutcome) {
     if (submitting || feedback !== null) return
     setSubmitting(true)
     const now = Date.now()
@@ -268,6 +273,7 @@ function ActiveQuestion({
         isFirstAnswerInSession: firstAnswer,
         elapsedMs: now - questionShownAt,
         now,
+        attempt,
       })
 
       useSessionStore.getState().recordAnswer(instance, {
@@ -280,17 +286,21 @@ function ActiveQuestion({
 
       if (result.isNewSkill) newSkillIdsRef.current.add(skillId)
 
-      if (!result.gradeResult.correct && firstAnswer && !requeuedSkillsRef.current.has(skillId)) {
+      // Task 29: a word finished with a mistake or a hint (rating capped at Hard, see
+      // `policy.ts#mapResultToRating`) requeues within the session exactly like a plain
+      // wrong answer — `!correct` alone would miss it, since `grade()` still reports
+      // `correct: true` for an assisted-but-completed attempt (§3 of the task spec).
+      if (result.rating <= HARD && firstAnswer && !requeuedSkillsRef.current.has(skillId)) {
         requeuedSkillsRef.current.add(skillId)
         const freshSkill = await getSkill(skillId)
         if (freshSkill) {
-          const attempt = (runtime.attemptBySkillId.get(skillId) ?? 0) + 1
-          runtime.attemptBySkillId.set(skillId, attempt)
+          const nextAttempt = (runtime.attemptBySkillId.get(skillId) ?? 0) + 1
+          runtime.attemptBySkillId.set(skillId, nextAttempt)
           const retryInstance = generateForSkill(
             descriptor,
             freshSkill,
             runtime.cache,
-            attempt,
+            nextAttempt,
             runtime.hintMode,
             runtime.forceCategory,
           )
@@ -299,6 +309,7 @@ function ActiveQuestion({
         }
       }
 
+      setTypedAttempt(attempt ?? null)
       setFeedback(result.gradeResult)
     } finally {
       setSubmitting(false)
@@ -330,6 +341,7 @@ function ActiveQuestion({
         <ExerciseFeedback
           feedback={feedback}
           correctAnswer={correctAnswerOf(instance.exercise)}
+          attempt={typedAttempt ?? undefined}
           onNext={handleNext}
         />
       )}

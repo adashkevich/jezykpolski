@@ -15,10 +15,12 @@ import {
   HARD,
   mapResultToRating,
   PRACTICE_INTERVAL_FACTOR,
+  resolveSwipeKnownState,
   shouldApplySrs,
   SWIPE_KNOWN_DUE_DAYS,
   SWIPE_KNOWN_INITIAL_STABILITY,
 } from './policy.ts'
+import type { SkillRecord } from '@/types/progress.ts'
 import {
   KNOWN_THRESHOLD,
   MASTERED_THRESHOLD,
@@ -47,6 +49,54 @@ describe('mapResultToRating (architecture.md §6.2)', () => {
   it('self-assessment passes the user-chosen rating straight through', () => {
     expect(mapResultToRating({ rating: HARD })).toBe(HARD)
     expect(mapResultToRating({ rating: EASY })).toBe(EASY)
+  })
+})
+
+describe('mapResultToRating — typed letter-by-letter attempts (задача 29, FR-84/85/86)', () => {
+  it('clean attempt (no mistakes, no hints) -> Easy', () => {
+    expect(mapResultToRating({ mistakes: 0, hintsUsed: 0, revealed: false, letterCount: 5 })).toBe(
+      EASY,
+    )
+  })
+
+  it('at least one mistake -> Hard, not Again', () => {
+    expect(mapResultToRating({ mistakes: 1, hintsUsed: 0, revealed: false, letterCount: 5 })).toBe(
+      HARD,
+    )
+  })
+
+  it('at least one hint used -> Hard', () => {
+    expect(mapResultToRating({ mistakes: 0, hintsUsed: 1, revealed: false, letterCount: 5 })).toBe(
+      HARD,
+    )
+  })
+
+  it('revealed ("глазок") -> Again', () => {
+    expect(mapResultToRating({ mistakes: 0, hintsUsed: 0, revealed: true, letterCount: 5 })).toBe(
+      AGAIN,
+    )
+  })
+
+  it('every letter opened via hints (revealed === false) is treated the same as "глазок"', () => {
+    expect(mapResultToRating({ mistakes: 0, hintsUsed: 5, revealed: false, letterCount: 5 })).toBe(
+      AGAIN,
+    )
+  })
+
+  it('Hard from a typed attempt is still capped further by Practice mode, same as any other rating', () => {
+    const rating = mapResultToRating({
+      mistakes: 1,
+      hintsUsed: 0,
+      revealed: false,
+      letterCount: 5,
+    })
+    expect(capRatingForMode(rating, 'practice')).toBe(HARD)
+    expect(
+      capRatingForMode(
+        mapResultToRating({ mistakes: 0, hintsUsed: 0, revealed: false, letterCount: 5 }),
+        'practice',
+      ),
+    ).toBe(GOOD)
   })
 })
 
@@ -168,5 +218,57 @@ describe('createSwipeKnownState', () => {
 describe('createSwipeUnknownState', () => {
   it('is exactly a brand-new card — state "new", due now, zero stability/difficulty/reps/lapses', () => {
     expect(createSwipeUnknownState(NOW)).toEqual(createInitialState(NOW))
+  })
+})
+
+describe('resolveSwipeKnownState', () => {
+  function skillWithStability(stability: number): SkillRecord {
+    return {
+      skillId: 'kobieta|NOUN::vocab:pl-ru',
+      wordId: 'kobieta|NOUN',
+      kind: 'vocab',
+      dimension: 'vocab:pl-ru',
+      state: 'review',
+      stability,
+      difficulty: 4,
+      due: NOW + 10 * 24 * 60 * 60 * 1000,
+      reps: 5,
+      lapses: 0,
+      correct: 4,
+      incorrect: 1,
+      createdAt: NOW - 30 * 24 * 60 * 60 * 1000,
+      updatedAt: NOW - 24 * 60 * 60 * 1000,
+      lastReviewAt: NOW - 24 * 60 * 60 * 1000,
+    }
+  }
+
+  it('with no previous skill, behaves exactly like createSwipeKnownState', () => {
+    expect(resolveSwipeKnownState(undefined, NOW)).toEqual(createSwipeKnownState(NOW))
+  })
+
+  it('with previous stability below the floor, still raises to createSwipeKnownState', () => {
+    expect(resolveSwipeKnownState(skillWithStability(1), NOW)).toEqual(createSwipeKnownState(NOW))
+  })
+
+  it('with previous stability exactly at the floor, keeps the previous state unchanged (>=, not >)', () => {
+    const previous = skillWithStability(SWIPE_KNOWN_INITIAL_STABILITY)
+    const resolved = resolveSwipeKnownState(previous, NOW)
+    expect(resolved.stability).toBe(previous.stability)
+    expect(resolved.due).toBe(previous.due)
+    expect(resolved.lastReviewAt).toBe(previous.lastReviewAt)
+  })
+
+  it('with previous stability above the floor (e.g. 75% maturity), never regresses it — a "Знаю" tap is a no-op', () => {
+    const previous = skillWithStability(45)
+    const resolved = resolveSwipeKnownState(previous, NOW)
+    expect(resolved).toEqual({
+      state: previous.state,
+      stability: previous.stability,
+      difficulty: previous.difficulty,
+      due: previous.due,
+      reps: previous.reps,
+      lapses: previous.lapses,
+      lastReviewAt: previous.lastReviewAt,
+    })
   })
 })

@@ -103,6 +103,13 @@ function buildVocabChoice(skill: SkillDescriptor, ctx: ContentContext, seed: num
   return { type: 'choice', direction, prompt, options, correct }
 }
 
+/**
+ * Since task 28 (FR-80) only the `ru-pl` branch is reachable from a real queue: `pickExerciseType`
+ * never returns `'input'` for a `vocab:pl-ru` skill, so «напечатай русский перевод» (FR-52) can
+ * no longer be generated. The `pl-ru` branch is kept because the builder is symmetric and cheap,
+ * and `Exercise`'s `input` variant is still defined for both directions — deleting half of it
+ * would only add a special case.
+ */
 function buildVocabInput(skill: SkillDescriptor, ctx: ContentContext): Exercise {
   const direction = directionOfVocabSkill(skill)
   const entry = ctx.getWordEntry(skill.wordId)

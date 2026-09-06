@@ -22,6 +22,8 @@ import type { ExerciseCategory } from '@/learning/exercises/picker.ts'
 import type { ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import type { HintMode } from '@/learning/exercises/hint-mode.ts'
 import type { LearnQueueItem, PracticeQueueItem } from '@/learning/session/session.types.ts'
+import { shouldUnlockProduction } from '@/learning/progress/stage.ts'
+import { encodeSkillId } from '@/learning/skills/skill-id.ts'
 import { ensureSkill } from '@/db/repositories/skills.repository.ts'
 import type { SkillRecord } from '@/types/progress.ts'
 import type { PracticeExtraVariant } from './session-scope.ts'
@@ -36,9 +38,14 @@ export interface MaterializedQueueEntry {
 /**
  * Resolves the `SkillDescriptor` for `item` and, for a `'new'` word, materializes exactly
  * its `vocab:pl-ru` skill via `ensureSkill` — never `vocab:ru-pl` (task rule 4, FR-81's
- * "progression isn't front-loaded in one sitting": `ru-pl` gets its own `SkillRecord`, and
- * therefore its own `due`, only once the SRS scheduler decides to hand it out on some later
- * pass through `getDueSkills`).
+ * "progression isn't front-loaded in one sitting"): этап 2 is opened later, by
+ * `answer-pipeline.ts#unlockProductionStage`, once узнавание graduates.
+ *
+ * Task 28's backfill: a `'due'` item that is an already-graduated `vocab:pl-ru` also gets
+ * `vocab:ru-pl` ensured here. Words learned *before* task 28 existed never went through the
+ * answer-time promotion — without this line they would stay stuck on этап 1 forever, and
+ * fixing that here (idempotent `ensureSkill`, same predicate as the answer path) is cheaper
+ * and safer than a one-shot database migration over every skill row.
  */
 export async function materializeQueueItem(
   item: LearnQueueItem,
@@ -58,6 +65,9 @@ export async function materializeQueueItem(
         `materializeQueueItem: no SkillDescriptor for "${item.skill.skillId}" — the word's ` +
           `content no longer enumerates this dimension (stale SkillRecord?).`,
       )
+    }
+    if (descriptor.dimension === 'vocab:pl-ru' && shouldUnlockProduction(item.skill)) {
+      await ensureSkill(encodeSkillId(wordId, 'vocab:ru-pl'), wordId, 'vocab', 'vocab:ru-pl')
     }
     return { descriptor, skill: item.skill }
   }

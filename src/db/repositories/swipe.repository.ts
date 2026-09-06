@@ -32,7 +32,10 @@
  * before the write. `undoTriage` restores both verbatim inside one transaction.
  */
 import { db } from '../database.ts'
-import { createSwipeKnownState, createSwipeUnknownState } from '@/learning/srs/policy.ts'
+import {
+  createSwipeUnknownState,
+  resolveSwipeKnownState,
+} from '@/learning/srs/policy.ts'
 import type { SrsState } from '@/learning/srs/srs.types.ts'
 import { encodeSkillId, type SkillId, type WordId } from '@/learning/skills/skill-id.ts'
 import type { VocabDimension } from '@/learning/skills/dimensions.ts'
@@ -46,10 +49,13 @@ export interface TriageSnapshot {
   readonly previousWordProgress: WordProgressRecord | undefined
 }
 
-/** One vocab dimension's target `SrsState` for this triage action. */
+/** One vocab dimension's target `SrsState` for this triage action. `srsState` may be a
+ *  resolver function instead of a plain value when the target state depends on what's
+ *  already there (e.g. `markWordKnown`'s monotonic guard, `policy.ts#resolveSwipeKnownState`) —
+ *  `applyTriage` calls it with the dimension's existing `SkillRecord` (`undefined` if none). */
 interface SkillPatch {
   readonly dimension: VocabDimension
-  readonly srsState: SrsState
+  readonly srsState: SrsState | ((previous: SkillRecord | undefined) => SrsState)
 }
 
 async function applyTriage(
@@ -87,7 +93,10 @@ async function applyTriage(
         updatedAt: now,
       } satisfies SkillRecord)
 
-    nextBySkillId.set(skillId, { ...base, ...patch.srsState, updatedAt: now })
+    const resolvedSrsState =
+      typeof patch.srsState === 'function' ? patch.srsState(previous) : patch.srsState
+
+    nextBySkillId.set(skillId, { ...base, ...resolvedSrsState, updatedAt: now })
   }
 
   const previousWordProgress = await getWordProgress(wordId)
@@ -111,13 +120,15 @@ async function applyTriage(
 /**
  * Swipe-right / "Знаю" button (task text §2): `vocab:pl-ru` AND `vocab:ru-pl` both move to
  * FSRS `review` at `SWIPE_KNOWN_INITIAL_STABILITY` — see `policy.ts` for why that yields
- * word status `known`, never `mastered`.
+ * word status `known`, never `mastered`. Each dimension is resolved independently against its
+ * own existing record (`policy.ts#resolveSwipeKnownState`) so a skill that already has real
+ * review history at or above that floor is never dragged back down to it.
  */
 export async function markWordKnown(wordId: WordId, now = Date.now()): Promise<TriageSnapshot> {
-  const srsState = createSwipeKnownState(now)
+  const resolve = (previous: SkillRecord | undefined) => resolveSwipeKnownState(previous, now)
   return applyTriage(wordId, [
-    { dimension: 'vocab:pl-ru', srsState },
-    { dimension: 'vocab:ru-pl', srsState },
+    { dimension: 'vocab:pl-ru', srsState: resolve },
+    { dimension: 'vocab:ru-pl', srsState: resolve },
   ])
 }
 

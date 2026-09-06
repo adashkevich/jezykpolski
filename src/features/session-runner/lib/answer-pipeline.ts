@@ -13,6 +13,11 @@
  * Rule 6 (damping, `policy.ts`'s Rule 1): `isFirstAnswerInSession` is the caller's own
  * `firstAnswerBySkill` lookup — this module doesn't own that map (it lives in
  * `stores/session.store.ts`, per architecture.md §10), it only obeys the flag.
+ *
+ * Task 28 (`unlockProductionStage` below, FR-80/FR-81): this is also where этап 2 of a word
+ * is opened — a graded `vocab:pl-ru` answer that graduates узнавание materializes the
+ * `vocab:ru-pl` skill, which is what puts "написать слово по-польски" into a later session's
+ * queue at all.
  */
 import { grade, type GradeResult } from '@/learning/exercises/grade.ts'
 import type { Exercise } from '@/learning/exercises/exercise.types.ts'
@@ -22,12 +27,15 @@ import {
   capRatingForMode,
   mapResultToRating,
   shouldApplySrs,
+  type TypedAttemptResult,
 } from '@/learning/srs/policy.ts'
 import { review } from '@/learning/srs/fsrs-adapter.ts'
 import type { SrsState } from '@/learning/srs/srs.types.ts'
 import type { SkillId, WordId } from '@/learning/skills/skill-id.ts'
+import { shouldUnlockProduction } from '@/learning/progress/stage.ts'
+import { encodeSkillId } from '@/learning/skills/skill-id.ts'
 import { applyAnswer } from '@/db/repositories/answer.repository.ts'
-import { getSkill, getSkillsForWord } from '@/db/repositories/skills.repository.ts'
+import { ensureSkill, getSkill, getSkillsForWord } from '@/db/repositories/skills.repository.ts'
 import { computeWordProgress } from '@/db/repositories/words-progress.repository.ts'
 import type {
   Rating,
@@ -50,6 +58,10 @@ export interface SubmitAnswerInput {
   readonly isFirstAnswerInSession: boolean
   readonly elapsedMs: number
   readonly now: number
+  /** The outcome of a letter-by-letter attempt (task 29, `LetterSlotsInput`) — only set for
+   *  `input`/`form-input`. When present, the rating comes from it (mistakes/hints -> Hard,
+   *  revealed -> Again) instead of the plain "typed correctly -> Easy" rule below. */
+  readonly attempt?: TypedAttemptResult
 }
 
 export interface SubmitAnswerResult {
@@ -133,6 +145,43 @@ function selfAssessGradeResult(
   return { correct: rating !== AGAIN, nearMiss: false, matched: exercise.answer }
 }
 
+/**
+ * Task 28 (`spec/tasks/28-two-stage-vocabulary-and-letter-diff.md` §2, FR-80/FR-81) — opens
+ * этап 2 for a word whose узнавание (`vocab:pl-ru`) just graduated: materializes
+ * `vocab:ru-pl` so the scheduler can hand out "напиши по-польски" at all. `ensureSkill` is
+ * idempotent, so re-answering an already-graduated `vocab:pl-ru` is a cheap no-op rather
+ * than a duplicate.
+ *
+ * The new record gets `due = now` (`ensureSkill`'s own default), i.e. it is immediately
+ * overdue — but it still can't appear in the session the user is currently answering:
+ * `useSessionBootstrap` resolves the whole queue up front, so the earliest этап 2 can show
+ * up is the next session. That's exactly FR-81's "прогрессия не проходится целиком за одну
+ * сессию", enforced structurally instead of by a hard-coded delay.
+ *
+ * `srsApplied === false` (`mode: 'mistakes'`, or a repeat answer within one session —
+ * `policy.ts#shouldApplySrs`) means `nextSrsState` was never written, so promoting off it
+ * would be promoting off a state that doesn't exist. Practice *does* apply SRS (capped and
+ * damped, `policy.ts` rule 2), so a Practice answer that genuinely graduates узнавание opens
+ * этап 2 exactly like a Learn one — the skill really did reach `review`.
+ */
+async function unlockProductionStage(args: {
+  readonly skill: SkillRecord
+  readonly nextSrsState: SrsState
+  readonly srsApplied: boolean
+  readonly wordId: WordId
+}): Promise<void> {
+  if (!args.srsApplied) return
+  if (args.skill.dimension !== 'vocab:pl-ru') return
+  if (!shouldUnlockProduction({ ...args.skill, ...args.nextSrsState })) return
+
+  await ensureSkill(
+    encodeSkillId(args.wordId, 'vocab:ru-pl'),
+    args.wordId,
+    'vocab',
+    'vocab:ru-pl',
+  )
+}
+
 export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnswerResult> {
   const { exercise, skillId, wordId, kind, mode, now, sessionId, elapsedMs, answerGiven } = input
 
@@ -144,11 +193,13 @@ export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnsw
     rating = mapResultToRating({ rating: selfRating })
   } else {
     gradeResult = grade(exercise, answerGiven)
-    rating = mapResultToRating({
-      correct: gradeResult.correct,
-      nearMiss: gradeResult.nearMiss,
-      answerKind: answerKindOf(exercise),
-    })
+    rating = input.attempt
+      ? mapResultToRating(input.attempt)
+      : mapResultToRating({
+          correct: gradeResult.correct,
+          nearMiss: gradeResult.nearMiss,
+          answerKind: answerKindOf(exercise),
+        })
   }
 
   const cappedRating = capRatingForMode(rating, mode)
@@ -170,6 +221,17 @@ export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnsw
   // long before this call.
   const isNewSkill =
     currentSkill.reps === 0 && currentSkill.correct === 0 && currentSkill.incorrect === 0
+
+  // Task 28, FR-80: этап 1 пройден -> открыть этап 2. Strictly before `getSkillsForWord`
+  // below, so the freshly created `vocab:ru-pl` record is part of the same
+  // `computeWordProgress` pass and the word's `stage` (`learning/progress/stage.ts`) can't
+  // be one answer stale.
+  await unlockProductionStage({
+    skill: currentSkill,
+    nextSrsState: dampedNext,
+    srsApplied,
+    wordId,
+  })
 
   const updatedSkillForProgress: SkillRecord = {
     ...currentSkill,

@@ -30,7 +30,7 @@
  * Pure domain module: no React, no Dexie, no `features/**` (architecture.md §3). No
  * `ts-fsrs` import — only `fsrs-adapter.ts` may (architecture.md §6.1).
  */
-import type { Rating, SessionMode } from '@/types/progress.ts'
+import type { Rating, SessionMode, SkillRecord } from '@/types/progress.ts'
 import { createInitialState, initialDifficultyFor } from './fsrs-adapter.ts'
 import type { SrsState } from './srs.types.ts'
 
@@ -82,10 +82,35 @@ export interface SelfAssessedResult {
   readonly rating: Rating
 }
 
-export type ExerciseGradeResult = AutoGradedResult | SelfAssessedResult
+/** Итог побуквенного ввода (`spec/tasks/29-letter-by-letter-input.md` §2, FR-84/FR-85/
+ *  FR-86) — `TypedAttemptOutcome` из `learning/exercises/letter-attempt.ts`, повторённый
+ *  здесь структурно, а не импортированный: этот файл сознательно не зависит от
+ *  `learning/exercises/**` (см. шапку файла), только от минимальной формы, которая нужна
+ *  для маппинга. Дискриминируется от `AutoGradedResult`/`SelfAssessedResult` по `'revealed'
+ *  in result` — ни у одного из них такого поля нет. */
+export interface TypedAttemptResult {
+  readonly mistakes: number
+  readonly hintsUsed: number
+  readonly revealed: boolean
+  readonly letterCount: number
+}
+
+export type ExerciseGradeResult = AutoGradedResult | SelfAssessedResult | TypedAttemptResult
 
 export function mapResultToRating(result: ExerciseGradeResult): Rating {
   if ('rating' in result) return result.rating
+  if ('revealed' in result) {
+    // Задача 29: «глазок» (или подсказками открытое целиком слово — это то же самое по
+    // сути, просто N кликов вместо одного) — Again, слово гарантированно возвращается
+    // скоро. Любая другая ошибка/подсказка — Hard, а не Again: одна описка в диакритике не
+    // должна сбрасывать навык в relearning с нуля, иначе этап 2 станет непроходимым. Hard
+    // уже несёт в этом файле ровно нужную семантику («вспомнил, но с трудом») — интервал
+    // растёт слабо, `aggregate.ts#deriveStatus` не даёт слову `known` без реального
+    // повторения, FR-86 («не засчитывается как выученное») выполняется через настоящий
+    // FSRS, а не отдельным флагом. Чистый набор — Easy, как и раньше для `answerKind: 'input'`.
+    if (result.revealed || result.hintsUsed >= result.letterCount) return AGAIN
+    return result.mistakes > 0 || result.hintsUsed > 0 ? HARD : EASY
+  }
   if (result.nearMiss) return HARD
   if (!result.correct) return AGAIN
   return result.answerKind === 'choice' ? GOOD : EASY
@@ -218,4 +243,22 @@ export function createSwipeKnownState(now: number): SrsState {
  */
 export function createSwipeUnknownState(now: number): SrsState {
   return createInitialState(now)
+}
+
+/**
+ * Monotonic variant of `createSwipeKnownState`: a "Знаю" swipe/button must never regress a
+ * skill that already has real review history at or above the "known" floor
+ * (`SWIPE_KNOWN_INITIAL_STABILITY`) — e.g. a word at 75% maturity from actual FSRS reviews
+ * would otherwise get dragged back down to 50% by a confirming swipe. If `previous` doesn't
+ * exist yet, or its `stability` is still below the floor, this behaves exactly like
+ * `createSwipeKnownState(now)` (raises toward the floor, unchanged from before). Otherwise it
+ * returns `previous`'s own SRS fields verbatim — the swipe is a no-op on SRS state for a skill
+ * that's already at least as advanced.
+ */
+export function resolveSwipeKnownState(previous: SkillRecord | undefined, now: number): SrsState {
+  if (previous !== undefined && previous.stability >= SWIPE_KNOWN_INITIAL_STABILITY) {
+    const { state, stability, difficulty, due, reps, lapses, lastReviewAt } = previous
+    return { state, stability, difficulty, due, reps, lapses, lastReviewAt }
+  }
+  return createSwipeKnownState(now)
 }

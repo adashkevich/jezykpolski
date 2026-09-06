@@ -1,13 +1,23 @@
 /**
  * Exercise-type selection (`spec/tasks/09-exercise-engine.md` step 2,
- * `spec/architecture.md` §7.2, `spec/app-design.md` §7 "Как строить обучение одного слова"
- * and §18 "Active recall важнее recognition").
+ * `spec/tasks/28-two-stage-vocabulary-and-letter-diff.md` §1, `spec/architecture.md` §7.2,
+ * `spec/app-design.md` §7 "Как строить обучение одного слова" and §18 "Active recall
+ * важнее recognition").
  *
- * A pure function of skill state, not a scripted "first meeting" scenario: `vocab:pl-ru`
- * and `vocab:ru-pl` are different skills with different `due` (architecture.md §7.2), so
- * the natural spacing app-design §7 asks for ("через несколько минут: RU→PL choice",
- * "завтра: RU→PL input") falls out of the SRS scheduler handing out those two skills at
- * different times — this module never hard-codes a sequence.
+ * Two different rules live here, and the split is the whole point of task 28:
+ *
+ *  - **Vocabulary** — the exercise type follows the skill's *direction*, not its FSRS state
+ *    (FR-80): `vocab:pl-ru` is always `choice` (этап 1, узнавание: выбрать значение из
+ *    списка) and `vocab:ru-pl` is always `input` (этап 2, воспроизведение: написать слово
+ *    по-польски). The progression between them is not a state machine inside this function
+ *    at all — it's the two skills' own scheduling: `vocab:ru-pl` doesn't even exist as a
+ *    `SkillRecord` until `progress/stage.ts#shouldUnlockProduction` says этап 1 пройден
+ *    (`answer-pipeline.ts` materializes it then), which is what keeps FR-81's "этап 2 не
+ *    открывается в той же сессии" true without any sequencing code here.
+ *    `PL→RU input` (печатать русский перевод) is deliberately unreachable now — see the
+ *    decision log for task 28 in `spec/tasks/00-progress.md`.
+ *  - **Morphology** (noun/verb/adj/adv) — unchanged: the recognition/recall pair is still
+ *    chosen by the skill's FSRS state, exactly as before task 28.
  *
  * `table` (Practice-only, FR-62) and `matching` are never returned here — the picker only
  * ever chooses between the recognition/recall pair for daily SRS, per the task text's table.
@@ -45,7 +55,14 @@ export interface PickerOptions {
    *  skipped entirely — `state`/`reps` are never read — and the result is just "the
    *  recognition (or recall) variant for this skill's kind". `undefined` (every caller
    *  before task 19, and a Practice config where the user left both "Выбор ответа" and
-   *  "Ввод ответа" checked) keeps today's normal SRS-state-driven behavior. */
+   *  "Ввод ответа" checked) keeps today's normal SRS-state-driven behavior.
+   *
+   *  Task 28: this only affects **morphological** skills now. A vocab skill's type is fixed
+   *  by its direction (`vocab:pl-ru` -> `choice`, `vocab:ru-pl` -> `input`), so there is
+   *  nothing left for a category restriction to choose there — forcing `'recall'` on
+   *  `vocab:pl-ru` would resurrect the very `PL→RU input` exercise task 28 removed. Both
+   *  UIs that expose the setting say so (`InterfaceSettingsSection.tsx`,
+   *  `TrainingSetupScreen.tsx`: "влияет на упражнения по формам слов"). */
   readonly forceCategory?: ExerciseCategory
 }
 
@@ -76,16 +93,36 @@ function isContextSentenceEligible(skill: SkillDescriptor): boolean {
   return parts[1] === 'sg' && CONTEXT_SENTENCE_ELIGIBLE_CASES.has(parts[2] ?? '')
 }
 
-/** The recognition-category exercise type for one skill — `form-choice`/`choice` as before,
- *  except a `noun:sg:<genitive|dative|instrumental|locative>` skill now gets
- *  `context-sentence` instead of `form-choice` (task 27 §2's "точка входа": every place the
- *  state-based switch below used to hard-code `morphological ? 'form-choice' : 'choice'`
- *  now goes through this one function, so the substitution applies uniformly to `new`,
- *  `learning`-with-few-reps, `relearning`, and `forceCategory: 'recognition'` alike — recall
- *  (`form-input`) is untouched, per the task's explicit instruction). */
-function recognitionType(skill: SkillDescriptor, morphological: boolean): PickedExerciseType {
-  if (!morphological) return 'choice'
+/** The recognition-category exercise type for one **morphological** skill — `form-choice` as
+ *  before, except a `noun:sg:<genitive|dative|instrumental|locative>` skill gets
+ *  `context-sentence` instead (task 27 §2's "точка входа": every place the state-based switch
+ *  below used to hard-code `'form-choice'` goes through this one function, so the
+ *  substitution applies uniformly to `new`, `learning`-with-few-reps, `relearning`, and
+ *  `forceCategory: 'recognition'` alike — recall (`form-input`) is untouched, per that task's
+ *  explicit instruction). Vocabulary never reaches here since task 28 — see
+ *  `vocabExerciseType` below. */
+function recognitionType(skill: SkillDescriptor): PickedExerciseType {
   return isContextSentenceEligible(skill) ? 'context-sentence' : 'form-choice'
+}
+
+/**
+ * Task 28 (FR-80): a vocabulary skill's exercise type is its direction, full stop.
+ *
+ * `vocab:pl-ru` -> `choice` in every SRS state, including `review`: узнавание is этап 1 and
+ * never becomes a typing exercise — the typing этап is the *other* skill. `vocab:ru-pl` ->
+ * `input`, likewise in every state; the one exception is the explicit `selfAssessOnReview`
+ * opt-out, which still turns a mature этап-2 skill into `self-assess` (architecture.md §7.2:
+ * "review → input (или self-assess при настройке)") — it is off by default and only ever
+ * applies to `review`, so the default path is always "write it in Polish".
+ */
+function vocabExerciseType(
+  skill: SkillDescriptor,
+  srs: SkillRecord | undefined,
+  options: PickerOptions,
+): PickedExerciseType {
+  if (skill.dimension === 'vocab:pl-ru') return 'choice'
+  if (options.selfAssessOnReview && srs?.state === 'review') return 'self-assess'
+  return 'input'
 }
 
 /**
@@ -99,14 +136,12 @@ export function pickExerciseType(
   srs: SkillRecord | undefined,
   options: PickerOptions = {},
 ): PickedExerciseType {
-  const morphological = isMorphological(skill)
+  // Task 28: vocabulary is decided by direction alone and never consults `state`/`reps`/
+  // `forceCategory` — everything below this line is the morphology rule.
+  if (!isMorphological(skill)) return vocabExerciseType(skill, srs, options)
 
   if (options.forceCategory) {
-    return options.forceCategory === 'recognition'
-      ? recognitionType(skill, morphological)
-      : morphological
-        ? 'form-input'
-        : 'input'
+    return options.forceCategory === 'recognition' ? recognitionType(skill) : 'form-input'
   }
 
   const state: SkillState = srs?.state ?? 'new'
@@ -114,18 +149,18 @@ export function pickExerciseType(
 
   switch (state) {
     case 'new':
-      return recognitionType(skill, morphological)
+      return recognitionType(skill)
 
     case 'learning':
-      if (reps < 2) return recognitionType(skill, morphological)
-      return morphological ? 'form-input' : 'input'
+      if (reps < 2) return recognitionType(skill)
+      return 'form-input'
 
     case 'review':
       if (options.selfAssessOnReview) return 'self-assess'
-      return morphological ? 'form-input' : 'input'
+      return 'form-input'
 
     case 'relearning':
       // "мягкий возврат после провала" — back to recognition, same as 'new'.
-      return recognitionType(skill, morphological)
+      return recognitionType(skill)
   }
 }

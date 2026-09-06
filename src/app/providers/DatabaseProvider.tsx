@@ -12,11 +12,24 @@
  * Deliberately minimal, same scope as `ContentProvider.tsx`: no router, no `AppShell` (task
  * 06's job) — just enough to gate rendering on "the database is open". Wiring this (and
  * `ContentProvider`) into the real app tree happens in task 06.
+ *
+ * Task 28 adds one bounded exception to that minimalism: `STAGE_STATUS_MIGRATION` below.
+ * `deriveStatus` (`learning/progress/aggregate.ts`) now refuses to call a word `known`
+ * before этап 2 is open (FR-83), which makes every `wordProgress.status` computed under the
+ * old rule wrong until that word is next answered. `wordProgress` is a pure cache of
+ * `computeWordProgress`, so one `recomputeAll()` pass rebuilds it — guarded by
+ * `meta.repository.ts#runOnce` so it happens exactly once, right after the database opens
+ * and before any screen reads a status.
  */
 import { useEffect, useState, type ReactNode } from 'react'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
+import { runOnce } from '@/db/repositories/meta.repository.ts'
+import { recomputeAll } from '@/db/repositories/words-progress.repository.ts'
 import { ErrorState } from '@/components/app/ErrorState.tsx'
 import { LoadingScreen } from '@/components/app/LoadingScreen.tsx'
+
+/** `meta` key for task 28's one-shot `wordProgress` recompute — see this file's header. */
+const STAGE_STATUS_MIGRATION = 'recompute-word-progress-for-stage-gate'
 
 type LoadState =
   | { readonly status: 'loading' }
@@ -32,6 +45,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     let cancelled = false
 
     openDatabase()
+      .then(() => runOnce(STAGE_STATUS_MIGRATION, recomputeAll))
       .then(() => {
         if (cancelled) return
         setState({ status: 'ready' })

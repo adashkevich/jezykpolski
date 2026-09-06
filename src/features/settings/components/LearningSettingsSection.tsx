@@ -114,7 +114,12 @@ export function LearningSettingsSection() {
         </SettingRow>
 
         <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1">
-          <span className="text-sm text-foreground">Тип задания по умолчанию</span>
+          <span className="flex flex-col text-sm text-foreground">
+            Тип задания по умолчанию
+            {/* Task 28: перевод больше не выбирается этой настройкой — у него фиксированные
+                два этапа (выбор из списка, затем написание по-польски, FR-80). */}
+            <span className="text-xs text-muted-foreground">Влияет на формы слов</span>
+          </span>
           <div className="flex shrink-0 gap-3">
             <CheckboxRow
               checked={(exerciseTypes ?? DEFAULT_EXERCISE_TYPES_DEFAULT).choice}

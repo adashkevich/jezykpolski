@@ -1,15 +1,15 @@
 /**
- * `InputExercise` component tests (`spec/tasks/12-vocabulary-exercises.md` §4, acceptance
- * criteria 1/3/4/5/6/8/9). Fixtures are real vocabulary (`być|VERB`, `żółty|ADJ` — the exact
- * adjective `spec/architecture.md` §7.3 itself uses for the diacritic near-miss example).
+ * `InputExercise` component tests (`spec/tasks/12-vocabulary-exercises.md` §4,
+ * `spec/tasks/29-letter-by-letter-input.md` §5). Since task 29 the component itself is a
+ * thin wrapper around `LetterSlotsInput` — the letter-by-letter mechanics (slots, hints,
+ * reveal, diacritics) are covered by `LetterSlotsInput.test.tsx`; these tests only check
+ * what `InputExercise` itself is responsible for: the prompt, the direction-dependent
+ * language/diacritics wiring, and forwarding `onAnswer`/`disabled`/`feedback` correctly.
  *
- * `grade()` is used here — in the TEST only — to produce authentic `GradeResult` fixtures
- * (including the near-miss `diff`), never inside `InputExercise.tsx` itself (task rule 2,
- * verified by grep during review — see `ChoiceExercise.test.tsx`'s header comment for why
- * that isn't an RTL-expressible check in this project).
+ * Fixtures are real vocabulary (`być|VERB`, `żółty|ADJ`).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { InputExercise } from './InputExercise.tsx'
 import type { ExerciseOfType } from './exercise-props.types.ts'
@@ -34,7 +34,7 @@ const ruPlExercise: ExerciseOfType<'input'> = {
 }
 
 describe('InputExercise', () => {
-  it('renders the prompt and a text field that autofocuses', () => {
+  it('renders the prompt and an autofocused field', () => {
     render(
       <InputExercise
         exercise={plRuExercise}
@@ -47,7 +47,7 @@ describe('InputExercise', () => {
     expect(screen.getByRole('textbox')).toHaveFocus()
   })
 
-  it('the field disables mobile autocorrect/autocapitalize/spellcheck (task rule 5)', () => {
+  it('pl-ru direction expects a Russian answer and hides the Polish diacritics row', () => {
     render(
       <InputExercise
         exercise={plRuExercise}
@@ -56,56 +56,13 @@ describe('InputExercise', () => {
         disabled={false}
       />,
     )
-    const input = screen.getByRole('textbox')
-    expect(input).toHaveAttribute('autocapitalize', 'off')
-    expect(input).toHaveAttribute('autocorrect', 'off')
-    expect(input).toHaveAttribute('spellcheck', 'false')
-  })
-
-  it('submitting with Enter calls onAnswer with the typed value (keyboard-only flow)', async () => {
-    const onAnswer = vi.fn()
-    const user = userEvent.setup()
-    render(
-      <InputExercise
-        exercise={plRuExercise}
-        onAnswer={onAnswer}
-        feedback={null}
-        disabled={false}
-      />,
-    )
-
-    await user.type(screen.getByRole('textbox'), 'быть{Enter}')
-
-    expect(onAnswer).toHaveBeenCalledExactlyOnceWith('быть')
-  })
-
-  it('does not call onAnswer for an empty submission', () => {
-    const onAnswer = vi.fn()
-    render(
-      <InputExercise
-        exercise={plRuExercise}
-        onAnswer={onAnswer}
-        feedback={null}
-        disabled={false}
-      />,
-    )
-    fireEvent.submit(screen.getByRole('textbox').closest('form')!)
-    expect(onAnswer).not.toHaveBeenCalled()
-  })
-
-  it('shows the Polish diacritics helper only for ru-pl (Polish-typing) direction', () => {
-    render(
-      <InputExercise
-        exercise={plRuExercise}
-        onAnswer={() => {}}
-        feedback={null}
-        disabled={false}
-      />,
-    )
+    expect(screen.getByRole('textbox')).toHaveAccessibleName('Ответ по-русски')
     expect(
       screen.queryByRole('group', { name: 'Быстрый ввод польских диакритических знаков' }),
     ).not.toBeInTheDocument()
-    cleanup()
+  })
+
+  it('ru-pl direction (этап 2) expects a Polish answer and shows the diacritics row', () => {
     render(
       <InputExercise
         exercise={ruPlExercise}
@@ -114,78 +71,44 @@ describe('InputExercise', () => {
         disabled={false}
       />,
     )
+    expect(screen.getByRole('textbox')).toHaveAccessibleName('Ответ по-польски')
     expect(
       screen.getByRole('group', { name: 'Быстрый ввод польских диакритических знаков' }),
     ).toBeInTheDocument()
   })
 
-  it('diacritic keys are ≥44px touch targets and insert the character into the field', async () => {
+  it('typing the full correct word calls onAnswer with the word and a clean outcome', async () => {
+    const onAnswer = vi.fn()
     const user = userEvent.setup()
     render(
       <InputExercise
-        exercise={ruPlExercise}
-        onAnswer={() => {}}
+        exercise={plRuExercise}
+        onAnswer={onAnswer}
         feedback={null}
         disabled={false}
       />,
     )
-    const zButton = screen.getByRole('button', { name: 'Вставить «ż»' })
-    expect(zButton.className).toMatch(/\bsize-11\b/)
 
-    await user.click(zButton)
-    expect(screen.getByRole('textbox')).toHaveValue('ż')
+    await user.type(screen.getByRole('textbox'), 'быть')
+
+    expect(onAnswer).toHaveBeenCalledExactlyOnceWith('быть', {
+      mistakes: 0,
+      hintsUsed: 0,
+      revealed: false,
+      letterCount: 4,
+    })
   })
 
-  it('nearMiss is its own state — distinct icon + text — never lumped in with "incorrect"', () => {
-    // A diacritic-free answer to a Polish-target exercise: grade.ts's own near-miss rule.
-    const feedback = grade(ruPlExercise, 'zolty')
-    expect(feedback).toMatchObject({ correct: false, nearMiss: true })
-
-    render(
-      <InputExercise exercise={ruPlExercise} onAnswer={() => {}} feedback={feedback} disabled />,
-    )
-
-    expect(screen.getByText('Почти верно')).toBeInTheDocument()
-    expect(screen.queryByText('Неверно')).not.toBeInTheDocument()
-    // The differing diacritic character (ż) is highlighted via <mark>.
-    expect(screen.getByText('ż', { selector: 'mark' })).toBeInTheDocument()
-  })
-
-  it('a genuinely wrong answer renders "Неверно", distinct from nearMiss', () => {
-    const feedback = grade(plRuExercise, 'иметь')
-    expect(feedback).toMatchObject({ correct: false, nearMiss: false })
-
-    render(
-      <InputExercise exercise={plRuExercise} onAnswer={() => {}} feedback={feedback} disabled />,
-    )
-
-    expect(screen.getByText('Неверно')).toBeInTheDocument()
-    expect(screen.queryByText('Почти верно')).not.toBeInTheDocument()
-  })
-
-  it('a correct answer renders "Верно" and disables the field', () => {
+  it('feedback !== null freezes the field (no more editing after an answer)', () => {
     const feedback = grade(plRuExercise, 'быть')
-    expect(feedback.correct).toBe(true)
-
     render(
       <InputExercise exercise={plRuExercise} onAnswer={() => {}} feedback={feedback} disabled />,
     )
-
-    expect(screen.getByText('Верно')).toBeInTheDocument()
     expect(screen.getByRole('textbox')).toBeDisabled()
   })
 
-  it('resets the field and refocuses when a new question arrives', () => {
-    const { rerender } = render(
-      <InputExercise
-        exercise={plRuExercise}
-        onAnswer={() => {}}
-        feedback={null}
-        disabled={false}
-      />,
-    )
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'быть' } })
-    rerender(
+  it('there is no "Проверить" submit button anymore (task 29 removes it)', () => {
+    render(
       <InputExercise
         exercise={ruPlExercise}
         onAnswer={() => {}}
@@ -193,8 +116,6 @@ describe('InputExercise', () => {
         disabled={false}
       />,
     )
-
-    expect(screen.getByRole('textbox')).toHaveValue('')
-    expect(screen.getByRole('textbox')).toHaveFocus()
+    expect(screen.queryByRole('button', { name: 'Проверить' })).not.toBeInTheDocument()
   })
 })

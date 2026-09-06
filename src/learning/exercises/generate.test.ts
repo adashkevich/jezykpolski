@@ -197,24 +197,26 @@ describe('generateExercise — vocab choice', () => {
     expect(exercise.options).toContain('женщина')
   })
 
-  it('ru-pl direction shows the RU translation as prompt and the PL lemma as correct', () => {
+  // Task 28 (FR-80): `vocab:ru-pl` — это этап 2, и он всегда ввод, а не выбор, в любом
+  // состоянии навыка. Выбор из списка остаётся только за `vocab:pl-ru`.
+  it('ru-pl is never a choice exercise — этап 2 всегда ввод', () => {
     const ctx = makeContext()
     const { exercise } = generateExercise(VOCAB_SKILL_RU_PL, undefined, ctx, 42)
-    expect(exercise.type).toBe('choice')
-    if (exercise.type !== 'choice') throw new Error('unreachable')
+    expect(exercise.type).toBe('input')
+    if (exercise.type !== 'input') throw new Error('unreachable')
     expect(exercise.direction).toBe('ru-pl')
     expect(exercise.prompt).toBe('женщина')
-    expect(exercise.correct).toBe('kobieta')
+    expect(exercise.accepted).toEqual(['kobieta'])
   })
 })
 
 describe('generateExercise — vocab input', () => {
-  it('produces an "input" exercise with the full translation list accepted (pl-ru)', () => {
+  // Task 28 (FR-52 отменён): «напечатай русский перевод» больше не генерируется ни в одном
+  // состоянии навыка — узнавание навсегда остаётся выбором из списка.
+  it('pl-ru never becomes an input exercise, even in review', () => {
     const ctx = makeContext()
-    const { exercise } = generateExercise(VOCAB_SKILL, srs('learning', 2), ctx, 1)
-    expect(exercise.type).toBe('input')
-    if (exercise.type !== 'input') throw new Error('unreachable')
-    expect(exercise.accepted).toEqual(['женщина', 'дама'])
+    expect(generateExercise(VOCAB_SKILL, srs('learning', 2), ctx, 1).exercise.type).toBe('choice')
+    expect(generateExercise(VOCAB_SKILL, srs('review'), ctx, 1).exercise.type).toBe('choice')
   })
 
   it('ru-pl input only accepts the lemma', () => {
@@ -437,15 +439,17 @@ describe('generateExercise — hintMode / promptMode (task 18 acceptance)', () =
 })
 
 describe('generateExercise — self-assess', () => {
-  it('vocab: prompt/answer are lemma/translation per direction', () => {
+  // Task 28: self-assess остаётся опциональной заменой ввода, т.е. применим к этапу 2
+  // (`vocab:ru-pl`); `vocab:pl-ru` — всегда выбор, его настройка не затрагивает.
+  it('vocab: prompt/answer are translation/lemma for этап 2', () => {
     const ctx = makeContext()
-    const { exercise } = generateExercise(VOCAB_SKILL, srs('review'), ctx, 1, {
+    const { exercise } = generateExercise(VOCAB_SKILL_RU_PL, srs('review'), ctx, 1, {
       selfAssessOnReview: true,
     })
     expect(exercise.type).toBe('self-assess')
     if (exercise.type !== 'self-assess') throw new Error('unreachable')
-    expect(exercise.prompt).toBe('kobieta')
-    expect(exercise.answer).toBe('женщина')
+    expect(exercise.prompt).toBe('женщина')
+    expect(exercise.answer).toBe('kobieta')
   })
 
   it("morphology: answer is the slot's accepted form", () => {

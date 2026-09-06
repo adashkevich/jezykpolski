@@ -10,6 +10,7 @@
  */
 import type { SkillId, WordId } from '../skills/skill-id.ts'
 import type { SkillDescriptor } from '../skills/enumerate.ts'
+import { stageOf, type LearningStage } from './stage.ts'
 import type { SkillRecord, WordStatus } from '@/types/progress.ts'
 
 export type { WordStatus } from '@/types/progress.ts'
@@ -61,6 +62,10 @@ export interface WordAggregate {
   /** How many of `all`'s skills have a matching `SkillRecord` — `0` means a brand-new word. */
   readonly recordedSkillCount: number
   readonly totalSkillCount: number
+  /** Task 28 (FR-83): which of the two vocabulary stages this word has reached
+   *  (`progress/stage.ts`). `deriveStatus` below uses it as a hard gate — узнавание одно
+   *  никогда не делает слово `known`. */
+  readonly stage: LearningStage
 }
 
 /** `agg` returns all-zero, `recordedSkillCount: 0` for a word with no `SkillRecord` at all —
@@ -87,6 +92,10 @@ export function aggregateWord(
   const overallMaturity = average(all.map(maturityOf))
   const recordedSkillCount = all.filter((d) => known.has(d.skillId)).length
 
+  const vocabRecords = vocabDescriptors
+    .map((d) => known.get(d.skillId))
+    .filter((record): record is SkillRecord => record !== undefined)
+
   return {
     wordId,
     vocabMaturity,
@@ -94,6 +103,7 @@ export function aggregateWord(
     overallMaturity,
     recordedSkillCount,
     totalSkillCount: all.length,
+    stage: stageOf(vocabRecords),
   }
 }
 
@@ -103,13 +113,22 @@ export function aggregateWord(
  * ```text
  * new       no SkillRecord at all for this word
  * learning  has records, but vocabMaturity < KNOWN_THRESHOLD
+ *           OR этап 2 ещё не открыт (stage === 'recognition', task 28 / FR-83)
  * known     vocabMaturity >= KNOWN_THRESHOLD
  * mastered  vocabMaturity >= MASTERED_THRESHOLD AND
  *           (word has no morphology OR morphMaturity >= MASTERED_THRESHOLD)
  * ```
+ *
+ * Про `stage` (task 28, FR-83): выбор значения из списка — это узнавание, часть владения
+ * словом, но не всё. Пока `vocab:ru-pl` не открыт, пользователь ни разу не пробовал
+ * написать слово по-польски, поэтому слово остаётся `learning`, каким бы зрелым ни стал
+ * навык узнавания. Само по себе усреднение `vocabMaturity` по двум навыкам этого не
+ * гарантирует: достаточно зрелый `vocab:pl-ru` вытягивает среднее выше `KNOWN_THRESHOLD`
+ * в одиночку.
  */
 export function deriveStatus(agg: WordAggregate): WordStatus {
   if (agg.recordedSkillCount === 0) return 'new'
+  if (agg.stage !== 'production') return 'learning'
   if (agg.vocabMaturity < KNOWN_THRESHOLD) return 'learning'
 
   const morphologyClearsBar =

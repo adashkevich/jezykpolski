@@ -3,6 +3,7 @@ import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import type { SkillRecord, SkillState } from '@/types/progress.ts'
 import { pickExerciseType, type PickedExerciseType } from './picker.ts'
 
+/** Этап 1 — узнавание. */
 function vocabSkill(): SkillDescriptor {
   return {
     skillId: 'kobieta|NOUN::vocab:pl-ru',
@@ -10,6 +11,17 @@ function vocabSkill(): SkillDescriptor {
     kind: 'vocab',
     dimension: 'vocab:pl-ru',
     acceptedAnswers: [],
+  }
+}
+
+/** Этап 2 — написание по-польски (task 28). */
+function productionSkill(): SkillDescriptor {
+  return {
+    skillId: 'kobieta|NOUN::vocab:ru-pl',
+    wordId: 'kobieta|NOUN',
+    kind: 'vocab',
+    dimension: 'vocab:ru-pl',
+    acceptedAnswers: ['kobieta'],
   }
 }
 
@@ -67,15 +79,18 @@ function srs(overrides: Partial<SkillRecord> & { state: SkillState }): SkillReco
 // morphological skill, mapped to the exact type the table prescribes.
 // ---------------------------------------------------------------------------
 
-describe('pickExerciseType — vocab skill (choice/input pair)', () => {
+describe('pickExerciseType — vocab этап 1 (`vocab:pl-ru`, task 28)', () => {
+  // Task 28 / FR-80: узнавание — это всегда выбор из списка, в любом состоянии FSRS. До
+  // задачи 28 `learning` с reps>=2 и `review` превращались во ввод русского перевода (FR-52),
+  // теперь этого пути нет вообще.
   const cases: Array<[string, SkillRecord | undefined, PickedExerciseType]> = [
     ['skill absent (never materialized)', undefined, 'choice'],
     ['state=new', srs({ state: 'new', reps: 0 }), 'choice'],
     ['state=learning, reps=0', srs({ state: 'learning', reps: 0 }), 'choice'],
     ['state=learning, reps=1', srs({ state: 'learning', reps: 1 }), 'choice'],
-    ['state=learning, reps=2', srs({ state: 'learning', reps: 2 }), 'input'],
-    ['state=learning, reps=5', srs({ state: 'learning', reps: 5 }), 'input'],
-    ['state=review', srs({ state: 'review', reps: 10 }), 'input'],
+    ['state=learning, reps=2', srs({ state: 'learning', reps: 2 }), 'choice'],
+    ['state=learning, reps=5', srs({ state: 'learning', reps: 5 }), 'choice'],
+    ['state=review', srs({ state: 'review', reps: 10 }), 'choice'],
     ['state=relearning', srs({ state: 'relearning', reps: 3 }), 'choice'],
   ]
 
@@ -83,14 +98,39 @@ describe('pickExerciseType — vocab skill (choice/input pair)', () => {
     expect(pickExerciseType(vocabSkill(), record)).toBe(expected)
   })
 
+  it('selfAssessOnReview does not turn узнавание into self-assess either', () => {
+    const record = srs({ state: 'review', reps: 10 })
+    expect(pickExerciseType(vocabSkill(), record, { selfAssessOnReview: true })).toBe('choice')
+  })
+})
+
+describe('pickExerciseType — vocab этап 2 (`vocab:ru-pl`, task 28)', () => {
+  // Написание по-польски — тоже во всех состояниях, включая `new`: сам факт того, что у
+  // навыка появилась запись, означает, что этап 1 уже пройден
+  // (`progress/stage.ts#shouldUnlockProduction`).
+  const cases: Array<[string, SkillRecord | undefined, PickedExerciseType]> = [
+    ['skill absent (never materialized)', undefined, 'input'],
+    ['state=new', srs({ state: 'new', reps: 0 }), 'input'],
+    ['state=learning, reps=0', srs({ state: 'learning', reps: 0 }), 'input'],
+    ['state=learning, reps=2', srs({ state: 'learning', reps: 2 }), 'input'],
+    ['state=review', srs({ state: 'review', reps: 10 }), 'input'],
+    ['state=relearning', srs({ state: 'relearning', reps: 3 }), 'input'],
+  ]
+
+  it.each(cases)('%s -> %s', (_label, record, expected) => {
+    expect(pickExerciseType(productionSkill(), record)).toBe(expected)
+  })
+
   it('state=review with selfAssessOnReview picks self-assess instead of input', () => {
     const record = srs({ state: 'review', reps: 10 })
-    expect(pickExerciseType(vocabSkill(), record, { selfAssessOnReview: true })).toBe('self-assess')
+    expect(pickExerciseType(productionSkill(), record, { selfAssessOnReview: true })).toBe(
+      'self-assess',
+    )
   })
 
   it('selfAssessOnReview has no effect outside state=review', () => {
     const record = srs({ state: 'learning', reps: 0 })
-    expect(pickExerciseType(vocabSkill(), record, { selfAssessOnReview: true })).toBe('choice')
+    expect(pickExerciseType(productionSkill(), record, { selfAssessOnReview: true })).toBe('input')
   })
 })
 
@@ -129,17 +169,15 @@ describe('pickExerciseType — determinism', () => {
 // `srs` says.
 // ---------------------------------------------------------------------------
 
-describe('pickExerciseType — forceCategory (task 19)', () => {
-  it('forces recognition (choice/form-choice) even for a review-state skill', () => {
+describe('pickExerciseType — forceCategory (task 19, суженный задачей 28)', () => {
+  it('forces recognition (form-choice) even for a review-state morphological skill', () => {
     const record = srs({ state: 'review', reps: 10 })
-    expect(pickExerciseType(vocabSkill(), record, { forceCategory: 'recognition' })).toBe('choice')
     expect(pickExerciseType(morphSkill(), record, { forceCategory: 'recognition' })).toBe(
       'form-choice',
     )
   })
 
-  it('forces recall (input/form-input) even for a brand-new (no SkillRecord) skill', () => {
-    expect(pickExerciseType(vocabSkill(), undefined, { forceCategory: 'recall' })).toBe('input')
+  it('forces recall (form-input) even for a brand-new (no SkillRecord) morphological skill', () => {
     expect(pickExerciseType(morphSkill(), undefined, { forceCategory: 'recall' })).toBe(
       'form-input',
     )
@@ -147,7 +185,17 @@ describe('pickExerciseType — forceCategory (task 19)', () => {
 
   it('undefined forceCategory falls back to the normal state-based switch', () => {
     const record = srs({ state: 'review', reps: 10 })
-    expect(pickExerciseType(vocabSkill(), record)).toBe('input')
+    expect(pickExerciseType(morphSkill(), record)).toBe('form-input')
+  })
+
+  // Task 28: у перевода тип задания задан направлением навыка, а не категорией — иначе
+  // `forceCategory: 'recall'` воскресил бы удалённый «ввод русского перевода» (FR-52).
+  it('is ignored for vocabulary in both directions', () => {
+    const record = srs({ state: 'review', reps: 10 })
+    expect(pickExerciseType(vocabSkill(), record, { forceCategory: 'recall' })).toBe('choice')
+    expect(pickExerciseType(productionSkill(), record, { forceCategory: 'recognition' })).toBe(
+      'input',
+    )
   })
 })
 

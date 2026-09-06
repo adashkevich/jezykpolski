@@ -15,18 +15,16 @@
  *  6. for `pl-ru` vocabulary answers, any translation of the sense counts, not just the one
  *     literal string shown as `correct` on a `choice` exercise (that's `input.accepted`
  *     already carrying the full translation list — see `generate.ts`'s `buildVocabInput`).
+ *
+ * Task 28 (FR-58): the per-character green/red highlight is NOT computed here. `grade` only
+ * reports *which* accepted answer the input should be compared against (`closest`, filled in
+ * for the two exercise types where the user actually types); the alignment itself lives in
+ * `answer-diff.ts#diffAnswer` and is called by whoever renders it — including the session
+ * result screen, which has only two strings out of `reviewLogs` and no `Exercise` at all.
  */
 import { normalizeSearchText } from '@/content/index-store.ts'
+import { collapseWhitespace, pickClosestExpected } from './answer-diff.ts'
 import type { Exercise } from './exercise.types.ts'
-
-export interface DiffHint {
-  /** The accepted answer this near-miss was matched against — what the UI highlights
-   *  differences relative to. */
-  readonly expected: string
-  /** 0-based character indices into `expected` where it carries a Polish diacritic the
-   *  user's answer lacked — enough for the UI to bold/underline exactly those letters. */
-  readonly diacriticIndexes: readonly number[]
-}
 
 export interface GradeResult {
   readonly correct: boolean
@@ -36,16 +34,19 @@ export interface GradeResult {
   /** Which entry of the exercise's accepted-answer set this answer matched (verbatim or
    *  near-miss) — absent when nothing matched at all. */
   readonly matched?: string
-  readonly diff?: DiffHint
+  /** The accepted answer closest to what the user typed (`answer-diff.ts#pickClosestExpected`)
+   *  — the string a per-character diff should be rendered against. Present only for the
+   *  exercise types where the user types free text (`input`/`form-input`); a `choice`-family
+   *  answer has nothing to spell-check. Filled in for correct answers too, so a caller can
+   *  render the same green highlight on a fully correct spelling. */
+  readonly closest?: string
 }
 
 // ---------------------------------------------------------------------------
-// Whitespace / case / ё normalization.
+// Case / ё normalization. Whitespace collapsing itself is `answer-diff.ts`'s
+// `collapseWhitespace` — shared so grading and highlighting can never disagree on what the
+// two compared strings even are.
 // ---------------------------------------------------------------------------
-
-function collapseWhitespace(s: string): string {
-  return s.trim().replace(/\s+/g, ' ')
-}
 
 type AnswerLanguage = 'pl' | 'ru'
 
@@ -63,35 +64,6 @@ function normalizeForCompare(s: string, lang: AnswerLanguage): string {
 
 function stripPolishDiacritics(s: string): string {
   return normalizeSearchText(s)
-}
-
-const POLISH_DIACRITIC_CHARS = new Set([
-  'ą',
-  'ć',
-  'ę',
-  'ł',
-  'ń',
-  'ó',
-  'ś',
-  'ź',
-  'ż',
-  'Ą',
-  'Ć',
-  'Ę',
-  'Ł',
-  'Ń',
-  'Ó',
-  'Ś',
-  'Ź',
-  'Ż',
-])
-
-function diacriticIndexesOf(s: string): number[] {
-  const indexes: number[] = []
-  for (let i = 0; i < s.length; i++) {
-    if (POLISH_DIACRITIC_CHARS.has(s[i]!)) indexes.push(i)
-  }
-  return indexes
 }
 
 // ---------------------------------------------------------------------------
@@ -150,23 +122,36 @@ function acceptedAnswersFor(exercise: Exercise): readonly string[] {
   }
 }
 
+/** The exercise types whose answer is typed rather than picked — the only ones a
+ *  per-character diff (FR-58) means anything for. */
+function isTypedAnswer(exercise: Exercise): boolean {
+  return exercise.type === 'input' || exercise.type === 'form-input'
+}
+
 // ---------------------------------------------------------------------------
 // grade
 // ---------------------------------------------------------------------------
 
 export function grade(exercise: Exercise, answer: string): GradeResult {
   const trimmedAnswer = collapseWhitespace(answer)
+  const accepted = acceptedAnswersFor(exercise)
+  // An empty answer still gets a `closest` (the canonical first accepted answer, since every
+  // candidate is equally "far" from nothing) so the UI can show the expected spelling with
+  // every letter marked missing, instead of a special empty-answer branch of its own.
+  const closest = isTypedAnswer(exercise)
+    ? { closest: pickClosestExpected(trimmedAnswer, accepted) }
+    : {}
+
   if (trimmedAnswer.length === 0) {
-    return { correct: false, nearMiss: false }
+    return { correct: false, nearMiss: false, ...closest }
   }
 
   const lang = answerLanguage(exercise)
-  const accepted = acceptedAnswersFor(exercise)
   const normalizedAnswer = normalizeForCompare(trimmedAnswer, lang)
 
   for (const candidate of accepted) {
     if (normalizeForCompare(candidate, lang) === normalizedAnswer) {
-      return { correct: true, nearMiss: false, matched: candidate }
+      return { correct: true, nearMiss: false, matched: candidate, ...closest }
     }
   }
 
@@ -181,11 +166,14 @@ export function grade(exercise: Exercise, answer: string): GradeResult {
           correct: false,
           nearMiss: true,
           matched: candidate,
-          diff: { expected: candidate, diacriticIndexes: diacriticIndexesOf(candidate) },
+          // A near-miss matched one specific candidate — the diff must be rendered against
+          // *that* one, not against whatever `pickClosestExpected` liked best (they can
+          // differ when two accepted spellings are equally close by raw edit distance).
+          ...(isTypedAnswer(exercise) ? { closest: candidate } : {}),
         }
       }
     }
   }
 
-  return { correct: false, nearMiss: false }
+  return { correct: false, nearMiss: false, ...closest }
 }

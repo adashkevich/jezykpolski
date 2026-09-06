@@ -25,6 +25,7 @@ Zustand · Dexie (IndexedDB) · Zod · ts-fsrs · vite-plugin-pwa.
 ```bash
 npm install
 npm run dev            # dev-сервер
+npm run build:content   # сборка файлов words.json и inflections.json в public/content
 npm run build           # проверка типов (tsc -b) + production-сборка
 npm run preview         # предпросмотр production-сборки
 npm run lint             # ESLint

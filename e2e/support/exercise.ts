@@ -9,6 +9,23 @@
  * other types the moment a skill's SRS state moves past `'new'`, and this suite needs
  * deterministic DOM shape (`ChoiceExercise.tsx`'s `role="radiogroup"` of `role="radio"`
  * buttons) across every question, not just the first one.
+ *
+ * Task 28 caveat: that setting no longer covers vocabulary — `vocab:ru-pl` (этап 2, "напиши
+ * по-польски") is always an `input` exercise, whatever the setting says
+ * (`learning/exercises/picker.ts`). A fresh profile's first session still only ever shows
+ * `choice` (этап 2 is materialized *while* answering, and the queue is built up front), but
+ * any scenario that runs a second Learn session can hit the letter-by-letter field — hence
+ * `answerCurrentExercise` below, which handles both shapes and is what the multi-question
+ * loops use.
+ *
+ * Task 29 caveat (`spec/tasks/29-letter-by-letter-input.md` §6): `input`/`form-input` no
+ * longer expose a single `role="textbox"` you can `.fill()` and submit — typing is
+ * letter-by-letter (`LetterSlotsInput`), checked live, with no submit button at all. For a
+ * deterministic wrong answer, `answerCurrentExercise` clicks **«Показать слово»** ("reveal")
+ * instead: it's the exact analogue of the old `fill('zzz')` + «Проверить» — one click,
+ * doesn't require knowing the correct Polish spelling, and always grades `Неверно`
+ * (`policy.ts#mapResultToRating`'s `revealed -> Again`), which is exactly what
+ * `answerUntilAtLeastOneMistake` needs.
  */
 import { expect, type Page } from '@playwright/test'
 
@@ -34,7 +51,43 @@ export async function answerChoiceExercise(page: Page): Promise<boolean> {
 }
 
 /**
- * Answers exercises one at a time (via `answerChoiceExercise`) until at least `minCount`
+ * Answers whichever exercise is on screen — a `choice`/`form-choice` radiogroup, or a
+ * letter-by-letter `input`/`form-input` field (task 28's этап 2, redesigned task 29). For
+ * the letter-slots shape it deliberately reveals the word (**«Показать слово»**) rather than
+ * typing: these scenarios only need a graded question to advance past, the correct Polish
+ * spelling isn't knowable from the DOM, and revealing always grades `Неверно` deterministically
+ * (see this file's header).
+ *
+ * Returns whether the answer was graded correct, same contract as `answerChoiceExercise`.
+ */
+export async function answerCurrentExercise(page: Page): Promise<boolean> {
+  const radiogroup = page.getByRole('radiogroup', { name: 'Варианты ответа' })
+  const revealButton = page.getByRole('button', { name: 'Показать слово' })
+
+  // Race the two shapes rather than a bare `isVisible()` on one of them: that synchronous
+  // check can run before React has finished the current render pass and would then read
+  // "no radiogroup yet" as "this is a letter-slots exercise" — the same trap this file's
+  // `answerUntilSessionEnds` already documents. The reveal button (not the hidden
+  // `role="textbox"` overlaying the slots — `LetterSlotsInput.tsx`) is the stable anchor:
+  // it carries a plain `aria-label` and only exists on the letter-slots shape.
+  const shape = await Promise.race([
+    radiogroup.waitFor({ state: 'visible' }).then(() => 'choice' as const),
+    revealButton.waitFor({ state: 'visible' }).then(() => 'letters' as const),
+  ])
+  if (shape === 'choice') return answerChoiceExercise(page)
+
+  await revealButton.click()
+
+  const feedback = page.getByRole('status').filter({ hasText: /Верно!|Неверно|Почти/ })
+  await expect(feedback).toBeVisible()
+  const correct = (await feedback.innerText()).includes('Верно!')
+
+  await page.getByRole('button', { name: 'Далее' }).click()
+  return correct
+}
+
+/**
+ * Answers exercises one at a time (via `answerCurrentExercise`) until at least `minCount`
  * have been answered AND at least one was wrong — the critical-flow scenario's step 9/10
  * ("Разобрать ошибки" must have something to review) needs a guaranteed mistake, not a lucky
  * one. With 3-4 options per `choice` exercise (`learning/exercises/distractors.ts`), the odds
@@ -49,7 +102,7 @@ export async function answerUntilAtLeastOneMistake(
   let answered = 0
   let mistakes = 0
   while (answered < maxAttempts) {
-    const correct = await answerChoiceExercise(page)
+    const correct = await answerCurrentExercise(page)
     answered++
     if (!correct) mistakes++
     if (answered >= minCount && mistakes >= 1) break
@@ -59,8 +112,9 @@ export async function answerUntilAtLeastOneMistake(
 }
 
 /**
- * Answers every remaining exercise in the current session (`choice`-only, per this file's
- * header) until the queue empties and the app navigates away from `/session`. Used for the
+ * Answers every remaining exercise in the current session (either shape — see
+ * `answerCurrentExercise`) until the queue empties and the app navigates away from
+ * `/session`. Used for the
  * mistake-review pass, whose queue length equals however many mistakes the first pass
  * produced — not a fixed count the caller can know up front.
  *
@@ -84,8 +138,10 @@ export async function answerUntilSessionEnds(
       break
     }
     const radiogroup = page.getByRole('radiogroup', { name: 'Варианты ответа' })
+    const revealButton = page.getByRole('button', { name: 'Показать слово' })
     const outcome = await Promise.race([
       radiogroup.waitFor({ state: 'visible', timeout: waitTimeoutMs }).then(() => 'question' as const),
+      revealButton.waitFor({ state: 'visible', timeout: waitTimeoutMs }).then(() => 'question' as const),
       page
         .waitForURL((url) => !url.pathname.startsWith('/session') || url.pathname.endsWith('/result'), {
           timeout: waitTimeoutMs,
@@ -99,8 +155,27 @@ export async function answerUntilSessionEnds(
       // the radiogroup genuinely never showed up).
       if (!new URL(page.url()).pathname.startsWith('/session')) break
     }
-    await answerChoiceExercise(page)
+    await answerCurrentExercise(page)
     answered++
   }
   return answered
+}
+
+/**
+ * Answers the current letter-slots exercise (task 29) the "happy path" way — clicking
+ * **«Подсказка»** repeatedly until the word completes — instead of revealing it. This is
+ * the only e2e coverage of two things `answerCurrentExercise`'s reveal shortcut can't
+ * exercise: auto-submit on the last correct letter (no submit button exists at all) and the
+ * `assisted` feedback status ("Верно, но с подсказкой", `ExerciseFeedback.tsx`). Caller must
+ * already be on a screen showing the letter-slots shape (race against `radiogroup` first if
+ * that isn't guaranteed — same pattern as `answerCurrentExercise`).
+ */
+export async function completeLetterExerciseWithHints(page: Page, maxLetters = 30): Promise<void> {
+  const hintButton = page.getByRole('button', { name: /Подсказка/ })
+  for (let i = 0; i < maxLetters; i++) {
+    if (!(await hintButton.isVisible())) break // last hint auto-submitted -> button is gone
+    await hintButton.click()
+  }
+  await expect(page.getByRole('status').filter({ hasText: 'Верно' })).toBeVisible()
+  await page.getByRole('button', { name: 'Далее' }).click()
 }

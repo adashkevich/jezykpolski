@@ -18,8 +18,10 @@ import { Navigate, useLocation, useNavigate } from 'react-router'
 import { PageContainer } from '@/components/app/PageContainer.tsx'
 import { PageHeader } from '@/components/app/PageHeader.tsx'
 import { EmptyState } from '@/components/app/EmptyState.tsx'
+import { DiffText } from '@/components/app/AnswerDiff.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { Card, CardContent } from '@/components/ui/card.tsx'
+import { diffAnswer } from '@/learning/exercises/answer-diff.ts'
 import type { DimensionLabel } from '@/learning/skills/dimensions.ts'
 import {
   mistakeSkillIds,
@@ -52,6 +54,12 @@ function HardestDimensionRow({ entry }: { entry: HardestDimensionEntry }) {
 }
 
 function MistakeRow({ entry }: { entry: MistakeEntry }) {
+  // Task 28 (FR-58): у набранного ответа обе стороны показываются побуквенно — те же
+  // зелёные/красные буквы, что и в самой сессии, чтобы разбор ошибок не выглядел иначе, чем
+  // фидбек, который пользователь уже видел. Выбранный из списка ответ остаётся сплошной
+  // строкой: сравнивать по буквам два разных слова бессмысленно.
+  const diff = entry.typedAnswer ? diffAnswer(entry.answerGiven, entry.expected) : null
+
   return (
     <li className="flex flex-col gap-1 border-b border-border py-3 last:border-b-0">
       <p className="text-sm text-foreground">
@@ -59,9 +67,17 @@ function MistakeRow({ entry }: { entry: MistakeEntry }) {
         <span className="text-muted-foreground"> · {bilingual(entry.dimensionLabel)}</span>
       </p>
       <p className="font-mono text-sm">
-        <span className="text-error">{entry.answerGiven || '—'}</span>
+        {diff && entry.answerGiven ? (
+          <DiffText chars={diff.typed} />
+        ) : (
+          <span className="text-error">{entry.answerGiven || '—'}</span>
+        )}
         <span className="mx-2 text-muted-foreground">→</span>
-        <span className="text-success">{entry.expected}</span>
+        {diff ? (
+          <DiffText chars={diff.expected} />
+        ) : (
+          <span className="text-success">{entry.expected}</span>
+        )}
       </p>
     </li>
   )

@@ -347,7 +347,10 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
       ))}
 
       <div className="flex flex-col gap-1 border-t border-border pt-4">
-        <p className="mb-1 text-sm font-medium text-foreground">Тип задания</p>
+        <p className="text-sm font-medium text-foreground">Тип задания</p>
+        {/* Task 28: у перевода фиксированные два этапа (выбор из списка -> написание
+            по-польски, FR-80), поэтому ограничение применяется только к формам слов. */}
+        <p className="mb-1 text-xs text-muted-foreground">Влияет на формы слов</p>
         <div className="grid grid-cols-2 gap-x-3">
           <CheckboxRow
             checked={config.exerciseTypes.choice}

@@ -44,6 +44,7 @@
 import { AlertTriangle, CheckCircle2, XCircle, type LucideIcon } from 'lucide-react'
 import { useRef, useState, type KeyboardEvent } from 'react'
 import { Button } from '@/components/ui/button.tsx'
+import { ExpectedDiffLine } from '@/components/app/AnswerDiff.tsx'
 import { cn } from '@/lib/utils'
 import { CASE_DISPLAY_ORDER, CASE_LABELS } from '@/learning/skills/dimensions.ts'
 import { ensureSkill } from '@/db/repositories/skills.repository.ts'
@@ -58,9 +59,21 @@ type CellStatus = 'idle' | 'grading' | 'correct' | 'nearMiss' | 'incorrect'
 interface CellState {
   readonly value: string
   readonly status: CellStatus
+  /** The accepted form this answer was graded against (`GradeResult.closest`) — kept so the
+   *  cell can show task 28's per-character comparison (FR-58) without re-grading. Absent
+   *  while the cell is still `idle`/`grading`, and unused when the answer was correct. */
+  readonly expected?: string
 }
 
 const IDLE_STATE: CellState = { value: '', status: 'idle' }
+
+/** Task 28 (FR-58): побуквенное сравнение показывается только у проверенной и неверной
+ *  ячейки — у верной уже есть зелёная рамка и галочка, а у пустой сравнивать нечего. */
+function showsDiff(state: CellState): boolean {
+  return (
+    (state.status === 'incorrect' || state.status === 'nearMiss') && state.expected !== undefined
+  )
+}
 
 function cellKey(cell: TableCell): string {
   return cell.slot
@@ -130,7 +143,10 @@ export function TableExercise({ wordId, sessionId, exercise, onCellGraded, onDon
       : result.gradeResult.nearMiss
         ? 'nearMiss'
         : 'incorrect'
-    setCellStates((prev) => ({ ...prev, [key]: { value: rawValue, status } }))
+    setCellStates((prev) => ({
+      ...prev,
+      [key]: { value: rawValue, status, expected: result.gradeResult.closest },
+    }))
     onCellGraded({ correct: result.gradeResult.correct, isNewSkill: result.isNewSkill })
   }
 
@@ -310,6 +326,8 @@ function TableCellSlot({
           />
         )}
       </div>
+      {showsDiff(state) && <ExpectedDiffLine typed={state.value} expected={state.expected!} />}
     </td>
   )
 }
+

@@ -131,6 +131,9 @@ describe('deriveStatus — threshold boundaries (architecture.md §5.4)', () => 
       overallMaturity: 0,
       recordedSkillCount: 1,
       totalSkillCount: 10,
+      // Task 28 (FR-83): всё, что выше `learning`, требует открытого этапа 2 — базой для
+      // проверок порогов ниже берётся именно он, а сам гейт проверяется отдельным блоком.
+      stage: 'production',
       ...overrides,
     }
   }
@@ -177,6 +180,96 @@ describe('deriveStatus — threshold boundaries (architecture.md §5.4)', () => 
 
   it('a word with no morphology is still just "known" below the vocab mastery bar', () => {
     expect(deriveStatus(agg({ vocabMaturity: 0.5, morphMaturity: undefined }))).toBe('known')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Task 28 (FR-83): выбор значения из списка — это часть владения словом, но не всё. Пока
+// этап 2 (`vocab:ru-pl`) не открыт, слово не может подняться выше `learning`, каким бы
+// зрелым ни был навык узнавания.
+// ---------------------------------------------------------------------------
+
+describe('deriveStatus — гейт по этапу изучения (task 28, FR-83)', () => {
+  function agg(overrides: Partial<WordAggregate>): WordAggregate {
+    return {
+      wordId: 'x|NOUN',
+      vocabMaturity: 1,
+      morphMaturity: 1,
+      overallMaturity: 1,
+      recordedSkillCount: 1,
+      totalSkillCount: 10,
+      stage: 'recognition',
+      ...overrides,
+    }
+  }
+
+  it('"learning" while only узнавание exists, even at full maturity', () => {
+    expect(deriveStatus(agg({}))).toBe('learning')
+  })
+
+  it('the very same aggregate becomes "mastered" once этап 2 is open', () => {
+    expect(deriveStatus(agg({ stage: 'production' }))).toBe('mastered')
+  })
+
+  it('"new" still wins over the stage gate when nothing is recorded at all', () => {
+    expect(deriveStatus(agg({ recordedSkillCount: 0, stage: 'not-started' }))).toBe('new')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// `aggregateWord` заполняет `stage` из тех же записей навыков (task 28).
+// ---------------------------------------------------------------------------
+
+describe('aggregateWord — stage', () => {
+  const w: WordIndexEntry = {
+    lemma: 'kobieta',
+    pos: 'NOUN',
+    rank: 1,
+    level: 'A1',
+    primaryRu: 'женщина',
+    sensesShard: 0,
+    paradigmShard: 0,
+  }
+  const paradigm: Paradigm = {
+    forms: [
+      {
+        form: 'kobiety',
+        number: 'singular',
+        case: 'genitive',
+        gender: 'feminine',
+        analytic: false,
+      },
+    ],
+  }
+  const all = enumerateSkills(w, paradigm)
+
+  it('"not-started" without any record', () => {
+    expect(aggregateWord(all, new Map()).stage).toBe('not-started')
+  })
+
+  it('"recognition" with only vocab:pl-ru recorded', () => {
+    const known = new Map<SkillId, SkillRecord>([
+      [encodeSkillId('kobieta|NOUN', 'vocab:pl-ru'), record({ dimension: 'vocab:pl-ru' })],
+    ])
+    expect(aggregateWord(all, known).stage).toBe('recognition')
+  })
+
+  it('"production" once vocab:ru-pl is recorded', () => {
+    const known = new Map<SkillId, SkillRecord>([
+      [encodeSkillId('kobieta|NOUN', 'vocab:pl-ru'), record({ dimension: 'vocab:pl-ru' })],
+      [encodeSkillId('kobieta|NOUN', 'vocab:ru-pl'), record({ dimension: 'vocab:ru-pl' })],
+    ])
+    expect(aggregateWord(all, known).stage).toBe('production')
+  })
+
+  it('a morphological record alone never opens этап 2', () => {
+    const known = new Map<SkillId, SkillRecord>([
+      [
+        encodeSkillId('kobieta|NOUN', 'noun:sg:genitive'),
+        record({ dimension: 'noun:sg:genitive', kind: 'noun' }),
+      ],
+    ])
+    expect(aggregateWord(all, known).stage).toBe('not-started')
   })
 })
 

@@ -137,11 +137,11 @@ describe('grade — Polish diacritics near-miss (acceptance)', () => {
     expect(result.matched).toBe('żółty')
   })
 
-  it('the diff hint flags every diacritic letter in the expected answer', () => {
+  // Task 28 (FR-58): `grade` больше не считает подсветку сам — он только сообщает, с каким
+  // из принятых вариантов сравнивать (`closest`); сами буквы красит `answer-diff.ts`.
+  it('reports the matched candidate as `closest` for the diff', () => {
     const result = grade(exercise, 'zolty')
-    expect(result.diff?.expected).toBe('żółty')
-    // "żółty": ż(0) ó(1) ł(2) t(3) y(4) — ż/ó/ł all count as diacritic letters; t/y don't.
-    expect(result.diff?.diacriticIndexes).toEqual([0, 1, 2])
+    expect(result.closest).toBe('żółty')
   })
 
   it('a completely wrong answer is neither correct nor nearMiss', () => {

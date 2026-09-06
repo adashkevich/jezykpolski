@@ -45,25 +45,63 @@ describe('ExerciseFeedback', () => {
     expect(screen.getByText('быть')).toBeInTheDocument()
   })
 
-  it('nearMiss: its own state ("Почти! Проверь диакритики"), not "Неверно" — with diacritics highlighted', () => {
+  it('nearMiss: its own state ("Почти! Проверь диакритики"), not "Неверно"', () => {
     const feedback = grade(ruPlExercise, 'zolty')
     expect(feedback.nearMiss).toBe(true)
     render(<ExerciseFeedback feedback={feedback} correctAnswer="żółty" onNext={() => {}} />)
 
     expect(screen.getByText('Почти! Проверь диакритики')).toBeInTheDocument()
     expect(screen.queryByText('Неверно')).not.toBeInTheDocument()
-    expect(screen.getByText('ż', { selector: 'mark' })).toBeInTheDocument()
   })
 
-  it('the 3 states each use a visually distinct icon shape, not just color (NFR-11)', () => {
-    const cases = [
-      grade(plRuExercise, 'быть'),
-      grade(ruPlExercise, 'zolty'),
-      grade(plRuExercise, 'иметь'),
-    ]
-    const iconClasses = cases.map((feedback) => {
+  // Task 29 (`spec/tasks/29-letter-by-letter-input.md` §4): the old per-character
+  // "Ты написал / Правильно" comparison is gone from this panel — that's the letter slots'
+  // job now, live, while typing. A clean-but-assisted attempt (a mistake and/or a hint used)
+  // still reports `feedback.correct: true`, but gets its own "assisted" status instead of
+  // looking identical to a flawless answer.
+  it('assisted: "Верно, но с подсказкой" when the typed attempt had a mistake or a hint', () => {
+    const feedback = grade(ruPlExercise, 'żółty')
+    render(
+      <ExerciseFeedback
+        feedback={feedback}
+        correctAnswer="żółty"
+        attempt={{ mistakes: 1, hintsUsed: 0, revealed: false, letterCount: 5 }}
+        onNext={() => {}}
+      />,
+    )
+
+    expect(screen.getByText('Верно, но с подсказкой')).toBeInTheDocument()
+    expect(screen.queryByText('Верно!')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Ты написал/)).not.toBeInTheDocument()
+  })
+
+  it('a clean typed attempt (no mistakes, no hints) still shows the plain "Верно!"', () => {
+    const feedback = grade(ruPlExercise, 'żółty')
+    render(
+      <ExerciseFeedback
+        feedback={feedback}
+        correctAnswer="żółty"
+        attempt={{ mistakes: 0, hintsUsed: 0, revealed: false, letterCount: 5 }}
+        onNext={() => {}}
+      />,
+    )
+    expect(screen.getByText('Верно!')).toBeInTheDocument()
+  })
+
+  it('the 4 states each use a visually distinct icon shape, not just color (NFR-11)', () => {
+    const cases: [ReturnType<typeof grade>, Parameters<typeof ExerciseFeedback>[0]['attempt']][] =
+      [
+        [grade(plRuExercise, 'быть'), undefined],
+        [
+          grade(ruPlExercise, 'żółty'),
+          { mistakes: 1, hintsUsed: 0, revealed: false, letterCount: 5 },
+        ],
+        [grade(ruPlExercise, 'zolty'), undefined],
+        [grade(plRuExercise, 'иметь'), undefined],
+      ]
+    const iconClasses = cases.map(([feedback, attempt]) => {
       const { container, unmount } = render(
-        <ExerciseFeedback feedback={feedback} correctAnswer="x" onNext={() => {}} />,
+        <ExerciseFeedback feedback={feedback} correctAnswer="x" attempt={attempt} onNext={() => {}} />,
       )
       const svg = container.querySelector('svg')
       const lucideClass = [...(svg?.classList ?? [])].find(

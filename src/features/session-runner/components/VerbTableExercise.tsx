@@ -19,6 +19,7 @@
 import { AlertTriangle, CheckCircle2, XCircle, type LucideIcon } from 'lucide-react'
 import { useRef, useState, type KeyboardEvent } from 'react'
 import { Button } from '@/components/ui/button.tsx'
+import { ExpectedDiffLine } from '@/components/app/AnswerDiff.tsx'
 import { cn } from '@/lib/utils'
 import { describeDimension } from '@/learning/skills/dimensions.ts'
 import { ensureSkill } from '@/db/repositories/skills.repository.ts'
@@ -33,9 +34,21 @@ type CellStatus = 'idle' | 'grading' | 'correct' | 'nearMiss' | 'incorrect'
 interface CellState {
   readonly value: string
   readonly status: CellStatus
+  /** The accepted form this answer was graded against (`GradeResult.closest`) — kept so the
+   *  cell can show task 28's per-character comparison (FR-58) without re-grading. Absent
+   *  while the cell is still `idle`/`grading`, and unused when the answer was correct. */
+  readonly expected?: string
 }
 
 const IDLE_STATE: CellState = { value: '', status: 'idle' }
+
+/** Same rule as `TableExercise.tsx`'s own `showsDiff` (task 28, FR-58): the per-character
+ *  comparison only appears on a graded, wrong cell. */
+function showsDiff(state: CellState): boolean {
+  return (
+    (state.status === 'incorrect' || state.status === 'nearMiss') && state.expected !== undefined
+  )
+}
 
 function cellKey(cell: TableCell): string {
   return cell.slot
@@ -120,7 +133,10 @@ export function VerbTableExercise({
       : result.gradeResult.nearMiss
         ? 'nearMiss'
         : 'incorrect'
-    setCellStates((prev) => ({ ...prev, [key]: { value: rawValue, status } }))
+    setCellStates((prev) => ({
+      ...prev,
+      [key]: { value: rawValue, status, expected: result.gradeResult.closest },
+    }))
     onCellGraded({ correct: result.gradeResult.correct, isNewSkill: result.isNewSkill })
   }
 
@@ -250,6 +266,7 @@ function VerbTableRow({
             className={cn('pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2', STATUS_TEXT[state.status])}
           />
         )}
+        {showsDiff(state) && <ExpectedDiffLine typed={state.value} expected={state.expected!} />}
       </div>
     </div>
   )
