@@ -20,12 +20,23 @@
  * exercise (`direction: 'pl-ru'`, `correct` = that word's own primary translation) — exactly
  * the "each pair graded independently, same submitAnswer call TableExercise already makes
  * per cell" the task text asks for, just always on the winning attempt.
+ *
+ * Task 36 (`spec/tasks/36-practice-screen-restructure.md` §4, FR-152) narrows this further:
+ * `shouldGradeMatch` (`@/learning/practice/lexical-batch.ts`) excludes the last
+ * `MATCHING_UNGRADED_TAIL` (2) pairings of the batch from grading entirely — with only 2 tiles
+ * left per column, a correct pairing is a 50/50 guess (or, for the very last pair, forced) and
+ * no longer evidence the user actually knew the translation. `completedRef` below counts every
+ * *correct* pairing seen this session (0-based `matchIndex` into `shouldGradeMatch`) — a wrong
+ * pairing never advances it, matching the header's own "wrong pairings never reach `gradePair`
+ * at all" rule above (this hook only ever sees the wordId of a pair that was matched
+ * correctly).
  */
 import { useEffect, useRef, useState } from 'react'
 import type { Exercise } from '@/learning/exercises/exercise.types.ts'
 import { ensureSkill } from '@/db/repositories/skills.repository.ts'
 import { encodeSkillId, type WordId } from '@/learning/skills/skill-id.ts'
 import { completeSession, createSession, deleteSession } from '@/db/repositories/sessions.repository.ts'
+import { shouldGradeMatch } from '@/learning/practice/lexical-batch.ts'
 import { submitAnswer } from '../lib/answer-pipeline.ts'
 import { SessionContentCache } from '../lib/session-content-context.ts'
 
@@ -63,6 +74,9 @@ export function useMatchingPracticeSession(wordIds: readonly WordId[]): Matching
   const aliveRef = useRef(true)
   const cacheRef = useRef<SessionContentCache | null>(null)
   const pairsByWordIdRef = useRef(new Map<WordId, MatchingPairSource>())
+  // Task 36 §4 — 0-based count of correctly-matched pairs seen so far this batch, used as
+  // `shouldGradeMatch`'s `matchIndex`. Reset alongside the other per-mount refs below.
+  const completedCountRef = useRef(0)
   // Set once the batch is shown (inside the effect below, never during render — the
   // `react-hooks/purity` rule this codebase enforces forbids calling `Date.now()` directly
   // in a component's render body, even from a plain helper function it might call; reading
@@ -76,6 +90,7 @@ export function useMatchingPracticeSession(wordIds: readonly WordId[]): Matching
     finishedRef.current = false
     sessionIdRef.current = null
     tallyRef.current = { total: 0, correct: 0, newSkillCount: 0 }
+    completedCountRef.current = 0
 
     ;(async () => {
       try {
@@ -122,6 +137,15 @@ export function useMatchingPracticeSession(wordIds: readonly WordId[]): Matching
     const sessionId = sessionIdRef.current
     const pair = pairsByWordIdRef.current.get(wordId)
     if (!cache || sessionId === null || !pair) return
+
+    // Task 36 §4 — the last `MATCHING_UNGRADED_TAIL` correct pairings of the batch are a
+    // guess, not knowledge (see this file's header): count this pairing, but stop before
+    // `submitAnswer`/`ensureSkill` if it falls in the ungraded tail. `pairsByWordIdRef.current
+    // .size` is the batch's fixed `totalPairs` (never mutated after the mount effect sets it).
+    const matchIndex = completedCountRef.current
+    completedCountRef.current += 1
+    if (!shouldGradeMatch(matchIndex, pairsByWordIdRef.current.size)) return
+
     const elapsedMs = Math.max(0, Date.now() - shownAtRef.current)
 
     const skillId = encodeSkillId(wordId, 'vocab:pl-ru')

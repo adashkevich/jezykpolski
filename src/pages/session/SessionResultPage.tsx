@@ -13,8 +13,17 @@
  * (`features/session-runner/lib/session-scope.ts`) recognizes that shape as the `'mistake'`
  * scope, and `useSessionBootstrap.ts#startFresh` maps that scope to `mode: 'mistakes'`. Only
  * rendered when there's at least one mistake to review.
+ *
+ * Task 36 (`spec/tasks/36-practice-screen-restructure.md` §4, FR-149) — when this session came
+ * from a `{ kind: 'practice-extra' }` scope (`SessionPage.tsx#goToResults` forwards
+ * `{ variant, filter }` as `state.practiceExtra`), "Закончить" is replaced by
+ * `PracticeDrillActions`'s "Ещё"/"К списку практик": these two drills ("Выбор перевода",
+ * "Написание по-польски") are meant to be repeated in a sitting, unlike ordinary Learn/forms
+ * sessions. "Разобрать ошибки" still renders above it when there are mistakes — reviewing what
+ * was just missed is orthogonal to "run another batch".
  */
 import { Navigate, useLocation, useNavigate } from 'react-router'
+import { useState } from 'react'
 import { PageContainer } from '@/components/app/PageContainer.tsx'
 import { PageHeader } from '@/components/app/PageHeader.tsx'
 import { EmptyState } from '@/components/app/EmptyState.tsx'
@@ -29,6 +38,13 @@ import {
   type MistakeEntry,
 } from '@/features/session-results/lib/build-session-summary.ts'
 import { useSessionResult } from '@/features/session-results/hooks/useSessionResult.ts'
+import {
+  resolveLexicalCandidateWordIds,
+  type LexicalWordFilter,
+  type PracticeExtraVariant,
+} from '@/features/session-runner/lib/session-scope.ts'
+import { VOCAB_DRILL_BATCH_SIZE, sampleWordBatch } from '@/learning/practice/lexical-batch.ts'
+import { PracticeDrillActions } from '@/features/session-runner/components/PracticeDrillActions.tsx'
 
 function bilingual(label: DimensionLabel): string {
   return `${label.pl} (${label.ru})`
@@ -83,11 +99,19 @@ function MistakeRow({ entry }: { entry: MistakeEntry }) {
   )
 }
 
+interface PracticeExtraOrigin {
+  readonly variant: PracticeExtraVariant
+  readonly filter: LexicalWordFilter
+}
+
 export function SessionResultPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const state = location.state as { sessionId?: number } | null
+  const state = location.state as
+    | { sessionId?: number; practiceExtra?: PracticeExtraOrigin }
+    | null
   const status = useSessionResult(state?.sessionId)
+  const [resampling, setResampling] = useState(false)
 
   if (status.phase === 'redirect-home') {
     return <Navigate to="/" replace />
@@ -119,6 +143,17 @@ export function SessionResultPage() {
 
   const { summary } = status
   const skillIdsForMistakes = mistakeSkillIds(summary)
+  const practiceExtra = state?.practiceExtra
+
+  async function handleAgain(origin: PracticeExtraOrigin) {
+    setResampling(true)
+    const ids = await resolveLexicalCandidateWordIds(origin.filter)
+    const wordIds = sampleWordBatch(ids, VOCAB_DRILL_BATCH_SIZE, Date.now())
+    navigate('/session', {
+      replace: true,
+      state: { practiceExtra: { variant: origin.variant, wordIds, filter: origin.filter } },
+    })
+  }
 
   return (
     <PageContainer>
@@ -168,29 +203,51 @@ export function SessionResultPage() {
         </Card>
       )}
 
-      <div className="flex gap-3">
-        {skillIdsForMistakes.length > 0 && (
+      {practiceExtra ? (
+        <>
+          {skillIdsForMistakes.length > 0 && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11 w-full"
+              onClick={() => {
+                navigate('/session', { state: { skillIds: skillIdsForMistakes } })
+              }}
+            >
+              Разобрать ошибки
+            </Button>
+          )}
+          <PracticeDrillActions
+            onAgain={() => void handleAgain(practiceExtra)}
+            againDisabled={resampling}
+            onBackToList={() => navigate('/practice')}
+          />
+        </>
+      ) : (
+        <div className="flex gap-3">
+          {skillIdsForMistakes.length > 0 && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11 flex-1"
+              onClick={() => {
+                navigate('/session', { state: { skillIds: skillIdsForMistakes } })
+              }}
+            >
+              Разобрать ошибки
+            </Button>
+          )}
           <Button
             type="button"
-            variant="secondary"
             className="min-h-11 flex-1"
             onClick={() => {
-              navigate('/session', { state: { skillIds: skillIdsForMistakes } })
+              navigate('/')
             }}
           >
-            Разобрать ошибки
+            Закончить
           </Button>
-        )}
-        <Button
-          type="button"
-          className="min-h-11 flex-1"
-          onClick={() => {
-            navigate('/')
-          }}
-        >
-          Закончить
-        </Button>
-      </div>
+        </div>
+      )}
     </PageContainer>
   )
 }

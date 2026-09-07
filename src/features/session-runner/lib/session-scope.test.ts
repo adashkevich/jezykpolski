@@ -20,8 +20,10 @@ import type { PracticeConfig } from '@/learning/session/session.types.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import {
   parseSessionScope,
+  resolveLexicalCandidateWordIds,
   resolvePracticeCandidateWords,
   resolveSessionCandidates,
+  type LexicalWordFilter,
 } from './session-scope.ts'
 
 function entry(
@@ -135,24 +137,47 @@ describe('parseSessionScope', () => {
 
   // Task 31 (`spec/tasks/31-practice-vocabulary-drills.md` §2, FR-137/FR-138).
   it('narrows { practiceExtra } router state to the practice-extra scope', () => {
+    const filter: LexicalWordFilter = { upToLevel: null, status: [], topN: null }
     expect(
       parseSessionScope({
-        practiceExtra: { variant: 'vocab-choice', wordIds: ['a|NOUN', 'b|VERB'] },
+        practiceExtra: { variant: 'vocab-choice', wordIds: ['a|NOUN', 'b|VERB'], filter },
       }),
-    ).toEqual({ kind: 'practice-extra', variant: 'vocab-choice', wordIds: ['a|NOUN', 'b|VERB'] })
+    ).toEqual({
+      kind: 'practice-extra',
+      variant: 'vocab-choice',
+      wordIds: ['a|NOUN', 'b|VERB'],
+      filter,
+    })
 
     expect(
-      parseSessionScope({ practiceExtra: { variant: 'vocab-spelling', wordIds: ['c|ADJ'] } }),
-    ).toEqual({ kind: 'practice-extra', variant: 'vocab-spelling', wordIds: ['c|ADJ'] })
+      parseSessionScope({
+        practiceExtra: { variant: 'vocab-spelling', wordIds: ['c|ADJ'], filter },
+      }),
+    ).toEqual({ kind: 'practice-extra', variant: 'vocab-spelling', wordIds: ['c|ADJ'], filter })
+  })
+
+  // Task 36 (`spec/tasks/36-practice-screen-restructure.md` §1, FR-149) — "Ещё" on
+  // `SessionResultPage`/`MatchingPracticePage` needs the originating lexical filter back to
+  // resample a fresh batch, so `parseSessionScope` must round-trip it unchanged.
+  it('reads practiceExtra.filter through unchanged', () => {
+    const filter: LexicalWordFilter = { upToLevel: 'B1', status: ['new', 'learning'], topN: 2000 }
+    const scope = parseSessionScope({
+      practiceExtra: { variant: 'vocab-spelling', wordIds: ['a|NOUN'], filter },
+    })
+    expect(scope.kind).toBe('practice-extra')
+    if (scope.kind === 'practice-extra') {
+      expect(scope.filter).toEqual(filter)
+    }
   })
 
   it('{ practiceExtra } takes priority over every other key if a caller somehow sent both', () => {
+    const filter: LexicalWordFilter = { upToLevel: null, status: [], topN: null }
     expect(
       parseSessionScope({
-        practiceExtra: { variant: 'vocab-choice', wordIds: ['a|NOUN'] },
+        practiceExtra: { variant: 'vocab-choice', wordIds: ['a|NOUN'], filter },
         wordId: 'b|NOUN',
       }),
-    ).toEqual({ kind: 'practice-extra', variant: 'vocab-choice', wordIds: ['a|NOUN'] })
+    ).toEqual({ kind: 'practice-extra', variant: 'vocab-choice', wordIds: ['a|NOUN'], filter })
   })
 })
 
@@ -475,5 +500,69 @@ describe('resolvePracticeCandidateWords (kind: practice)', () => {
     const candidates = await resolvePracticeCandidateWords(practiceConfig({ status: ['new'] }))
     // "dom" now has progress -> no longer status "new"; "kobieta" has none -> still "new".
     expect(candidates.map((c) => c.wordId)).toEqual([encodeWordId('kobieta', 'NOUN')])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// resolveLexicalCandidateWordIds (task 36, `spec/tasks/36-practice-screen-restructure.md` §1,
+// FR-147) — the POS-independent counterpart of `resolvePracticeCandidateWords` above, used by
+// the 3 lexical drills ("Выбор перевода", "Написание по-польски", "Сопоставление").
+// ---------------------------------------------------------------------------
+
+function lexicalFilter(overrides: Partial<LexicalWordFilter> = {}): LexicalWordFilter {
+  return { upToLevel: null, status: [], topN: null, ...overrides }
+}
+
+describe('resolveLexicalCandidateWordIds', () => {
+  it('returns words of every part of speech under the same level/status/frequency filter', async () => {
+    initIndexStore([
+      entry({ lemma: 'kobieta', pos: 'NOUN', level: 'A1', rank: 1 }),
+      entry({ lemma: 'robic', pos: 'VERB', level: 'A1', rank: 2 }),
+      entry({ lemma: 'dobry', pos: 'ADJ', level: 'A1', rank: 3 }),
+      entry({ lemma: 'szybko', pos: 'ADV', level: 'A1', rank: 4 }),
+    ])
+
+    const ids = await resolveLexicalCandidateWordIds(lexicalFilter())
+
+    // Task 36's whole point: ADV (unreachable from any Practice forms block) is included
+    // here, same as every other part of speech — no `pos` filter at all.
+    expect(new Set(ids)).toEqual(
+      new Set([
+        encodeWordId('kobieta', 'NOUN'),
+        encodeWordId('robic', 'VERB'),
+        encodeWordId('dobry', 'ADJ'),
+        encodeWordId('szybko', 'ADV'),
+      ]),
+    )
+  })
+
+  it('applies upToLevel the same way /words does', async () => {
+    initIndexStore([
+      entry({ lemma: 'kobieta', pos: 'NOUN', level: 'A1', rank: 1 }),
+      entry({ lemma: 'dom', pos: 'NOUN', level: 'B2', rank: 2 }),
+    ])
+
+    const ids = await resolveLexicalCandidateWordIds(lexicalFilter({ upToLevel: 'A1' }))
+    expect(ids).toEqual([encodeWordId('kobieta', 'NOUN')])
+  })
+
+  it('applies a status filter the same way /words does', async () => {
+    initIndexStore([
+      entry({ lemma: 'kobieta', pos: 'NOUN', rank: 1 }),
+      entry({ lemma: 'dom', pos: 'NOUN', rank: 2 }),
+    ])
+    const domWordId = encodeWordId('dom', 'NOUN')
+    await ensureSkill(encodeSkillId(domWordId, 'vocab:pl-ru'), domWordId, 'vocab', 'vocab:pl-ru')
+    await recomputeWordProgress(domWordId)
+
+    const ids = await resolveLexicalCandidateWordIds(lexicalFilter({ status: ['new'] }))
+    expect(ids).toEqual([encodeWordId('kobieta', 'NOUN')])
+  })
+
+  it('never fetches a paradigm shard (no vi.stubGlobal(fetch) needed even for a word with one)', async () => {
+    initIndexStore([entry({ lemma: 'kobieta', pos: 'NOUN', rank: 1, paradigmShard: 0 })])
+    // No `fetch` stub at all — a call to `getParadigm` here would throw/reject.
+    const ids = await resolveLexicalCandidateWordIds(lexicalFilter())
+    expect(ids).toEqual([encodeWordId('kobieta', 'NOUN')])
   })
 })

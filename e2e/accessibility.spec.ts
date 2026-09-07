@@ -87,15 +87,20 @@ test.describe('accessibility (axe) — light theme, real screens', () => {
 
   test('practice setup (/practice)', async ({ page }) => {
     await page.goto('/practice')
-    await expect(page.getByRole('tablist', { name: 'Раздел' })).toBeVisible()
-    // Task 32 (`spec/tasks/32-training-setup-collapsible-blocks.md` §4/acceptance) — the scan
-    // must pass with every block collapsed (the screen's default) AND with the forms
-    // configurator expanded (collapsed controls must never reach the axe scan either, but the
-    // expanded state is the one with the most controls on screen at once).
+    // Task 36 (`spec/tasks/36-practice-screen-restructure.md` §1/§3) removed the "Раздел"
+    // tabs — the 3 lexical drills are POS-independent now, and their "Начать" is visible
+    // immediately (no disclosure at all for those 3 blocks).
+    await expect(page.getByRole('button', { name: 'Начать: сопоставление' })).toBeVisible()
+    // The scan must pass with every forms block collapsed (the screen's default) AND with one
+    // expanded (collapsed controls must never reach the axe scan either, but the expanded
+    // state is the one with the most controls on screen at once) — same task 32
+    // acceptance criterion, now checked against one of task 36's 3 per-section forms blocks.
     await expectNoAxeViolations(page, '/practice (collapsed)')
 
-    await openTrainingBlock(page, 'Настроить тренировку форм')
-    await expect(page.getByRole('button', { name: 'Начать: тренировку форм слов' })).toBeVisible()
+    await openTrainingBlock(page, 'Формы существительных')
+    await expect(
+      page.getByRole('button', { name: 'Начать: тренировку форм существительных' }),
+    ).toBeVisible()
     await expectNoAxeViolations(page, '/practice (forms configurator expanded)')
   })
 

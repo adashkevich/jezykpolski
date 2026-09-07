@@ -1,5 +1,5 @@
 /**
- * The async half of `TrainingSetupScreen`'s live preview (`spec/tasks/19-practice-mode.md`
+ * The async half of a forms-training block's live preview (`spec/tasks/19-practice-mode.md`
  * §3, `spec/app-design.md` §23's "Найдено 412 слов, 2 890 форм").
  *
  * Deliberately keyed only by the *content-affecting* fields of `PracticeConfig`
@@ -10,6 +10,14 @@
  * safe: the matching pass that actually consumes `dimensionSelection` lives entirely in
  * `build-practice-queue.ts`, purely client-side over whatever `candidateWords` this hook
  * already fetched).
+ *
+ * Task 36 (`spec/tasks/36-practice-screen-restructure.md` §2/§3) — `TrainingSetupScreen` now
+ * has three independent forms blocks (one per `PracticeSection`), each collapsed by default,
+ * and this hook's whole point (paradigm shards are not cheap enough to fetch for a section the
+ * user hasn't opened) means it must not fetch anything for a closed block. `filter === null`
+ * (the screen passes this for every closed forms block) short-circuits to an immediately
+ * "not loading, no data" result — no effect, no fetch — rather than requiring every caller to
+ * conditionally call the hook at all (which would violate `react-hooks/rules-of-hooks`).
  */
 import { useEffect, useState } from 'react'
 import type { LevelValue } from '@/content/codec.ts'
@@ -36,19 +44,23 @@ function filterKey(filter: PracticeWordFilter): string {
 export interface PracticeCandidateWordsResult {
   /** `null` while the very first fetch for the current filter is still in flight; the
    *  *previous* filter's result stays visible while a new one loads (avoids an empty-preview
-   *  flash on every level/status/frequency tweak) — `loading` distinguishes the two cases. */
+   *  flash on every level/status/frequency tweak) — `loading` distinguishes the two cases.
+   *  Also `null` (with `loading: false`) whenever `filter` itself is `null` (block collapsed). */
   readonly candidateWords: readonly PracticeCandidateWord[] | null
   readonly loading: boolean
 }
 
-export function usePracticeCandidateWords(filter: PracticeWordFilter): PracticeCandidateWordsResult {
-  const key = filterKey(filter)
+export function usePracticeCandidateWords(
+  filter: PracticeWordFilter | null,
+): PracticeCandidateWordsResult {
+  const key = filter ? filterKey(filter) : null
   const [resolved, setResolved] = useState<{
     key: string
     candidateWords: readonly PracticeCandidateWord[]
   } | null>(null)
 
   useEffect(() => {
+    if (!filter) return
     let alive = true
     resolvePracticeCandidateWords({
       section: filter.section,
@@ -64,13 +76,17 @@ export function usePracticeCandidateWords(filter: PracticeWordFilter): PracticeC
       exerciseTypes: { choice: false, input: false },
       targetSize: 0,
     }).then((candidateWords) => {
-      if (alive) setResolved({ key, candidateWords })
+      if (alive) setResolved({ key: key!, candidateWords })
     })
     return () => {
       alive = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
+
+  if (!filter) {
+    return { candidateWords: null, loading: false }
+  }
 
   return {
     candidateWords: resolved?.candidateWords ?? null,

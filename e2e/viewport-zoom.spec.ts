@@ -76,7 +76,9 @@ test.describe('320px mobile viewport — no auto-zoom, no horizontal scroll', ()
 
   test('practice setup: level/frequency selects', async ({ page }) => {
     await page.goto('/practice')
-    await expect(page.getByRole('tablist', { name: 'Раздел' })).toBeVisible()
+    // Task 36 (`spec/tasks/36-practice-screen-restructure.md` §1) removed the "Раздел" tabs —
+    // "Выборка слов" is level/status/frequency only now.
+    await expect(page.getByRole('heading', { name: 'Выборка слов' })).toBeVisible()
     await expectNoHorizontalScroll(page, '/practice')
 
     await expectFocusedFontSizeAtLeast16(page.getByRole('combobox', { name: 'Уровень' }))

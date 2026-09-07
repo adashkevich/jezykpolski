@@ -1,26 +1,40 @@
 /**
- * "Настройка тренировки" (`spec/tasks/19-practice-mode.md`, `spec/app-design.md` §23,
- * FR-111...FR-114) — the ONE component that configures Practice for all three sections
- * (NOUN/VERB/ADJ, acceptance point 1). Parameterized entirely by `TRAINING_SECTIONS[section]`
- * (`../config/training-sections.ts`'s declarative `TrainingDimensionGroup[]`) — switching the
- * section tab re-renders the exact same JSX tree against a different data set, never a
- * different component.
+ * "Практика" (`spec/tasks/19-practice-mode.md`, `spec/tasks/36-practice-screen-restructure.md`,
+ * `spec/app-design.md` §23, FR-111...FR-114, FR-147...FR-152) — the one screen that configures
+ * every Practice drill.
  *
- * State flow (task text §4/§5, acceptance points 7/8):
- *  1. On mount, load the last-saved config (`settings` key `lastPracticeConfig`) and, if
- *     `initialFilter` was passed (`LearnFab.tsx`'s current `/words` filter), overlay its
- *     level/status/frequency/section on top — `../lib/practice-config.ts`'s own header spells
- *     out the exact precedence.
- *  2. Every edit updates local `config` state only; nothing is persisted until "Начать".
- *  3. `usePracticeCandidateWords` (async, content-layer) refetches only when
- *     section/level/status/frequency changes; `buildPracticeQueue` (pure, sync) recomputes
- *     the preview counts and the eligible-items count on every keystroke against whatever
- *     candidate words are already in hand — the exact same function `useSessionBootstrap.ts`
- *     calls to build the real queue (acceptance point 5).
- *  4. "Начать" persists `config` and navigates to `/session` with `{ practiceConfig: config
- *     }` — `session-scope.ts#parseSessionScope` picks it up as `{ kind: 'practice' }`.
+ * Task 36 rebuilt this screen around a POS-independent "Выборка слов" (уровень/статус/
+ * частотность, no more "Раздел" tabs — see `../lib/practice-config.ts`'s own header): the
+ * screen's state is now `PracticeScreenState`, a single shared `LexicalWordFilter` plus one
+ * `PracticeFormsConfig` per `PracticeSection`. Six collapsible/action blocks follow, in
+ * usage-ranked order (`useTrainingBlockOrder`, task 33, unchanged):
+ *
+ *  - "Выбор перевода", "Написание по-польски", "Сопоставление" — always-open
+ *    `TrainingActionBlock`s (task 36 §3: their body is one "Начать" button, hiding it behind
+ *    a click only cost a tap) that sample from the shared filter with no `pos` constraint at
+ *    all (`useLexicalCandidateWords`).
+ *  - "Формы существительных"/"...глаголов"/"...прилагательных" — three `TrainingBlock`s (task
+ *    32's disclosure component, unchanged), each carrying its own dimension/exercise-type/
+ *    count settings and its own "Начать", still POS-scoped (that's the point of a forms
+ *    drill). At most one is open at a time; `usePracticeCandidateWords` (paradigm-fetching,
+ *    not cheap) only ever runs for the currently open section.
+ *
+ * State flow:
+ *  1. On mount, load `PracticeScreenState` from `settings` (`PRACTICE_SCREEN_SETTING_KEY`), or
+ *     migrate the legacy single-section `lastPracticeConfig` the first time, or fall back to
+ *     `defaultPracticeScreenState()`. An incoming `/words` filter (`LearnFab.tsx`) overlays its
+ *     level/status/frequency and — new in task 36 — picks which forms block opens by default
+ *     instead of picking a tab.
+ *  2. Every edit updates local `state` only; nothing is persisted until a "Начать" is pressed.
+ *  3. `usePracticeCandidateWords`/`buildPracticeQueue` recompute the open forms block's own
+ *     preview counts; `useLexicalCandidateWords` recomputes the shared "Найдено N слов" line
+ *     and all three lexical drills' available word pool.
+ *  4. Each "Начать" persists `state` and navigates — forms to `/session` with
+ *     `{ practiceConfig }`, "Сопоставление" to `/practice/matching`, the two vocab drills to
+ *     `/session` with `{ practiceExtra }` — same four destinations task 19/31 already wired,
+ *     `session-scope.ts#parseSessionScope` unchanged.
  */
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { PageContainer } from '@/components/app/PageContainer.tsx'
@@ -32,26 +46,44 @@ import { LEVEL_VALUES } from '@/content/codec.ts'
 import type { WordQuery } from '@/content/query.ts'
 import * as settingsRepo from '@/db/repositories/settings.repository.ts'
 import { buildPracticeQueue } from '@/learning/session/build-practice-queue.ts'
-import type { PracticeConfig, PracticeSection } from '@/learning/session/session.types.ts'
+import type { PracticeSection } from '@/learning/session/session.types.ts'
 import type { WordStatus } from '@/types/progress.ts'
-import { PRACTICE_SECTION_TABS, TRAINING_SECTIONS } from '../config/training-sections.ts'
+import { MATCHING_PAIR_COUNT, VOCAB_DRILL_BATCH_SIZE, sampleWordBatch } from '@/learning/practice/lexical-batch.ts'
+import { TRAINING_SECTIONS } from '../config/training-sections.ts'
 import {
+  DEFAULT_LEXICAL_FILTER,
   PRACTICE_CONFIG_SETTING_KEY,
+  PRACTICE_SCREEN_SETTING_KEY,
   applyIncomingFilter,
-  defaultConfigForSection,
+  defaultPracticeScreenState,
+  migrateLegacyPracticeConfig,
+  practiceConfigFor,
   sectionFromFilterPos,
+  type PracticeFormsConfig,
+  type PracticeScreenState,
 } from '../lib/practice-config.ts'
+import type { PracticeConfig } from '@/learning/session/session.types.ts'
 import type { PracticeExtraVariant } from '@/features/session-runner/lib/session-scope.ts'
 import { usePracticeCandidateWords } from '../hooks/usePracticeCandidateWords.ts'
+import { useLexicalCandidateWords } from '../hooks/useLexicalCandidateWords.ts'
 import { useTrainingBlockOrder } from '../hooks/useTrainingBlockOrder.ts'
 import { CheckboxRow } from './CheckboxRow.tsx'
 import { DimensionGroupFieldset } from './DimensionGroupFieldset.tsx'
 import { TrainingBlock } from './TrainingBlock.tsx'
+import { TrainingActionBlock } from './TrainingActionBlock.tsx'
 
-/** Task 32's fixed block order (§1.2/§1.3), now task 33's `defaultOrder` — the order shown
- *  before any usage has been recorded, and the tiebreak order forever after (`block-usage.ts`'s
- *  `orderBlocks` doc comment). Must match `TrainingBlock`'s `id` props below literally. */
-const DEFAULT_BLOCK_ORDER = ['vocab-choice', 'vocab-spelling', 'matching', 'forms'] as const
+/** Task 32's original fixed block order, widened by task 36 (§3) from one `'forms'` id into
+ *  three per-section ids — the order shown before any usage has been recorded, and the
+ *  tiebreak order forever after (`block-usage.ts`'s `orderBlocks` doc comment). Must match the
+ *  `id`s used in `blocksById`/`recordRun` calls below literally. */
+const DEFAULT_BLOCK_ORDER = [
+  'vocab-choice',
+  'vocab-spelling',
+  'matching',
+  'forms-NOUN',
+  'forms-ADJ',
+  'forms-VERB',
+] as const
 
 const STATUS_OPTIONS: ReadonlyArray<{ value: WordStatus; label: string }> = [
   { value: 'new', label: 'Новые' },
@@ -70,14 +102,17 @@ const TOP_N_OPTIONS: ReadonlyArray<{ value: PracticeConfig['topN']; label: strin
 
 const TARGET_SIZE_OPTIONS: readonly number[] = [10, 20, 30, 50]
 
-/** Task 27 (`spec/tasks/27-context-and-error-analysis.md` §4/§5) — "Сопоставление" batch
- *  size, unchanged by task 31. */
-const MATCHING_PAIR_COUNT = 5
+const FORMS_BLOCK_TITLE: Readonly<Record<PracticeSection, string>> = {
+  NOUN: 'Формы существительных',
+  VERB: 'Формы глаголов',
+  ADJ: 'Формы прилагательных',
+}
 
-/** Task 31 (`spec/tasks/31-practice-vocabulary-drills.md` §3) — one batch-size constant for
- *  both lexical drills below ("Выбор перевода" / "Написание по-польски"). Fewer words are
- *  used when the current on-screen selection has fewer than this many (never padded). */
-const VOCAB_DRILL_BATCH_SIZE = 10
+const FORMS_START_ARIA_LABEL: Readonly<Record<PracticeSection, string>> = {
+  NOUN: 'Начать: тренировку форм существительных',
+  VERB: 'Начать: тренировку форм глаголов',
+  ADJ: 'Начать: тренировку форм прилагательных',
+}
 
 const selectClassName = cn(CONTROL_CLASS, 'px-3')
 
@@ -86,36 +121,14 @@ const selectClassName = cn(CONTROL_CLASS, 'px-3')
  *  see `build-practice-queue.ts`'s own header) is enough for this live preview. */
 const PREVIEW_SEED = 1
 
-/** Task 27's "Сопоставление" entry point and task 31's two vocab-drill entry points below all
- *  draw from the same seeded sample of `n` distinct items out of this screen's own
- *  already-resolved `candidateWords` — same small local mulberry32 duplicate every other
- *  seeded-sample site in this codebase uses (see `learning/session/build-practice-queue.ts`'s
- *  own header on why it's copied rather than imported). */
-function seededSample<T>(items: readonly T[], n: number, seed: number): T[] {
-  let a = seed >>> 0
-  const rng = () => {
-    a = (a + 0x6d2b79f5) | 0
-    let t = Math.imul(a ^ (a >>> 15), 1 | a)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-  const pool = [...items]
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1))
-    ;[pool[i], pool[j]] = [pool[j]!, pool[i]!]
-  }
-  return pool.slice(0, Math.max(0, n))
-}
-
 export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQuery }) {
   const navigate = useNavigate()
-  const [config, setConfig] = useState<PracticeConfig | null>(null)
-  const savedConfigRef = useRef<PracticeConfig | null>(null)
+  const [state, setState] = useState<PracticeScreenState | null>(null)
   const [starting, setStarting] = useState(false)
-  // Accordion state for the collapsible blocks below "Выборка слов" (task 32 §2/§3): at most
-  // one open at a time, nothing persisted — every fresh visit starts fully collapsed.
-  // Deliberately untouched by `handleSectionChange` — changing the section tab changes the
-  // word selection, not which block is open (task 32 §3's one behavioral note).
+  // Accordion state, now scoped to the 3 forms blocks only (task 36 §3) — the 3 lexical
+  // drills below have no disclosure state at all any more. At most one forms block open at a
+  // time, nothing persisted — every fresh visit starts fully collapsed unless an incoming
+  // `/words` filter says otherwise (see the mount effect below).
   const [openBlockId, setOpenBlockId] = useState<string | null>(null)
 
   function handleBlockOpenChange(id: string, open: boolean) {
@@ -124,28 +137,23 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
 
   useEffect(() => {
     let alive = true
-    settingsRepo.get<PracticeConfig | null>(PRACTICE_CONFIG_SETTING_KEY, null).then((saved) => {
-      if (!alive) return
-      savedConfigRef.current = saved
-      const filterSection = sectionFromFilterPos(initialFilter?.pos)
-      const section: PracticeSection = filterSection ?? saved?.section ?? 'NOUN'
-
-      let next = defaultConfigForSection(section)
-      if (saved && saved.section === section) {
-        next = {
-          ...next,
-          upToLevel: saved.upToLevel,
-          status: saved.status,
-          topN: saved.topN,
-          includeTranslation: saved.includeTranslation,
-          dimensionSelection: saved.dimensionSelection,
-          exerciseTypes: saved.exerciseTypes,
-          targetSize: saved.targetSize,
-        }
+    ;(async () => {
+      const saved = await settingsRepo.get<PracticeScreenState | null>(PRACTICE_SCREEN_SETTING_KEY, null)
+      let next: PracticeScreenState
+      if (saved) {
+        next = saved
+      } else {
+        const legacy = await settingsRepo.get<PracticeConfig | null>(PRACTICE_CONFIG_SETTING_KEY, null)
+        next = legacy ? migrateLegacyPracticeConfig(legacy) : defaultPracticeScreenState()
       }
       if (initialFilter) next = applyIncomingFilter(next, initialFilter)
-      setConfig(next)
-    })
+      if (!alive) return
+      setState(next)
+      // Task 36 §2 — an incoming `/words` filter with exactly one section now opens that
+      // section's forms block by default, instead of the pre-task-36 tab selection.
+      const filterSection = sectionFromFilterPos(initialFilter?.pos)
+      if (filterSection) setOpenBlockId(`forms-${filterSection}`)
+    })()
     return () => {
       alive = false
     }
@@ -155,48 +163,51 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const wordFilter = useMemo(
-    () =>
-      config
-        ? { section: config.section, upToLevel: config.upToLevel, status: config.status, topN: config.topN }
-        : { section: 'NOUN' as PracticeSection, upToLevel: null, status: [], topN: null },
-    [config],
-  )
-  const { candidateWords, loading: loadingCandidates } = usePracticeCandidateWords(wordFilter)
+  // Task 36 §1 — the shared, section-less filter every lexical drill samples from. Falls back
+  // to the same defaults `defaultPracticeScreenState()` would use while `state` is still
+  // loading, so the preview/drills can start fetching before the settings read resolves (same
+  // "prefetch against a sane default" behavior this screen has always had).
+  const lexicalFilter = state?.filter ?? DEFAULT_LEXICAL_FILTER
+  const { wordIds: lexicalWordIds, loading: loadingLexical } = useLexicalCandidateWords(lexicalFilter)
 
-  const plan = useMemo(() => {
-    if (!config || candidateWords === null) return null
-    return buildPracticeQueue({ config, candidateWords, seed: PREVIEW_SEED })
-  }, [config, candidateWords])
-
-  // Task 27's "Сопоставление" entry point (see this component's header) — declared before
-  // the `if (!config)` early return below so this `useMemo` call is never conditional
-  // (`react-hooks/rules-of-hooks`).
-  const matchingWordIds = useMemo(() => {
-    if (!candidateWords) return null
-    const ids = [...new Set(candidateWords.map((w) => w.wordId))]
-    return ids.length >= MATCHING_PAIR_COUNT ? ids : null
-  }, [candidateWords])
-
-  // Task 31's (`spec/tasks/31-practice-vocabulary-drills.md` §3) two lexical drills — same
-  // `candidateWords` source as "Сопоставление" above, but unlike it there is no minimum: a
-  // batch of fewer than `VOCAB_DRILL_BATCH_SIZE` words is still a useful drill, only an
-  // empty selection disables the button.
-  const vocabDrillWordIds = useMemo(() => {
-    if (!candidateWords) return null
-    const ids = [...new Set(candidateWords.map((w) => w.wordId))]
-    return ids.length > 0 ? ids : null
-  }, [candidateWords])
+  const matchingWordIds = lexicalWordIds && lexicalWordIds.length >= MATCHING_PAIR_COUNT ? lexicalWordIds : null
+  const vocabDrillWordIds = lexicalWordIds && lexicalWordIds.length > 0 ? lexicalWordIds : null
   const vocabDrillCount = vocabDrillWordIds
     ? Math.min(VOCAB_DRILL_BATCH_SIZE, vocabDrillWordIds.length)
     : 0
 
-  // Task 33 (`spec/tasks/33-training-block-usage-ranking.md` §3) — the 4 preset/forms blocks
-  // below render in `order`, not the fixed `DEFAULT_BLOCK_ORDER`; declared before the
-  // `if (!config)` early return like the two `useMemo`s above (`react-hooks/rules-of-hooks`).
+  // Task 36 §2 — only the currently open forms block ever fetches paradigms: `openSection` is
+  // `null` whenever no forms block (or a lexical block, which doesn't exist as a concept any
+  // more) is open.
+  const openSection: PracticeSection | null =
+    openBlockId?.startsWith('forms-') ? (openBlockId.slice('forms-'.length) as PracticeSection) : null
+
+  const formsWordFilter = useMemo(() => {
+    if (!state || !openSection) return null
+    return {
+      section: openSection,
+      upToLevel: state.filter.upToLevel,
+      status: state.filter.status,
+      topN: state.filter.topN,
+    }
+  }, [state, openSection])
+  const { candidateWords, loading: loadingCandidates } = usePracticeCandidateWords(formsWordFilter)
+
+  const formsPlan = useMemo(() => {
+    if (!state || !openSection || candidateWords === null) return null
+    return buildPracticeQueue({
+      config: practiceConfigFor(state, openSection),
+      candidateWords,
+      seed: PREVIEW_SEED,
+    })
+  }, [state, openSection, candidateWords])
+
+  // Task 33 (`spec/tasks/33-training-block-usage-ranking.md` §3) — the 6 blocks below render
+  // in `order`, not the fixed `DEFAULT_BLOCK_ORDER`; declared before the `if (!state)` early
+  // return like the derived values above (`react-hooks/rules-of-hooks`).
   const { order, recordRun } = useTrainingBlockOrder(DEFAULT_BLOCK_ORDER)
 
-  if (!config) {
+  if (!state) {
     return (
       <PageContainer>
         <PageHeader title="Практика" />
@@ -207,108 +218,198 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
     )
   }
 
-  const definition = TRAINING_SECTIONS[config.section]
+  function updateFilter(patch: Partial<PracticeScreenState['filter']>) {
+    setState((prev) => (prev ? { ...prev, filter: { ...prev.filter, ...patch } } : prev))
+  }
 
-  function handleSectionChange(section: PracticeSection) {
-    setConfig((prev) => {
+  function toggleStatus(status: WordStatus, checked: boolean) {
+    setState((prev) => {
       if (!prev) return prev
-      const base = defaultConfigForSection(section)
-      const saved = savedConfigRef.current
-      const overlay =
-        saved && saved.section === section
-          ? {
-              includeTranslation: saved.includeTranslation,
-              dimensionSelection: saved.dimensionSelection,
-              exerciseTypes: saved.exerciseTypes,
-            }
-          : {}
+      const next = checked
+        ? [...prev.filter.status, status]
+        : prev.filter.status.filter((s) => s !== status)
+      return { ...prev, filter: { ...prev.filter, status: next } }
+    })
+  }
+
+  function updateFormsConfig(section: PracticeSection, patch: Partial<PracticeFormsConfig>) {
+    setState((prev) => {
+      if (!prev) return prev
       return {
-        ...base,
-        upToLevel: prev.upToLevel,
-        status: prev.status,
-        topN: prev.topN,
-        targetSize: prev.targetSize,
-        ...overlay,
+        ...prev,
+        formsBySection: {
+          ...prev.formsBySection,
+          [section]: { ...prev.formsBySection[section], ...patch },
+        },
       }
     })
   }
 
-  function updateConfig(patch: Partial<PracticeConfig>) {
-    setConfig((prev) => (prev ? { ...prev, ...patch } : prev))
-  }
+  const openSectionForms = openSection ? state.formsBySection[openSection] : null
+  const noExerciseTypeSelected = openSectionForms
+    ? !openSectionForms.exerciseTypes.choice && !openSectionForms.exerciseTypes.input
+    : false
+  const emptyResult = formsPlan !== null && formsPlan.totalMatchingSkillCount === 0
+  const canStartForms = formsPlan !== null && !emptyResult && !noExerciseTypeSelected && !starting
 
-  function toggleStatus(status: WordStatus, checked: boolean) {
-    setConfig((prev) => {
-      if (!prev) return prev
-      const next = checked
-        ? [...prev.status, status]
-        : prev.status.filter((s) => s !== status)
-      return { ...prev, status: next }
-    })
-  }
-
-  const noExerciseTypeSelected = !config.exerciseTypes.choice && !config.exerciseTypes.input
-  const emptyResult = plan !== null && plan.totalMatchingSkillCount === 0
-  const canStart = plan !== null && !emptyResult && !noExerciseTypeSelected && !starting
-
-  async function handleStart() {
-    if (!config || !canStart) return
+  async function handleStartForms(section: PracticeSection) {
+    if (!state || section !== openSection || !canStartForms) return
     setStarting(true)
-    recordRun('forms')
-    await settingsRepo.set(PRACTICE_CONFIG_SETTING_KEY, config)
+    recordRun(`forms-${section}`)
+    const config = practiceConfigFor(state, section)
+    await settingsRepo.set(PRACTICE_SCREEN_SETTING_KEY, state)
     navigate('/session', { state: { practiceConfig: config } })
   }
 
   // ---------------------------------------------------------------------------------------
-  // 3 more entry points on this same screen, "по духу" identical to "Начать" above but each
-  // bypassing the whole `PracticeConfig`/`dimensionSelection` machinery (none of the 3 has a
-  // dimension to select) — all 3 reuse THIS screen's own already-resolved `candidateWords`
-  // (same section/level/status/frequency filter the user is currently looking at):
-  // "Сопоставление" (task 27, `spec/tasks/27-context-and-error-analysis.md` §4/§5) samples
-  // pairs from it; the two lexical drills below (task 31,
-  // `spec/tasks/31-practice-vocabulary-drills.md` §3/§4) sample a batch of up to
-  // `VOCAB_DRILL_BATCH_SIZE` words from the exact same pool instead of a separate frequency
-  // sampler — task 27's original two "extra" entry points (a pair of Practice-only quiz
-  // types testing translation-spotting and part-of-speech classification) used such a
-  // separate sampler; task 31 removed both (FR-56/FR-57 cancelled) and replaced them with
-  // these two.
+  // The 3 lexical drills' entry points (task 27/31, widened POS-independent by task 36 §1) —
+  // all 3 sample from `lexicalWordIds` above, no per-drill POS control, no "all POS" option
+  // needed (there's nothing to opt into: adverbs are reachable here for the first time).
   // ---------------------------------------------------------------------------------------
 
   function handleStartMatching() {
     if (!matchingWordIds) return
     recordRun('matching')
-    const wordIds = seededSample(matchingWordIds, MATCHING_PAIR_COUNT, Date.now())
-    navigate('/practice/matching', { state: { wordIds } })
+    const wordIds = sampleWordBatch(matchingWordIds, MATCHING_PAIR_COUNT, Date.now())
+    navigate('/practice/matching', { state: { wordIds, filter: lexicalFilter } })
   }
 
   function handleStartVocabDrill(variant: PracticeExtraVariant) {
     if (!vocabDrillWordIds) return
     recordRun(variant)
-    const wordIds = seededSample(vocabDrillWordIds, VOCAB_DRILL_BATCH_SIZE, Date.now())
-    navigate('/session', { state: { practiceExtra: { variant, wordIds } } })
+    const wordIds = sampleWordBatch(vocabDrillWordIds, VOCAB_DRILL_BATCH_SIZE, Date.now())
+    navigate('/session', { state: { practiceExtra: { variant, wordIds, filter: lexicalFilter } } })
   }
 
-  // Live counter text for "Выборка слов" (task 32 §3 — moved here from the forms
-  // configurator, unchanged computation) and, doubling as the "Настроить тренировку форм"
-  // block's own summary line, a short static description of what that block configures.
-  const foundCountText =
-    loadingCandidates && plan === null
+  // "Выборка слов"'s live counter (task 36 §1 — no more "N форм" here, each forms block now
+  // reports its own word/form counts in `formsCountText` below).
+  const lexicalCountText =
+    loadingLexical && lexicalWordIds === null
       ? 'Считаем…'
-      : plan
-        ? `Найдено ${plan.totalMatchingWordCount.toLocaleString('ru-RU')} слов, ${plan.totalMatchingSkillCount.toLocaleString('ru-RU')} форм`
+      : lexicalWordIds
+        ? `Найдено ${lexicalWordIds.length.toLocaleString('ru-RU')} слов`
         : ''
 
-  // Task 33 — one JSX subtree per rankable block, looked up by `id` and rendered in `order`
-  // just below. Content/behavior is otherwise untouched from task 32: same collapsed-by-
-  // default `TrainingBlock`s, same "Начать" handlers, now each also calling `recordRun`.
+  // A forms block's own "Найдено N слов, M форм" line (task 32's original wording, moved back
+  // into each block by task 36 §3) — only ever non-empty for the currently open section, which
+  // is the only one `formsPlan`/`loadingCandidates` are computed for.
+  function formsCountText(section: PracticeSection): string {
+    if (section !== openSection) return ''
+    if (loadingCandidates && formsPlan === null) return 'Считаем…'
+    if (!formsPlan) return ''
+    return `Найдено ${formsPlan.totalMatchingWordCount.toLocaleString('ru-RU')} слов, ${formsPlan.totalMatchingSkillCount.toLocaleString('ru-RU')} форм`
+  }
+
+  function renderFormsBlock(section: PracticeSection): ReactNode {
+    if (!state) return null
+    const id = `forms-${section}`
+    const definition = TRAINING_SECTIONS[section]
+    const forms = state.formsBySection[section]
+    const isOpen = openBlockId === id
+
+    return (
+      <TrainingBlock
+        id={id}
+        title={FORMS_BLOCK_TITLE[section]}
+        summary="Что тренировать, измерения, тип и количество заданий."
+        open={isOpen}
+        onOpenChange={(open) => handleBlockOpenChange(id, open)}
+      >
+        <div className="flex flex-col gap-1">
+          <p className="mb-1 text-sm font-medium text-foreground">Что тренировать</p>
+          <CheckboxRow
+            checked={forms.includeTranslation}
+            onChange={(checked) => updateFormsConfig(section, { includeTranslation: checked })}
+          >
+            Перевод
+          </CheckboxRow>
+        </div>
+
+        {definition.dimensionGroups.map((group) => (
+          <DimensionGroupFieldset
+            key={group.key}
+            group={group}
+            selected={forms.dimensionSelection[group.key] ?? []}
+            onChange={(values) =>
+              updateFormsConfig(section, {
+                dimensionSelection: { ...forms.dimensionSelection, [group.key]: values },
+              })
+            }
+          />
+        ))}
+
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-medium text-foreground">Тип задания</p>
+          {/* Task 28: у перевода фиксированные два этапа (выбор из списка -> написание
+              по-польски, FR-80), поэтому ограничение применяется только к формам слов. */}
+          <p className="mb-1 text-xs text-muted-foreground">Влияет на формы слов</p>
+          <div className="grid grid-cols-2 gap-x-3">
+            <CheckboxRow
+              checked={forms.exerciseTypes.choice}
+              onChange={(checked) =>
+                updateFormsConfig(section, { exerciseTypes: { ...forms.exerciseTypes, choice: checked } })
+              }
+            >
+              Выбор ответа
+            </CheckboxRow>
+            <CheckboxRow
+              checked={forms.exerciseTypes.input}
+              onChange={(checked) =>
+                updateFormsConfig(section, { exerciseTypes: { ...forms.exerciseTypes, input: checked } })
+              }
+            >
+              Ввод ответа
+            </CheckboxRow>
+          </div>
+          {isOpen && noExerciseTypeSelected && (
+            <p className="text-sm text-destructive">Выберите хотя бы один тип задания.</p>
+          )}
+        </div>
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+          Количество заданий
+          <select
+            value={forms.targetSize}
+            onChange={(e) => updateFormsConfig(section, { targetSize: Number(e.target.value) })}
+            className={selectClassName}
+          >
+            {TARGET_SIZE_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n} заданий
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+          {formsCountText(section)}
+        </p>
+
+        {isOpen && emptyResult && (
+          <p className="text-sm text-destructive">
+            Под эти фильтры не попало ни одного слова. Ослабьте фильтры или отметьте больше
+            вариантов в «Что тренировать»/«Падежи» и т.п.
+          </p>
+        )}
+
+        <Button
+          type="button"
+          onClick={() => void handleStartForms(section)}
+          disabled={!isOpen || !canStartForms}
+          aria-label={FORMS_START_ARIA_LABEL[section]}
+          className="min-h-11"
+        >
+          Начать
+        </Button>
+      </TrainingBlock>
+    )
+  }
+
   const blocksById: Record<string, ReactNode> = {
     'vocab-choice': (
-      <TrainingBlock
-        id="vocab-choice"
+      <TrainingActionBlock
         title="Выбор перевода (PL → RU)"
         summary={`${vocabDrillCount} слов из текущей выборки: выберите правильный перевод из четырёх вариантов.`}
-        open={openBlockId === 'vocab-choice'}
-        onOpenChange={(open) => handleBlockOpenChange('vocab-choice', open)}
       >
         <Button
           type="button"
@@ -325,16 +426,13 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
             Нужно хотя бы 1 слово в текущей выборке — ослабьте фильтры.
           </p>
         )}
-      </TrainingBlock>
+      </TrainingActionBlock>
     ),
 
     'vocab-spelling': (
-      <TrainingBlock
-        id="vocab-spelling"
+      <TrainingActionBlock
         title="Написание по-польски (RU → PL)"
         summary={`${vocabDrillCount} слов из текущей выборки: наберите польское слово по буквам.`}
-        open={openBlockId === 'vocab-spelling'}
-        onOpenChange={(open) => handleBlockOpenChange('vocab-spelling', open)}
       >
         <Button
           type="button"
@@ -351,16 +449,13 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
             Нужно хотя бы 1 слово в текущей выборке — ослабьте фильтры.
           </p>
         )}
-      </TrainingBlock>
+      </TrainingActionBlock>
     ),
 
     matching: (
-      <TrainingBlock
-        id="matching"
+      <TrainingActionBlock
         title="Сопоставление"
         summary={`Соедините ${MATCHING_PAIR_COUNT} польских слов из текущей выборки с их переводами.`}
-        open={openBlockId === 'matching'}
-        onOpenChange={(open) => handleBlockOpenChange('matching', open)}
       >
         <Button
           type="button"
@@ -377,148 +472,32 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
             Нужно как минимум {MATCHING_PAIR_COUNT} слов в текущей выборке — ослабьте фильтры.
           </p>
         )}
-      </TrainingBlock>
+      </TrainingActionBlock>
     ),
 
-    // "Настроить тренировку форм" (task 32 §1.3) — the title is phrased as an action
-    // ("настроить", not "тренировка форм слов") since opening it is the "кнопка
-    // сконфигурировать" the task text calls for. Everything the old flat form had — "Что
-    // тренировать", dimension groups, "Тип задания", "Количество заданий", the
-    // empty-selection message, and the main "Начать" — lives inside this one block's body, in
-    // that same order, with "Начать" last.
-    forms: (
-      <TrainingBlock
-        id="forms"
-        title="Настроить тренировку форм"
-        summary="Что тренировать, измерения, тип и количество заданий — все настройки формы здесь."
-        open={openBlockId === 'forms'}
-        onOpenChange={(open) => handleBlockOpenChange('forms', open)}
-      >
-        <div className="flex flex-col gap-1">
-          <p className="mb-1 text-sm font-medium text-foreground">Что тренировать</p>
-          <CheckboxRow
-            checked={config.includeTranslation}
-            onChange={(checked) => updateConfig({ includeTranslation: checked })}
-          >
-            Перевод
-          </CheckboxRow>
-        </div>
-
-        {definition.dimensionGroups.map((group) => (
-          <DimensionGroupFieldset
-            key={group.key}
-            group={group}
-            selected={config.dimensionSelection[group.key] ?? []}
-            onChange={(values) =>
-              updateConfig({
-                dimensionSelection: { ...config.dimensionSelection, [group.key]: values },
-              })
-            }
-          />
-        ))}
-
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium text-foreground">Тип задания</p>
-          {/* Task 28: у перевода фиксированные два этапа (выбор из списка -> написание
-              по-польски, FR-80), поэтому ограничение применяется только к формам слов. */}
-          <p className="mb-1 text-xs text-muted-foreground">Влияет на формы слов</p>
-          <div className="grid grid-cols-2 gap-x-3">
-            <CheckboxRow
-              checked={config.exerciseTypes.choice}
-              onChange={(checked) =>
-                updateConfig({ exerciseTypes: { ...config.exerciseTypes, choice: checked } })
-              }
-            >
-              Выбор ответа
-            </CheckboxRow>
-            <CheckboxRow
-              checked={config.exerciseTypes.input}
-              onChange={(checked) =>
-                updateConfig({ exerciseTypes: { ...config.exerciseTypes, input: checked } })
-              }
-            >
-              Ввод ответа
-            </CheckboxRow>
-          </div>
-          {noExerciseTypeSelected && (
-            <p className="text-sm text-destructive">Выберите хотя бы один тип задания.</p>
-          )}
-        </div>
-
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
-          Количество заданий
-          <select
-            value={config.targetSize}
-            onChange={(e) => updateConfig({ targetSize: Number(e.target.value) })}
-            className={selectClassName}
-          >
-            {TARGET_SIZE_OPTIONS.map((n) => (
-              <option key={n} value={n}>
-                {n} заданий
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {emptyResult && (
-          <p className="text-sm text-destructive">
-            Под эти фильтры не попало ни одного слова. Ослабьте фильтры или отметьте больше
-            вариантов в «Что тренировать»/«Падежи» и т.п.
-          </p>
-        )}
-
-        <Button
-          type="button"
-          onClick={() => void handleStart()}
-          disabled={!canStart}
-          aria-label="Начать: тренировку форм слов"
-          className="min-h-11"
-        >
-          Начать
-        </Button>
-      </TrainingBlock>
-    ),
+    'forms-NOUN': renderFormsBlock('NOUN'),
+    'forms-ADJ': renderFormsBlock('ADJ'),
+    'forms-VERB': renderFormsBlock('VERB'),
   }
 
   return (
     <PageContainer>
-      <PageHeader title={definition.title} description="Свободная тренировка — вы сами задаёте, что тренировать (FR-111)." />
+      <PageHeader title="Практика" description="Свободная тренировка — вы сами задаёте, что тренировать (FR-111)." />
 
-      {/* "Выборка слов" (task 32 §1.1) — always expanded, never a `TrainingBlock`: every block
-          below depends on it, so hiding it would mean launching a drill blind. */}
+      {/* "Выборка слов" (task 32 §1.1, POS removed by task 36 §1) — always expanded, never a
+          `TrainingBlock`: every block below depends on it, so hiding it would mean launching a
+          drill blind. */}
       <section className="flex flex-col gap-4 rounded-xl border border-border p-4">
         <h2 className="font-heading text-base font-medium text-foreground">Выборка слов</h2>
-
-        <div role="tablist" aria-label="Раздел" className="flex gap-1 overflow-x-auto rounded-lg bg-muted p-1">
-          {PRACTICE_SECTION_TABS.map((tab) => {
-            const active = config.section === tab.value
-            return (
-              <button
-                key={tab.value}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => handleSectionChange(tab.value)}
-                className={cn(
-                  'min-h-11 flex-1 rounded-md px-2 text-sm font-medium whitespace-nowrap transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-                  active
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {tab.label}
-              </button>
-            )
-          })}
-        </div>
 
         <div className="flex flex-col gap-4">
           <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
             Уровень
             <select
-              value={config.upToLevel ?? ''}
-              onChange={(e) => updateConfig({ upToLevel: (e.target.value || null) as PracticeConfig['upToLevel'] })}
+              value={state.filter.upToLevel ?? ''}
+              onChange={(e) =>
+                updateFilter({ upToLevel: (e.target.value || null) as PracticeScreenState['filter']['upToLevel'] })
+              }
               className={selectClassName}
             >
               <option value="">Все уровни</option>
@@ -536,7 +515,7 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
               {STATUS_OPTIONS.map((option) => (
                 <CheckboxRow
                   key={option.value}
-                  checked={config.status.includes(option.value)}
+                  checked={state.filter.status.includes(option.value)}
                   onChange={(checked) => toggleStatus(option.value, checked)}
                 >
                   {option.label}
@@ -548,10 +527,10 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
           <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
             Частотность
             <select
-              value={config.topN ?? ''}
+              value={state.filter.topN ?? ''}
               onChange={(e) =>
-                updateConfig({
-                  topN: (e.target.value ? Number(e.target.value) : null) as PracticeConfig['topN'],
+                updateFilter({
+                  topN: (e.target.value ? Number(e.target.value) : null) as PracticeScreenState['filter']['topN'],
                 })
               }
               className={selectClassName}
@@ -566,16 +545,13 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
         </div>
 
         <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-          {foundCountText}
+          {lexicalCountText}
         </p>
       </section>
 
-      {/* Preset blocks (task 32 §1.2) + the forms configurator (task 32 §1.3) below — no
-          fixed order any more: task 33 renders them in `order`
-          (`useTrainingBlockOrder(DEFAULT_BLOCK_ORDER)` above), keyed by the same `id`s
-          `TrainingBlockProps.id` and `recordRun` both use. Each block's JSX lives in
-          `blocksById`, a plain lookup table rather than 4 more `<TrainingBlock>`s inlined in
-          document order — the whole point being that document order is no longer fixed. */}
+      {/* Task 33's usage-ranked order, now over 6 ids (task 36 §3). Each block's JSX lives in
+          `blocksById`, a plain lookup table rather than 6 elements inlined in document order —
+          document order is not fixed here. */}
       {order.map((id) => (
         <Fragment key={id}>{blocksById[id]}</Fragment>
       ))}

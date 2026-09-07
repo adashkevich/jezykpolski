@@ -11,6 +11,13 @@
  * segment `Dimension.split(':')` would produce for that axis (e.g. person `'1'`/`'2'`/`'3'`
  * as decimal strings, not the numeric `PersonValue`) — `build-practice-queue.ts`'s matchers
  * compare against these verbatim, no re-parsing on either side.
+ *
+ * Task 36 (`spec/tasks/36-practice-screen-restructure.md` §3) removed this file's former
+ * `PRACTICE_SECTION_TABS` export — the "Раздел" tabs it fed are gone from
+ * `TrainingSetupScreen`, replaced by 3 independent forms blocks (one per `PracticeSection`)
+ * that no longer share a single active-tab selection. `TrainingSectionDefinition`/
+ * `TRAINING_SECTIONS` themselves are unchanged — each section's `dimensionGroups` still back
+ * exactly one forms block's `DimensionGroupFieldset`s.
  */
 import {
   CASE_DISPLAY_ORDER,
@@ -149,9 +156,3 @@ export const TRAINING_SECTIONS: Readonly<Record<PracticeSection, TrainingSection
     ],
   },
 }
-
-export const PRACTICE_SECTION_TABS: ReadonlyArray<{ value: PracticeSection; label: string }> = [
-  { value: 'NOUN', label: 'Существительные' },
-  { value: 'VERB', label: 'Глаголы' },
-  { value: 'ADJ', label: 'Прилагательные' },
-]

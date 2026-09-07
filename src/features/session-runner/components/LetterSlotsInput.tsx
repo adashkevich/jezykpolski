@@ -53,14 +53,20 @@ const POLISH_SPECIAL_CHARS = ['ą', 'ć', 'ę', 'ł', 'ń', 'ó', 'ś', 'ź', '�
 
 /** NFR-11 — цвет никогда не единственный признак; каждое небезупречное состояние несёт ещё
  *  и форму подчёркивания (сплошное/пунктирное) или начертание, ровно как `AnswerDiff.tsx`'s
- *  `KIND_CLASS` для той же цели. */
+ *  `KIND_CLASS` для той же цели.
+ *
+ *  **Изменено задачей 36** (`spec/tasks/36-practice-screen-restructure.md` §5, FR-151):
+ *  `revealed` раньше красился в приглушённый `text-muted-foreground` и курсив — по запросу
+ *  пользователя раскрытое кнопкой «Показать слово» слово теперь рисуется обычным цветом текста
+ *  (`text-foreground`) и обычным начертанием; единственный оставшийся неcветовой признак —
+ *  пунктирное подчёркивание, которого NFR-11 и требует. */
 const CELL_CLASS: Readonly<Record<CellState, string>> = {
   empty: 'border-border text-transparent',
   correct: 'border-success text-success',
   corrected: 'border-warning text-warning underline decoration-warning decoration-dotted decoration-2',
   wrong: 'border-error bg-error/15 font-bold text-error underline decoration-error decoration-2',
   hinted: 'border-warning text-warning underline decoration-warning decoration-dotted decoration-2',
-  revealed: 'border-muted-foreground text-muted-foreground italic underline decoration-dotted decoration-2',
+  revealed: 'border-muted-foreground text-foreground underline decoration-dotted decoration-2',
   separator: 'border-transparent',
 }
 
@@ -214,7 +220,12 @@ export function LetterSlotsInput({
           aria-hidden="true"
           className="overflow-x-auto rounded-lg border border-transparent px-2 py-1"
         >
-          <div className="flex flex-wrap justify-start gap-1">
+          {/* **Изменено задачей 36** (`spec/tasks/36-practice-screen-restructure.md` §5,
+              FR-151) — задача 30 §2.3 требовала выравнивания по левому краю ("уже набранные
+              буквы не «прыгали» при добавлении слота"); по прямому запросу пользователя ряд
+              теперь центрируется. Контейнер выше остаётся `overflow-x-auto`, так что длинное
+              слово по-прежнему скроллится внутри себя, а не растягивает страницу на 320px. */}
+          <div className="flex flex-wrap justify-center gap-1">
             {visibleCells.map((cell, index) =>
               cell.state === 'separator' ? (
                 <span key={index} className="w-3" />

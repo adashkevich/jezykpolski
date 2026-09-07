@@ -105,8 +105,9 @@ import {
   unlockedLevels,
 } from '@/learning/session/level-gate.ts'
 import type { PracticeCandidateWord, PracticeConfig } from '@/learning/session/session.types.ts'
-import type { SkillRecord } from '@/types/progress.ts'
+import type { SkillRecord, WordStatus } from '@/types/progress.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
+import type { LevelValue } from '@/content/codec.ts'
 
 /**
  * Task 31 (`spec/tasks/31-practice-vocabulary-drills.md` §2, FR-137/FR-138) — which of the 2
@@ -120,8 +121,29 @@ import type { WordIndexEntry } from '@/types/content.ts'
  * queue/registry path unchanged — what makes them "extra" is only that
  * `useSessionBootstrap.ts` materializes the specific `vocab:*` skill this variant needs
  * instead of picking whichever skill happens to be due.
+ *
+ * Task 36 (`spec/tasks/36-practice-screen-restructure.md` §1, FR-147) widened these two drills
+ * (and "Сопоставление") to be POS-independent: they used to share `TrainingSetupScreen`'s
+ * `config.section`-filtered `candidateWords`, which meant "Выбор перевода" only ever offered
+ * nouns (or verbs, or adjectives) depending on which tab was active, and adverbs were
+ * unreachable from any lexical drill. `LexicalWordFilter` below is the section-less remainder
+ * of that filter (level/status/frequency only) — every one of these three drills now samples
+ * from `resolveLexicalCandidateWordIds(filter)` instead.
  */
 export type PracticeExtraVariant = 'vocab-choice' | 'vocab-spelling'
+
+/** The screen-wide "Выборка слов" filter (`TrainingSetupScreen`'s always-expanded top
+ *  section) — level/status/frequency, deliberately with no `pos` field. Task 36's three
+ *  lexical drills ("Выбор перевода", "Написание по-польски", "Сопоставление") are the only
+ *  consumers; the forms-training blocks keep using the full `PracticeConfig` (which still has
+ *  its own per-section `pos` via `practiceConfigFor`, `features/training-setup/lib/practice-config.ts`).
+ *  Carried on the `practice-extra` scope (below) so `SessionResultPage`'s "Ещё" can resample a
+ *  fresh batch without the screen itself. */
+export interface LexicalWordFilter {
+  readonly upToLevel: LevelValue | null
+  readonly status: readonly WordStatus[]
+  readonly topN: 500 | 1000 | 2000 | 5000 | null
+}
 
 export type SessionScope =
   | { readonly kind: 'global' }
@@ -134,6 +156,7 @@ export type SessionScope =
       readonly kind: 'practice-extra'
       readonly variant: PracticeExtraVariant
       readonly wordIds: readonly WordId[]
+      readonly filter: LexicalWordFilter
     }
 
 /** Every `SessionScope` `resolveSessionCandidates` below actually knows how to handle — see
@@ -181,8 +204,17 @@ export function parseSessionScope(locationState: unknown): SessionScope {
       return { kind: 'practice', config: state.practiceConfig as PracticeConfig }
     }
     if (state.practiceExtra && typeof state.practiceExtra === 'object') {
-      const extra = state.practiceExtra as { variant: PracticeExtraVariant; wordIds: WordId[] }
-      return { kind: 'practice-extra', variant: extra.variant, wordIds: extra.wordIds }
+      const extra = state.practiceExtra as {
+        variant: PracticeExtraVariant
+        wordIds: WordId[]
+        filter: LexicalWordFilter
+      }
+      return {
+        kind: 'practice-extra',
+        variant: extra.variant,
+        wordIds: extra.wordIds,
+        filter: extra.filter,
+      }
     }
     if (Array.isArray(state.skillIds)) {
       return { kind: 'mistake', skillIds: state.skillIds as SkillId[] }
@@ -379,4 +411,29 @@ export async function resolvePracticeCandidateWords(
       return { wordId, descriptors: enumerateSkills(word, paradigm ?? undefined) }
     }),
   )
+}
+
+// ---------------------------------------------------------------------------------------
+// Task 36 (`spec/tasks/36-practice-screen-restructure.md` §1, FR-147) — the lexical-drill
+// counterpart of `resolvePracticeCandidateWords` above. Deliberately much cheaper: these three
+// drills ("Выбор перевода", "Написание по-польски", "Сопоставление") only ever need a
+// `WordId` to sample from (`useSessionBootstrap.ts`'s practice-extra branch and
+// `useMatchingPracticeSession.ts` both resolve lemma/translation themselves via
+// `SessionContentCache`), so — unlike `resolvePracticeCandidateWords` — this never fetches a
+// single paradigm shard and never calls `enumerateSkills`. No `pos` filter at all: task 36's
+// whole point is that these three drills stopped being tied to one part of speech.
+// ---------------------------------------------------------------------------------------
+
+export async function resolveLexicalCandidateWordIds(
+  filter: LexicalWordFilter,
+): Promise<WordId[]> {
+  const progress = await getAllWordProgress()
+  const query: WordQuery = {
+    upToLevel: filter.upToLevel ?? undefined,
+    status: filter.status.length > 0 ? filter.status : undefined,
+    topN: filter.topN,
+    sort: 'frequency',
+  }
+  const matchingWords = queryWords(query, progress)
+  return [...new Set(matchingWords.map((word) => encodeWordId(word.lemma, word.pos)))]
 }

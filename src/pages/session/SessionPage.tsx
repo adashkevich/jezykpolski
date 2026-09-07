@@ -36,10 +36,23 @@ export function SessionPage() {
    * other case passes `sessionId` as router state — `SessionResultPage` has no other way to
    * know which session to render, since the active session's own Zustand state is already
    * reset by the time this fires.
+   *
+   * Task 36 (`spec/tasks/36-practice-screen-restructure.md` §4) — a `practice-extra` scope
+   * additionally forwards `{ variant, filter }` so `SessionResultPage` can offer "Ещё" (a
+   * fresh batch from the same lexical filter) instead of only "Закончить". The empty-queue
+   * case for this scope goes back to `/practice` rather than home — this drill was launched
+   * from there, and there is nothing session-related to show, but the user is mid-Practice.
    */
   function goToResults(sessionId: number, totalCount: number) {
     if (totalCount === 0) {
-      navigate('/', { replace: true })
+      navigate(scope.kind === 'practice-extra' ? '/practice' : '/', { replace: true })
+      return
+    }
+    if (scope.kind === 'practice-extra') {
+      navigate('/session/result', {
+        replace: true,
+        state: { sessionId, practiceExtra: { variant: scope.variant, filter: scope.filter } },
+      })
       return
     }
     navigate('/session/result', { replace: true, state: { sessionId } })
