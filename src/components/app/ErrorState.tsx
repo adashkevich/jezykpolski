@@ -11,8 +11,15 @@ import { Button } from '@/components/ui/button'
  * retry — blueprint §19's "meaningful boundary" for IndexedDB initialization failure,
  * `spec/tasks/05-persistence.md` §7). Omitting it (every other current caller) renders
  * exactly the single-button layout this component always had.
+ *
+ * `title` is also optional, defaulting to the original "dictionary" wording — this component
+ * started as `ContentProvider`'s alone, and `DatabaseProvider.tsx` reused it as-is, which made
+ * a pure IndexedDB failure ("Unable to open cursor…") confusingly say "failed to load the
+ * dictionary". `DatabaseProvider` now passes its own, accurate title instead of leaving the
+ * default in place for a failure that has nothing to do with content loading.
  */
 export interface ErrorStateProps {
+  readonly title?: string
   readonly message: string
   readonly onRetry: () => void
   readonly secondaryAction?: {
@@ -21,13 +28,18 @@ export interface ErrorStateProps {
   }
 }
 
-export function ErrorState({ message, onRetry, secondaryAction }: ErrorStateProps) {
+export function ErrorState({
+  title = 'Nie udało się załadować słownika',
+  message,
+  onRetry,
+  secondaryAction,
+}: ErrorStateProps) {
   return (
     <main
       role="alert"
       className="flex min-h-svh flex-col items-center justify-center gap-4 bg-background p-6 text-center text-foreground"
     >
-      <p className="font-medium">Nie udało się załadować słownika</p>
+      <p className="font-medium">{title}</p>
       <p className="max-w-sm text-sm text-muted-foreground">{message}</p>
       <div className="flex flex-col gap-2">
         {/* min-h-11 keeps the touch target >= 44px (NFR-11) even though the shared Button's

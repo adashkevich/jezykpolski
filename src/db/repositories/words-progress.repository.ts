@@ -16,7 +16,12 @@ import { getIndexStore } from '@/content/index-store.ts'
 import { getParadigm } from '@/content/paradigms.ts'
 import { aggregateWord, deriveStatus } from '@/learning/progress/aggregate.ts'
 import { enumerateSkills } from '@/learning/skills/enumerate.ts'
-import { decodeWordId, encodeWordId, type SkillId, type WordId } from '@/learning/skills/skill-id.ts'
+import {
+  decodeWordId,
+  encodeWordId,
+  type SkillId,
+  type WordId,
+} from '@/learning/skills/skill-id.ts'
 import type { LevelPoolCounts } from '@/learning/session/level-gate.ts'
 import type { SkillRecord, WordProgressRecord } from '@/types/progress.ts'
 
@@ -112,9 +117,10 @@ export function computeLevelPoolCounts(
     LevelValue,
     number
   >
-  const startedByLevel = Object.fromEntries(
-    LEVEL_VALUES.map((level) => [level, false]),
-  ) as Record<LevelValue, boolean>
+  const startedByLevel = Object.fromEntries(LEVEL_VALUES.map((level) => [level, false])) as Record<
+    LevelValue,
+    boolean
+  >
 
   for (const entry of getIndexStore().byLevel) {
     const wordId = encodeWordId(entry.lemma, entry.pos)
@@ -204,12 +210,26 @@ export async function recomputeWordProgress(wordId: WordId): Promise<void> {
  * cleared-but-not-yet-refilled table).
  */
 export async function recomputeAll(): Promise<void> {
-  // Distinct wordIds via the `wordId` index — cheap, no full-table scan of `skills`.
-  const wordIds = (await db.skills.orderBy('wordId').uniqueKeys()) as WordId[]
+  // One getAll() read, grouped in memory — deliberately NOT `orderBy('wordId').uniqueKeys()`.
+  // Dexie's `keys()`/`uniqueKeys()` has no getAll-based fast path (unlike `toArray()`,
+  // `primaryKeys()`, `count()`): it always opens an index cursor
+  // (`store.index('wordId').openKeyCursor(null, 'nextunique')`). That call is known to throw
+  // `UnknownError: Unable to open cursor` on some WebKit/iOS builds, which used to brick the
+  // app on startup (this function used to run from `DatabaseProvider`, before every other
+  // screen). `toArray()` with no filter/reverse goes through `IDBObjectStore.getAll()`
+  // instead — no cursor — same as the export path in `backup.repository.ts`. This also
+  // removes the previous per-word `where('wordId').equals(...)` query (N+1).
+  const allSkills = await db.skills.toArray()
+
+  const byWord = new Map<WordId, SkillRecord[]>()
+  for (const skill of allSkills) {
+    const bucket = byWord.get(skill.wordId)
+    if (bucket) bucket.push(skill)
+    else byWord.set(skill.wordId, [skill])
+  }
 
   const records: WordProgressRecord[] = []
-  for (const wordId of wordIds) {
-    const skillsForWord = await db.skills.where('wordId').equals(wordId).toArray()
+  for (const [wordId, skillsForWord] of byWord) {
     const record = await computeWordProgress(wordId, skillsForWord)
     if (record !== undefined) records.push(record)
   }

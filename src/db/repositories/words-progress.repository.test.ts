@@ -146,6 +146,31 @@ describe('recomputeAll matches incremental recomputeWordProgress bit-for-bit', (
 
     expect(await getWordProgress('kobieta|NOUN')).toBeUndefined()
   })
+
+  // Regression test for the real-world bug: some WebKit/iOS builds throw
+  // `UnknownError: Unable to open cursor` from `IDBIndex.openCursor`/`openKeyCursor`, which
+  // used to brick the whole app on startup because `recomputeAll` relied on
+  // `orderBy('wordId').uniqueKeys()` — the one Dexie call in the whole app's boot path with no
+  // getAll-based fast path, so it always opened a cursor. `recomputeAll` must not depend on
+  // that call at all; simulating the browser bug here (rather than only trusting the
+  // implementation not to regress) is what actually proves it.
+  it('recomputeAll never opens an IndexedDB cursor (would break on WebKit builds that reject it)', async () => {
+    const openCursor = IDBIndex.prototype.openCursor
+    const openKeyCursor = IDBIndex.prototype.openKeyCursor
+    const cursorError = () => {
+      throw new DOMException('Unable to open cursor', 'UnknownError')
+    }
+    IDBIndex.prototype.openCursor = cursorError as typeof openCursor
+    IDBIndex.prototype.openKeyCursor = cursorError as typeof openKeyCursor
+    try {
+      await expect(recomputeAll()).resolves.toBeUndefined()
+      const result = await getAllWordProgress()
+      expect(result.size).toBe(words.length)
+    } finally {
+      IDBIndex.prototype.openCursor = openCursor
+      IDBIndex.prototype.openKeyCursor = openKeyCursor
+    }
+  })
 })
 
 // `spec/tasks/15-home-screen.md` §3/§4: the home screen's "изучается / выучено" counters

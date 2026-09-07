@@ -3,6 +3,7 @@ import { ContentProvider } from './ContentProvider.tsx'
 import { DatabaseProvider } from './DatabaseProvider.tsx'
 import { useThemeSync } from '@/features/settings/hooks/useThemeSync.ts'
 import { StoragePersistRequest } from '@/components/app/StoragePersistRequest.tsx'
+import { StartupMigrations } from '@/components/app/StartupMigrations.tsx'
 
 /**
  * Composes the two readiness gates every route needs before it can render for real
@@ -26,13 +27,23 @@ import { StoragePersistRequest } from '@/components/app/StoragePersistRequest.ts
  * Task-25 addition, same pattern: `<StoragePersistRequest />` is another silent sibling here
  * (needs the `skills` table open, same reason `ThemeSync` sits inside `DatabaseProvider`) —
  * see `components/app/StoragePersistRequest.tsx`.
+ *
+ * `<StartupMigrations />` is mounted *inside* `<ContentProvider>` rather than as a sibling of
+ * `ThemeSync`/`StoragePersistRequest` — unlike those two, it needs the content index loaded
+ * (`getIndexStore()`), not just the database open. See that component's own header for why it
+ * used to live in `DatabaseProvider` and why that was broken. `wordProgress` being briefly
+ * stale after a fresh recompute pass is fine — every reader of it is on `useLiveQuery` and
+ * rerenders once `recomputeAll()`'s `bulkPut` lands.
  */
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <DatabaseProvider>
       <ThemeSync />
       <StoragePersistRequest />
-      <ContentProvider>{children}</ContentProvider>
+      <ContentProvider>
+        <StartupMigrations />
+        {children}
+      </ContentProvider>
     </DatabaseProvider>
   )
 }

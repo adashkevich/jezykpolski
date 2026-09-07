@@ -13,23 +13,22 @@
  * 06's job) — just enough to gate rendering on "the database is open". Wiring this (and
  * `ContentProvider`) into the real app tree happens in task 06.
  *
- * Task 28 adds one bounded exception to that minimalism: `STAGE_STATUS_MIGRATION` below.
- * `deriveStatus` (`learning/progress/aggregate.ts`) now refuses to call a word `known`
- * before этап 2 is open (FR-83), which makes every `wordProgress.status` computed under the
- * old rule wrong until that word is next answered. `wordProgress` is a pure cache of
- * `computeWordProgress`, so one `recomputeAll()` pass rebuilds it — guarded by
- * `meta.repository.ts#runOnce` so it happens exactly once, right after the database opens
- * and before any screen reads a status.
+ * This used to also run task 28's one-shot `wordProgress` recompute migration right after
+ * `openDatabase()` resolved, guarded by `meta.repository.ts#runOnce`. Two problems with that:
+ * (1) that migration needs the content index loaded (`getIndexStore()`), but this provider
+ * sits *outside* `ContentProvider` (see `AppProviders.tsx`), so it threw "index store has not
+ * been initialized yet" for any user who already had `skills` rows; and (2) its own
+ * `db.skills.orderBy('wordId').uniqueKeys()` opens an IndexedDB cursor that some WebKit/iOS
+ * builds reject outright with `UnknownError: Unable to open cursor` — bricking the whole app
+ * on startup, on every retry, and even after "reset local database" (which just re-entered
+ * the same failing call on a fresh, empty store). The migration now lives in
+ * `StartupMigrations.tsx`, mounted inside `ContentProvider` where its precondition actually
+ * holds, and its failure no longer blocks rendering at all — see that file's header.
  */
 import { useEffect, useState, type ReactNode } from 'react'
-import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
-import { runOnce } from '@/db/repositories/meta.repository.ts'
-import { recomputeAll } from '@/db/repositories/words-progress.repository.ts'
+import { openDatabase, resetLocalState } from '@/db/repositories/lifecycle.repository.ts'
 import { ErrorState } from '@/components/app/ErrorState.tsx'
 import { LoadingScreen } from '@/components/app/LoadingScreen.tsx'
-
-/** `meta` key for task 28's one-shot `wordProgress` recompute — see this file's header. */
-const STAGE_STATUS_MIGRATION = 'recompute-word-progress-for-stage-gate'
 
 type LoadState =
   | { readonly status: 'loading' }
@@ -38,14 +37,13 @@ type LoadState =
 
 export function DatabaseProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
-  // Bumped by the retry/reset buttons to re-run the open effect below.
+  // Bumped by the retry button to re-run the open effect below.
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
 
     openDatabase()
-      .then(() => runOnce(STAGE_STATUS_MIGRATION, recomputeAll))
       .then(() => {
         if (cancelled) return
         setState({ status: 'ready' })
@@ -70,21 +68,25 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   if (state.status === 'error') {
     return (
       <ErrorState
+        title="Nie udało się otworzyć lokalnej bazy danych"
         message={state.error.message}
         onRetry={() => {
           setState({ status: 'loading' })
           setAttempt((n) => n + 1)
         }}
         secondaryAction={{
-          label: 'Zresetuj lokalną bazę danych',
+          label: 'Zresetuj lokalną bazę danych (utracisz postępy)',
           onClick: () => {
             setState({ status: 'loading' })
-            deleteDatabase()
-              .catch(() => {
-                // Deletion itself failing just means the next openDatabase() below fails
-                // again and re-renders ErrorState — no separate error path needed.
-              })
-              .finally(() => setAttempt((n) => n + 1))
+            // A full page reload — not just `setAttempt(n => n + 1)` — is the point: after
+            // `resetLocalState()` unregisters the service worker and clears Cache Storage,
+            // only a real navigation forces the browser to fetch a fresh `index.html` and
+            // bundle from the network instead of replaying whatever the (possibly stale,
+            // possibly broken) precache still holds. That's what makes this button able to
+            // actually deliver an already-deployed fix to a phone stuck on the old code.
+            resetLocalState().finally(() => {
+              window.location.reload()
+            })
           },
         }}
       />
