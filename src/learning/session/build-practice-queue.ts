@@ -36,6 +36,7 @@
 import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import type { Dimension } from '@/learning/skills/dimensions.ts'
 import type { WordId } from '@/learning/skills/skill-id.ts'
+import { resolveForceCategory } from '@/learning/exercises/default-exercise-type.ts'
 import type {
   PracticeCandidateWord,
   PracticeConfig,
@@ -114,8 +115,27 @@ function adjMatches(dimension: Dimension, selection: PracticeConfig['dimensionSe
   )
 }
 
+/**
+ * Task 37: unlike morphology, a vocab skill's exercise type is fixed by its *dimension*
+ * (`picker.ts#vocabExerciseType` never reads `PickerOptions.forceCategory` for vocab), so
+ * `config.exerciseTypes` can't switch a matched vocab descriptor's exercise type the way it
+ * switches a morphological one — the only way to honor "Тип задания" for vocabulary is to
+ * drop the excluded stage(s) from the matching set outright, same rule as `session-scope.ts`'s
+ * `filterForVocabExerciseType` for the daily Learn queue.
+ */
+function vocabMatchesExerciseType(dimension: Dimension, config: PracticeConfig): boolean {
+  const forceCategory = resolveForceCategory(config.exerciseTypes)
+  if (forceCategory === 'recognition') return dimension !== 'vocab:ru-pl-input'
+  if (forceCategory === 'recall') {
+    return dimension !== 'vocab:pl-ru' && dimension !== 'vocab:ru-pl-choice'
+  }
+  return true
+}
+
 function matchesConfig(descriptor: SkillDescriptor, config: PracticeConfig): boolean {
-  if (descriptor.kind === 'vocab') return config.includeTranslation
+  if (descriptor.kind === 'vocab') {
+    return config.includeTranslation && vocabMatchesExerciseType(descriptor.dimension, config)
+  }
   switch (config.section) {
     case 'NOUN':
       return nounMatches(descriptor.dimension, config.dimensionSelection)

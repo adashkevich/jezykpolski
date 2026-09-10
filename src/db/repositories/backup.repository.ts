@@ -37,6 +37,7 @@ import {
   parseBackupJson,
   type BackupExport,
 } from '../backup.schema.ts'
+import { migrateLegacyReviewLogSkillId, migrateLegacySkills } from '../legacy-vocab-migration.ts'
 
 // ---------------------------------------------------------------------------
 // Export (task text §2)
@@ -102,16 +103,35 @@ export interface ImportSummary {
 /**
  * Steps 2-4: parses + validates `raw` (throws {@link BackupValidationError} or
  * {@link UnknownBackupSchemaVersionError} from `backup.schema.ts` — the caller is expected to
- * let those propagate to the UI's error message, per NFR-16's "понятная ошибка"), then builds
- * the pre-confirmation summary. Never writes anything — safe to call speculatively the moment
- * a file is picked, before the user has confirmed anything (task text step 5 is strictly
- * after this).
+ * let those propagate to the UI's error message, per NFR-16's "понятная ошибка"), normalizes
+ * a pre-task-37 backup's `vocab:ru-pl` rows (see below), then builds the pre-confirmation
+ * summary off the *normalized* data — so "будет импортировано N навыков" already reflects
+ * the backfilled count the user will actually get, not the raw file's pre-migration one.
+ * Never writes anything — safe to call speculatively the moment a file is picked, before the
+ * user has confirmed anything (task text step 5 is strictly after this).
+ *
+ * `CURRENT_BACKUP_SCHEMA_VERSION` is deliberately NOT bumped for this (see that constant's
+ * own doc comment: it gates genuine *shape* changes, and `dimension` has always been a bare
+ * `z.string()` — a backup exported before task 37 still parses just fine, it's the specific
+ * string *value* `'vocab:ru-pl'` that's now stale). `migrateLegacySkills`/
+ * `migrateLegacyReviewLogSkillId` (`db/legacy-vocab-migration.ts`) are the exact same pure
+ * transform `database.ts`'s `version(2)` Dexie migration already applies to existing rows —
+ * shared so an old backup imported into an already-migrated database can never reintroduce
+ * `vocab:ru-pl`.
  */
 export function prepareImport(
   raw: unknown,
   currentContentVersion: string,
 ): { data: BackupExport; summary: ImportSummary } {
-  const data = parseBackupJson(raw)
+  const parsed = parseBackupJson(raw)
+  const data: BackupExport = {
+    ...parsed,
+    skills: migrateLegacySkills(parsed.skills as SkillRecord[]),
+    reviewLogs: parsed.reviewLogs.map((log) => ({
+      ...log,
+      skillId: migrateLegacyReviewLogSkillId(log.skillId),
+    })),
+  }
   const index = getIndexStore().byId
   const missingWordSkillsCount = data.skills.filter((s) => !index.has(s.wordId as WordId)).length
 

@@ -21,7 +21,7 @@ import {
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
 import type { LevelValue, PosValue } from '@/content/codec.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
-import type { SkillRecord, WordProgressRecord } from '@/types/progress.ts'
+import type { SkillRecord, SkillState, WordProgressRecord } from '@/types/progress.ts'
 
 function entry(lemma: string, rank: number): WordIndexEntry {
   return {
@@ -44,15 +44,16 @@ function indexEntry(lemma: string, pos: PosValue, level: LevelValue): WordIndexE
 
 function vocabSkill(
   wordId: string,
-  dim: 'vocab:pl-ru' | 'vocab:ru-pl',
+  dim: 'vocab:pl-ru' | 'vocab:ru-pl-choice' | 'vocab:ru-pl-input',
   stability: number,
+  state?: SkillState,
 ): SkillRecord {
   return {
     skillId: `${wordId}::${dim}`,
     wordId,
     kind: 'vocab',
     dimension: dim,
-    state: stability > 0 ? 'review' : 'new',
+    state: state ?? (stability > 0 ? 'review' : 'new'),
     stability,
     difficulty: 3,
     due: 1000,
@@ -91,14 +92,17 @@ describe('computeWordProgress / recomputeWordProgress', () => {
     initIndexStore([entry('kobieta', 1)])
     await db.skills.bulkAdd([
       vocabSkill('kobieta|NOUN', 'vocab:pl-ru', 60), // maturity 1.0 (TARGET_STABILITY_DAYS=60)
-      vocabSkill('kobieta|NOUN', 'vocab:ru-pl', 0), // maturity 0
+      vocabSkill('kobieta|NOUN', 'vocab:ru-pl-choice', 60), // maturity 1.0
+      // maturity 0, but state "review" — productionGraduated (task 37) needs the word to
+      // have been typed correctly at least once, independent of how mature that skill is.
+      vocabSkill('kobieta|NOUN', 'vocab:ru-pl-input', 0, 'review'),
     ])
     await recomputeWordProgress('kobieta|NOUN')
 
     const progress = await getWordProgress('kobieta|NOUN')
-    expect(progress?.vocabMaturity).toBeCloseTo(0.5) // average of 1.0 and 0
+    expect(progress?.vocabMaturity).toBeCloseTo((1 + 1 + 0) / 3) // average of the three
     expect(progress?.morphMaturity).toBe(0) // no paradigm -> undefined -> stored as 0
-    expect(progress?.status).toBe('known') // vocabMaturity 0.5 >= KNOWN_THRESHOLD(0.35), < MASTERED_THRESHOLD(0.9)
+    expect(progress?.status).toBe('known') // vocabMaturity ~0.667 >= KNOWN_THRESHOLD(0.35), < MASTERED_THRESHOLD(0.9)
   })
 })
 
@@ -112,7 +116,7 @@ describe('recomputeAll matches incremental recomputeWordProgress bit-for-bit', (
       const wordId = `${w}|NOUN`
       // Vary stability per word so maturity/status differ across the set.
       skills.push(vocabSkill(wordId, 'vocab:pl-ru', i * 15))
-      if (i % 2 === 0) skills.push(vocabSkill(wordId, 'vocab:ru-pl', i * 10))
+      if (i % 2 === 0) skills.push(vocabSkill(wordId, 'vocab:ru-pl-input', i * 10))
     }
     // One extra word with no skills at all — must produce no row either way.
     await db.skills.bulkAdd(skills)

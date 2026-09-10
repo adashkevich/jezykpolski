@@ -31,7 +31,8 @@ describe('isDimensionTrainedByDefault', () => {
   it('includes vocab, VERB, ADJ and ADV dimensions unconditionally', () => {
     const nonNounDimensions: Dimension[] = [
       'vocab:pl-ru',
-      'vocab:ru-pl',
+      'vocab:ru-pl-choice',
+      'vocab:ru-pl-input',
       'verb:present:1:sg',
       'verb:past:3:sg:feminine',
       'verb:imperative:2:pl',

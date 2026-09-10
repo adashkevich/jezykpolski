@@ -105,6 +105,7 @@ import {
   unlockedLevels,
 } from '@/learning/session/level-gate.ts'
 import type { PracticeCandidateWord, PracticeConfig } from '@/learning/session/session.types.ts'
+import type { ExerciseCategory } from '@/learning/exercises/picker.ts'
 import type { SkillRecord, WordStatus } from '@/types/progress.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import type { LevelValue } from '@/content/codec.ts'
@@ -114,8 +115,9 @@ import type { LevelValue } from '@/content/codec.ts'
  * lexical drills a `{ kind: 'practice-extra' }` scope runs. Replaces task 27's original pair
  * of Practice-only quiz types (FR-56/FR-57, cancelled — neither exercised a real `vocab:*`
  * skill): `vocab-choice` is этап 1 of word learning (узнавание, PL→RU `choice`
- * over `vocab:pl-ru`), `vocab-spelling` is этап 2 (воспроизведение, RU→PL `input` over
- * `vocab:ru-pl`) — the same two stages task 28 already made the normal Learn progression,
+ * over `vocab:pl-ru`), `vocab-spelling` is этап 3 (воспроизведение, RU→PL `input` over
+ * `vocab:ru-pl-input` — task 37 renamed this skill when it split the old two-stage
+ * progression into three) — the same stages the normal Learn progression already makes,
  * just forced on demand from a Practice batch instead of waiting for FSRS to schedule them.
  * Both are single-slot, auto-graded exercises that go through the ordinary `SessionRunner`
  * queue/registry path unchanged — what makes them "extra" is only that
@@ -352,17 +354,65 @@ async function resolveGlobalScope(now: number): Promise<SessionCandidates> {
   return { dueSkills, candidateNewWords, targetSize, newWordsBudget }
 }
 
-export function resolveSessionCandidates(
+/**
+ * Task 37's "Тип задания" restriction on vocabulary (`learning/exercises/
+ * default-exercise-type.ts#resolveForceCategory`) — a companion to `picker.ts`'s
+ * `PickerOptions.forceCategory`, which only ever affects morphological skills (a vocab
+ * skill's exercise type is fixed by its dimension, `picker.ts#vocabExerciseType` — there is
+ * no "input variant of vocab:pl-ru" to switch to, unlike a form-choice/form-input pair). The
+ * only way to honor the restriction for vocabulary is to drop the skill(s) of the excluded
+ * stage from the due pool outright:
+ *
+ *  - "только выбор" (`forceCategory === 'recognition'`) drops `vocab:ru-pl-input`;
+ *  - "только ввод" (`forceCategory === 'recall'`) drops `vocab:pl-ru` and
+ *    `vocab:ru-pl-choice`, and zeroes `newWordsBudget` — a brand-new word's first stage is
+ *    always a choice exercise (`vocab:pl-ru`), so it physically cannot be introduced under
+ *    this restriction.
+ *
+ * Dropped skills stay in the DB, still overdue — they simply aren't offered this session;
+ * `LearningSettingsSection.tsx`'s description warns that leaving the restriction on for a
+ * long time lets that backlog grow, this module has no opinion on how long the user keeps it
+ * on.
+ *
+ * Applied only to `word`/`filter`/`global` — the three scopes that pull from the full
+ * due/new pool. Deliberately NOT `mistake` (dropping a skill there would silently hide a
+ * mistake the user explicitly asked to review right now — a regression, not a restriction)
+ * or `skill` (an explicit single-cell pick from a declension table, always morphological in
+ * practice, so the filter would never match anything there anyway).
+ */
+function filterForVocabExerciseType(
+  candidates: SessionCandidates,
+  forceCategory: ExerciseCategory | undefined,
+): SessionCandidates {
+  if (!forceCategory) return candidates
+
+  const excludedDimensions: ReadonlySet<string> =
+    forceCategory === 'recognition'
+      ? new Set(['vocab:ru-pl-input'])
+      : new Set(['vocab:pl-ru', 'vocab:ru-pl-choice'])
+
+  return {
+    ...candidates,
+    dueSkills: candidates.dueSkills.filter((skill) => !excludedDimensions.has(skill.dimension)),
+    newWordsBudget: forceCategory === 'recall' ? 0 : candidates.newWordsBudget,
+  }
+}
+
+export async function resolveSessionCandidates(
   scope: LearnLikeSessionScope,
   now: number,
+  forceCategory?: ExerciseCategory,
 ): Promise<SessionCandidates> {
   switch (scope.kind) {
     case 'word':
-      return resolveWordScope(scope.wordId, now)
+      return filterForVocabExerciseType(await resolveWordScope(scope.wordId, now), forceCategory)
     case 'filter':
-      return resolveFilterScope(scope.filter, now)
+      return filterForVocabExerciseType(
+        await resolveFilterScope(scope.filter, now),
+        forceCategory,
+      )
     case 'global':
-      return resolveGlobalScope(now)
+      return filterForVocabExerciseType(await resolveGlobalScope(now), forceCategory)
     case 'mistake':
       return resolveMistakeScope(scope.skillIds)
     case 'skill':

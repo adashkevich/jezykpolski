@@ -69,8 +69,8 @@ const VOCAB_SKILL: SkillDescriptor = {
 
 const VOCAB_SKILL_RU_PL: SkillDescriptor = {
   ...VOCAB_SKILL,
-  skillId: 'kobieta|NOUN::vocab:ru-pl',
-  dimension: 'vocab:ru-pl',
+  skillId: 'kobieta|NOUN::vocab:ru-pl-input',
+  dimension: 'vocab:ru-pl-input',
 }
 
 const NOUN_SKILL: SkillDescriptor = {
@@ -181,8 +181,9 @@ describe('generateExercise — vocab choice', () => {
     expect(exercise.options).toContain('женщина')
   })
 
-  // Task 28 (FR-80): `vocab:ru-pl` — это этап 2, и он всегда ввод, а не выбор, в любом
-  // состоянии навыка. Выбор из списка остаётся только за `vocab:pl-ru`.
+  // Task 28 (FR-80): `vocab:ru-pl-input` — это этап 3 (renamed by task 37), и он всегда
+  // ввод, а не выбор, в любом состоянии навыка. Выбор из списка остаётся за `vocab:pl-ru`
+  // и `vocab:ru-pl-choice`.
   it('ru-pl is never a choice exercise — этап 2 всегда ввод', () => {
     const ctx = makeContext()
     const { exercise } = generateExercise(VOCAB_SKILL_RU_PL, undefined, ctx, 42)
@@ -423,8 +424,9 @@ describe('generateExercise — hintMode / promptMode (task 18 acceptance)', () =
 })
 
 describe('generateExercise — self-assess', () => {
-  // Task 28: self-assess остаётся опциональной заменой ввода, т.е. применим к этапу 2
-  // (`vocab:ru-pl`); `vocab:pl-ru` — всегда выбор, его настройка не затрагивает.
+  // Task 28: self-assess остаётся опциональной заменой ввода, т.е. применим к этапу 3
+  // (`vocab:ru-pl-input`, renamed by task 37); `vocab:pl-ru`/`vocab:ru-pl-choice` — всегда
+  // выбор, эта настройка их не затрагивает.
   it('vocab: prompt/answer are translation/lemma for этап 2', () => {
     const ctx = makeContext()
     const { exercise } = generateExercise(VOCAB_SKILL_RU_PL, srs('review'), ctx, 1, {

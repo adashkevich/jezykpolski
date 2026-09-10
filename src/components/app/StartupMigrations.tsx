@@ -18,12 +18,20 @@
  * `words-progress.repository.ts#recomputeAll`'s header for the WebKit cursor bug that made
  * this concretely brick the app on some phones.
  *
+ * Task 37 (`spec/tasks/37-three-stage-vocabulary.md` §3) needs the exact same kind of pass a
+ * second time, for the exact same structural reason: `db/database.ts`'s `version(2)` Dexie
+ * migration renames/backfills `skills` rows (schema-layer, runs inside `db.open()`, before
+ * content is loaded), but `deriveStatus`'s new `productionGraduated` gate and the wider
+ * `vocabMaturity` denominator both need `wordProgress` rebuilt from those rows — which is
+ * exactly what `recomputeAll()` already does, just under a fresh `runOnce` key so it isn't
+ * skipped for users whose `STAGE_STATUS_MIGRATION` key already ran back on task 28.
+ *
  * Mounted inside `ContentProvider` (`AppProviders.tsx`), so both preconditions — open database,
  * loaded content index — actually hold by the time this effect runs. Deliberately renders
- * nothing and never surfaces its own `ErrorState`: the worst case of this failing is a stale
- * `wordProgress.status` until the affected word is next answered, not a blocked app — `runOnce`
- * only records success after `recomputeAll()` resolves, so a failure is simply retried on the
- * next page load.
+ * nothing and never surfaces its own `ErrorState`: the worst case of either migration failing
+ * is a stale `wordProgress.status` until the affected word is next answered, not a blocked
+ * app — `runOnce` only records success after its task resolves, so a failure is simply
+ * retried on the next page load.
  */
 import { useEffect, useRef } from 'react'
 import { runOnce } from '@/db/repositories/meta.repository.ts'
@@ -31,6 +39,10 @@ import { recomputeAll } from '@/db/repositories/words-progress.repository.ts'
 
 /** `meta` key for task 28's one-shot `wordProgress` recompute — see this file's header. */
 const STAGE_STATUS_MIGRATION = 'recompute-word-progress-for-stage-gate'
+
+/** `meta` key for task 37's own one-shot `wordProgress` recompute, after `version(2)`'s
+ *  `skills` rename/backfill and the tightened `deriveStatus` gate — see this file's header. */
+const THREE_STAGE_VOCAB_MIGRATION = 'recompute-word-progress-for-three-stage-vocab'
 
 export function StartupMigrations() {
   // `main.tsx` renders under `StrictMode`, which double-invokes effects in development;
@@ -46,6 +58,14 @@ export function StartupMigrations() {
     runOnce(STAGE_STATUS_MIGRATION, recomputeAll).catch((error: unknown) => {
       // Best-effort: never blocks rendering. See this file's header.
       console.warn('StartupMigrations: recompute-word-progress-for-stage-gate failed', error)
+    })
+    // Deliberately a second, independent `runOnce` call rather than folding into the one
+    // above: the two migrations have different keys and different histories (many profiles
+    // already have `STAGE_STATUS_MIGRATION` recorded from task 28), and `runOnce` itself
+    // already serializes nothing across keys — running both concurrently is safe, `recomputeAll`
+    // is idempotent and each call reads/writes the same `wordProgress` rows either way.
+    runOnce(THREE_STAGE_VOCAB_MIGRATION, recomputeAll).catch((error: unknown) => {
+      console.warn('StartupMigrations: recompute-word-progress-for-three-stage-vocab failed', error)
     })
   }, [])
 

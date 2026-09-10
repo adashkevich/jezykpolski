@@ -340,9 +340,12 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
 
         <div className="flex flex-col gap-1">
           <p className="text-sm font-medium text-foreground">Тип задания</p>
-          {/* Task 28: у перевода фиксированные два этапа (выбор из списка -> написание
-              по-польски, FR-80), поэтому ограничение применяется только к формам слов. */}
-          <p className="mb-1 text-xs text-muted-foreground">Влияет на формы слов</p>
+          {/* Task 28/37: у перевода фиксированные три этапа (выбор перевода, узнавание
+              по-польски, написание по-польски, FR-80) — переключить их тип напрямую нельзя,
+              поэтому для перевода этот флажок вместо смены типа исключает соответствующий
+              этап из выборки (`build-practice-queue.ts#vocabMatchesExerciseType`), когда
+              «Перевод» включён выше. */}
+          <p className="mb-1 text-xs text-muted-foreground">Влияет на формы слов и на перевод</p>
           <div className="grid grid-cols-2 gap-x-3">
             <CheckboxRow
               checked={forms.exerciseTypes.choice}

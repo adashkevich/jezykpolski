@@ -10,13 +10,19 @@
  * deterministic DOM shape (`ChoiceExercise.tsx`'s `role="radiogroup"` of `role="radio"`
  * buttons) across every question, not just the first one.
  *
- * Task 28 caveat: that setting no longer covers vocabulary — `vocab:ru-pl` (этап 2, "напиши
- * по-польски") is always an `input` exercise, whatever the setting says
- * (`learning/exercises/picker.ts`). A fresh profile's first session still only ever shows
- * `choice` (этап 2 is materialized *while* answering, and the queue is built up front), but
- * any scenario that runs a second Learn session can hit the letter-by-letter field — hence
- * `answerCurrentExercise` below, which handles both shapes and is what the multi-question
- * loops use.
+ * Task 28 caveat, updated by task 37: `pickExerciseType` fixes a vocab skill's exercise type
+ * by its *dimension* alone, whatever "Тип задания по умолчанию" says
+ * (`learning/exercises/picker.ts`) — `vocab:ru-pl-input` (этап 3, "напиши по-польски") is
+ * always `input`. Task 37 additionally makes the *setting itself* drop `vocab:ru-pl-input`
+ * from the due pool entirely when only "Выбор" is checked
+ * (`session-scope.ts#filterForVocabExerciseType`), so with this suite's setup that skill
+ * never even reaches a queue — but the queue-building and materialization timing this
+ * comment used to warn about is still real for any scenario that changes the setting or lets
+ * a session mix skill kinds another way: a fresh profile's first session only ever shows
+ * `choice` (a later stage is materialized *while* answering, and the queue is built up
+ * front), but any scenario that runs a second Learn session without this restriction can hit
+ * the letter-by-letter field — hence `answerCurrentExercise` below, which handles both
+ * shapes and is what the multi-question loops use.
  *
  * Task 29 caveat (`spec/tasks/29-letter-by-letter-input.md` §6): `input`/`form-input` no
  * longer expose a single `role="textbox"` you can `.fill()` and submit — typing is

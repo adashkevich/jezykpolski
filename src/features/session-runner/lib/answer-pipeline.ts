@@ -14,10 +14,11 @@
  * `firstAnswerBySkill` lookup — this module doesn't own that map (it lives in
  * `stores/session.store.ts`, per architecture.md §10), it only obeys the flag.
  *
- * Task 28 (`unlockProductionStage` below, FR-80/FR-81): this is also where этап 2 of a word
- * is opened — a graded `vocab:pl-ru` answer that graduates узнавание materializes the
- * `vocab:ru-pl` skill, which is what puts "написать слово по-польски" into a later session's
- * queue at all.
+ * Task 28 (`unlockNextVocabStage` below, FR-80/FR-81), widened to three stages by task 37:
+ * this is also where the next vocabulary stage of a word is opened — a graded `vocab:pl-ru`
+ * answer that clears its stability bar materializes `vocab:ru-pl-choice`, and a graded
+ * `vocab:ru-pl-choice` answer that clears its own bar materializes `vocab:ru-pl-input`,
+ * which is what puts "написать слово по-польски" into a later session's queue at all.
  */
 import { grade, type GradeResult } from '@/learning/exercises/grade.ts'
 import type { Exercise } from '@/learning/exercises/exercise.types.ts'
@@ -32,7 +33,7 @@ import {
 import { review } from '@/learning/srs/fsrs-adapter.ts'
 import type { SrsState } from '@/learning/srs/srs.types.ts'
 import type { SkillId, WordId } from '@/learning/skills/skill-id.ts'
-import { shouldUnlockProduction } from '@/learning/progress/stage.ts'
+import { shouldUnlockCuedRecall, shouldUnlockProduction } from '@/learning/progress/stage.ts'
 import { encodeSkillId } from '@/learning/skills/skill-id.ts'
 import { applyAnswer } from '@/db/repositories/answer.repository.ts'
 import { ensureSkill, getSkill, getSkillsForWord } from '@/db/repositories/skills.repository.ts'
@@ -141,40 +142,56 @@ function selfAssessGradeResult(
 }
 
 /**
- * Task 28 (`spec/tasks/28-two-stage-vocabulary-and-letter-diff.md` §2, FR-80/FR-81) — opens
- * этап 2 for a word whose узнавание (`vocab:pl-ru`) just graduated: materializes
- * `vocab:ru-pl` so the scheduler can hand out "напиши по-польски" at all. `ensureSkill` is
- * idempotent, so re-answering an already-graduated `vocab:pl-ru` is a cheap no-op rather
- * than a duplicate.
+ * Task 28 (`spec/tasks/28-two-stage-vocabulary-and-letter-diff.md` §2, FR-80/FR-81), widened
+ * to a three-stage chain by task 37 (`spec/tasks/37-three-stage-vocabulary.md` §2) — opens
+ * the next vocabulary stage for a word whose current stage just cleared its stability bar:
+ * a graded `vocab:pl-ru` answer that reaches `shouldUnlockCuedRecall` materializes
+ * `vocab:ru-pl-choice` (узнавание по-польски), and a graded `vocab:ru-pl-choice` answer that
+ * reaches `shouldUnlockProduction` materializes `vocab:ru-pl-input` (написать по-польски).
+ * `ensureSkill` is idempotent, so re-answering an already-graduated skill is a cheap no-op
+ * rather than a duplicate.
  *
  * The new record gets `due = now` (`ensureSkill`'s own default), i.e. it is immediately
  * overdue — but it still can't appear in the session the user is currently answering:
- * `useSessionBootstrap` resolves the whole queue up front, so the earliest этап 2 can show
- * up is the next session. That's exactly FR-81's "прогрессия не проходится целиком за одну
- * сессию", enforced structurally instead of by a hard-coded delay.
+ * `useSessionBootstrap` resolves the whole queue up front, so the earliest the next stage can
+ * show up is the next session. That's exactly FR-81's "прогрессия не проходится целиком за
+ * одну сессию", enforced structurally instead of by a hard-coded delay.
  *
  * `srsApplied === false` (`mode: 'mistakes'`, or a repeat answer within one session —
  * `policy.ts#shouldApplySrs`) means `nextSrsState` was never written, so promoting off it
  * would be promoting off a state that doesn't exist. Practice *does* apply SRS (capped and
- * damped, `policy.ts` rule 2), so a Practice answer that genuinely graduates узнавание opens
- * этап 2 exactly like a Learn one — the skill really did reach `review`.
+ * damped, `policy.ts` rule 2), so a Practice answer that genuinely clears the stability bar
+ * opens the next stage exactly like a Learn one — the skill really did earn it.
  */
-async function unlockProductionStage(args: {
+async function unlockNextVocabStage(args: {
   readonly skill: SkillRecord
   readonly nextSrsState: SrsState
   readonly srsApplied: boolean
   readonly wordId: WordId
 }): Promise<void> {
   if (!args.srsApplied) return
-  if (args.skill.dimension !== 'vocab:pl-ru') return
-  if (!shouldUnlockProduction({ ...args.skill, ...args.nextSrsState })) return
+  const updated: SkillRecord = { ...args.skill, ...args.nextSrsState }
 
-  await ensureSkill(
-    encodeSkillId(args.wordId, 'vocab:ru-pl'),
-    args.wordId,
-    'vocab',
-    'vocab:ru-pl',
-  )
+  if (args.skill.dimension === 'vocab:pl-ru') {
+    if (!shouldUnlockCuedRecall(updated)) return
+    await ensureSkill(
+      encodeSkillId(args.wordId, 'vocab:ru-pl-choice'),
+      args.wordId,
+      'vocab',
+      'vocab:ru-pl-choice',
+    )
+    return
+  }
+
+  if (args.skill.dimension === 'vocab:ru-pl-choice') {
+    if (!shouldUnlockProduction(updated)) return
+    await ensureSkill(
+      encodeSkillId(args.wordId, 'vocab:ru-pl-input'),
+      args.wordId,
+      'vocab',
+      'vocab:ru-pl-input',
+    )
+  }
 }
 
 export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnswerResult> {
@@ -217,11 +234,11 @@ export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnsw
   const isNewSkill =
     currentSkill.reps === 0 && currentSkill.correct === 0 && currentSkill.incorrect === 0
 
-  // Task 28, FR-80: этап 1 пройден -> открыть этап 2. Strictly before `getSkillsForWord`
-  // below, so the freshly created `vocab:ru-pl` record is part of the same
-  // `computeWordProgress` pass and the word's `stage` (`learning/progress/stage.ts`) can't
-  // be one answer stale.
-  await unlockProductionStage({
+  // Task 28, FR-80, widened by task 37: current stage cleared its bar -> открыть следующий.
+  // Strictly before `getSkillsForWord` below, so the freshly created record is part of the
+  // same `computeWordProgress` pass and the word's `stage` (`learning/progress/stage.ts`)
+  // can't be one answer stale.
+  await unlockNextVocabStage({
     skill: currentSkill,
     nextSrsState: dampedNext,
     srsApplied,

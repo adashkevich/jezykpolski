@@ -50,11 +50,13 @@ describe('dimensionGroup', () => {
     expect(imperative.label.ru).toContain('Повелительн')
   })
 
-  it('keeps the two vocab directions as two distinct groups', () => {
+  it('keeps the three vocab stages as three distinct groups (task 37)', () => {
     const plRu = dimensionGroup('vocab:pl-ru')
-    const ruPl = dimensionGroup('vocab:ru-pl')
-    expect(plRu.key).not.toBe(ruPl.key)
+    const ruPlChoice = dimensionGroup('vocab:ru-pl-choice')
+    const ruPlInput = dimensionGroup('vocab:ru-pl-input')
+    expect(new Set([plRu.key, ruPlChoice.key, ruPlInput.key]).size).toBe(3)
     expect(plRu.label.ru).toContain('PL')
-    expect(ruPl.label.ru).toContain('RU')
+    expect(ruPlChoice.label.ru).toContain('RU')
+    expect(ruPlInput.label.ru).toContain('RU')
   })
 })

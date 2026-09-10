@@ -3,8 +3,12 @@
  * regression test and `DatabaseProvider.test.tsx`: this component is what actually invokes
  * `recomputeAll` at startup now (see this file's own header for why it moved out of
  * `DatabaseProvider`), so what matters here is that its failure never surfaces — no thrown
- * error, no `ErrorState`, just a console warning — and that it runs the migration at most once
- * even under `StrictMode`'s double-invoked effects.
+ * error, no `ErrorState`, just a console warning — and that each of its `runOnce` migrations
+ * runs at most once even under `StrictMode`'s double-invoked effects.
+ *
+ * Task 37 added a second, independent `runOnce` call (`THREE_STAGE_VOCAB_MIGRATION`) — see
+ * this component's own header for why it's a second call under a fresh key rather than
+ * folded into the first.
  */
 import { StrictMode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -19,14 +23,18 @@ afterEach(() => {
 })
 
 describe('StartupMigrations', () => {
-  it('runs the migration via runOnce and renders nothing', async () => {
+  it('runs both migrations via runOnce and renders nothing', async () => {
     const runOnceSpy = vi.spyOn(metaRepo, 'runOnce').mockResolvedValue(true)
 
     const { container } = render(<StartupMigrations />)
 
-    await waitFor(() => expect(runOnceSpy).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(runOnceSpy).toHaveBeenCalledTimes(2))
     expect(runOnceSpy).toHaveBeenCalledWith(
       'recompute-word-progress-for-stage-gate',
+      wordsProgressRepo.recomputeAll,
+    )
+    expect(runOnceSpy).toHaveBeenCalledWith(
+      'recompute-word-progress-for-three-stage-vocab',
       wordsProgressRepo.recomputeAll,
     )
     expect(container).toBeEmptyDOMElement()
@@ -38,11 +46,11 @@ describe('StartupMigrations', () => {
 
     const { container } = render(<StartupMigrations />)
 
-    await waitFor(() => expect(warnSpy).toHaveBeenCalled())
+    await waitFor(() => expect(warnSpy).toHaveBeenCalledTimes(2))
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('under StrictMode double-invoked effects, the migration still runs only once', async () => {
+  it('under StrictMode double-invoked effects, each migration still runs only once', async () => {
     const runOnceSpy = vi.spyOn(metaRepo, 'runOnce').mockResolvedValue(true)
 
     render(
@@ -51,9 +59,9 @@ describe('StartupMigrations', () => {
       </StrictMode>,
     )
 
-    await waitFor(() => expect(runOnceSpy).toHaveBeenCalledTimes(1))
-    // Give any accidental second invocation a chance to happen before asserting it didn't.
+    await waitFor(() => expect(runOnceSpy).toHaveBeenCalledTimes(2))
+    // Give any accidental extra invocation a chance to happen before asserting it didn't.
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(runOnceSpy).toHaveBeenCalledTimes(1)
+    expect(runOnceSpy).toHaveBeenCalledTimes(2)
   })
 })

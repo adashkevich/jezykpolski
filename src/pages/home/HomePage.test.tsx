@@ -28,7 +28,7 @@ function entry(lemma: string, pos: PosValue, rank: number): WordIndexEntry {
 
 function vocabSkill(
   wordId: string,
-  dim: 'vocab:pl-ru' | 'vocab:ru-pl',
+  dim: 'vocab:pl-ru' | 'vocab:ru-pl-choice' | 'vocab:ru-pl-input',
   stability: number,
   due: number,
 ): SkillRecord {
@@ -50,12 +50,14 @@ function vocabSkill(
   }
 }
 
-/** Writes both vocab skills at the same `stability` and recomputes `wordProgress` for
+/** Writes all three vocab skills at the same `stability` and recomputes `wordProgress` for
  *  `wordId`. `due` defaults to far in the past (already due), matching the common case
- *  where "has progress" and "has something due" go together in these tests. */
+ *  where "has progress" and "has something due" go together in these tests. All three are
+ *  `state: 'review'`, so `productionGraduated` (task 37) is always satisfied. */
 async function learnWord(wordId: string, stability: number, due = 1000): Promise<void> {
   await upsertSkill(vocabSkill(wordId, 'vocab:pl-ru', stability, due))
-  await upsertSkill(vocabSkill(wordId, 'vocab:ru-pl', stability, due))
+  await upsertSkill(vocabSkill(wordId, 'vocab:ru-pl-choice', stability, due))
+  await upsertSkill(vocabSkill(wordId, 'vocab:ru-pl-input', stability, due))
   await recomputeWordProgress(wordId)
 }
 
@@ -121,12 +123,13 @@ describe('HomePage', () => {
   it('due reviews pending: CTA reads "Продолжить обучение" with the real due count', async () => {
     initIndexStore([entry('kobieta', 'NOUN', 1)])
     await openDatabase()
-    await learnWord('kobieta|NOUN', 10) // learning, due in the past by default (both vocab skills)
+    await learnWord('kobieta|NOUN', 10) // learning, due in the past by default (all three vocab skills)
 
     renderHomePage()
 
-    // Two due skills (vocab:pl-ru + vocab:ru-pl), not two words — countDue counts skills.
-    await waitFor(() => expect(screen.getByText(/2 слова готовы к повторению/)).toBeInTheDocument())
+    // Three due skills (vocab:pl-ru + vocab:ru-pl-choice + vocab:ru-pl-input, task 37), not
+    // one word — countDue counts skills.
+    await waitFor(() => expect(screen.getByText(/3 слова готовы к повторению/)).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Продолжить обучение' })).toBeInTheDocument()
   })
 

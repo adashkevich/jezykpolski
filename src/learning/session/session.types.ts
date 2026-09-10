@@ -104,7 +104,9 @@ export interface PracticeConfig {
   /** "Частотность: Top N" (FR-114). Reuses `WordQuery.topN`'s own option set rather than
    *  inventing a second one — same options `/words`' own frequency filter already offers. */
   readonly topN: 500 | 1000 | 2000 | 5000 | null
-  /** "Что тренировать -> ☑ Перевод" (FR-114) — both `vocab:pl-ru` and `vocab:ru-pl` when on. */
+  /** "Что тренировать -> ☑ Перевод" (FR-114) — all three vocab dimensions when on
+   *  (`vocab:pl-ru`, `vocab:ru-pl-choice`, `vocab:ru-pl-input` — task 37 widened this from
+   *  two). */
   readonly includeTranslation: boolean
   readonly dimensionSelection: Readonly<Record<string, readonly string[]>>
   /** "Тип задания" (FR-114) — at least one must be `true` for the config to be valid

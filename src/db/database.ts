@@ -14,6 +14,18 @@
  * destructive edit of an existing `version(n).stores()` call. `wordProgress` is the one
  * exception allowed to be rebuilt wholesale in a migration (it's a full cache of `skills`,
  * never a second source of truth — architecture.md §8 "Миграции").
+ *
+ * `version(2)` (task 37, `spec/tasks/37-three-stage-vocabulary.md` §3) is this app's first
+ * real migration: it renames every `skills`/`reviewLogs` row's old `vocab:ru-pl` dimension to
+ * `vocab:ru-pl-input` and backfills a `vocab:ru-pl-choice` sibling for each renamed skill —
+ * see `legacy-vocab-migration.ts`'s header for why the backfill, not just a rename, and why
+ * that logic lives in its own module (the backup-import path needs the exact same transform,
+ * `backup.repository.ts`). This migration does NOT touch `wordProgress` — that cache still
+ * needs rebuilding under the new three-skill model, but `computeWordProgress` needs the
+ * content index loaded (`getIndexStore()`/`getParadigm()`), which is never true this early —
+ * `db.open()` runs before `ContentProvider` even mounts. That part runs separately, as a
+ * `meta.repository.ts#runOnce` pass in `StartupMigrations.tsx`, exactly the same split task
+ * 28's own `deriveStatus` migration already established (see that component's header).
  */
 import Dexie, { type EntityTable } from 'dexie'
 import type {
@@ -23,6 +35,11 @@ import type {
   SkillRecord,
   WordProgressRecord,
 } from '@/types/progress.ts'
+import {
+  LEGACY_VOCAB_RU_PL_DIMENSION,
+  migrateLegacyReviewLogSkillId,
+  migrateLegacySkills,
+} from './legacy-vocab-migration.ts'
 
 /**
  * `settings` — small set of user-facing preferences (theme, daily goal, ...). Declared here
@@ -71,6 +88,42 @@ export class PolishLearningDatabase extends Dexie {
       settings: 'key',
       meta: 'key',
     })
+
+    // No index string changes — `dimension` was never indexed, and `skillId` stays the
+    // primary key — so `version(2)` re-declares the identical schema and does its work
+    // entirely in `.upgrade()`. `skillId` IS the primary key of `skills`, so a renamed row
+    // can't go through `Collection#modify()` (Dexie forbids mutating the primary key that
+    // way) — delete-then-bulkAdd instead, scoped to only the legacy rows (`.filter()`, not
+    // `.toArray()` + JS filter, so this never even deserializes the far larger set of
+    // already-current rows). `reviewLogs.skillId` is a plain indexed field, not the primary
+    // key (`++id` is) — `.modify()` works fine there.
+    this.version(2)
+      .stores({
+        skills: 'skillId, wordId, kind, due, state, [kind+due], [wordId+kind], updatedAt',
+        wordProgress: 'wordId, status, nextDue, updatedAt',
+        reviewLogs: '++id, skillId, wordId, reviewedAt, sessionId, [wordId+reviewedAt]',
+        sessions: '++id, mode, startedAt, endedAt',
+        dailyStats: 'date',
+        settings: 'key',
+        meta: 'key',
+      })
+      .upgrade(async (tx) => {
+        const skillsTable = tx.table<SkillRecord, string>('skills')
+        const legacySkills = await skillsTable
+          .filter((skill) => skill.dimension === LEGACY_VOCAB_RU_PL_DIMENSION)
+          .toArray()
+        if (legacySkills.length > 0) {
+          await skillsTable.bulkDelete(legacySkills.map((skill) => skill.skillId))
+          await skillsTable.bulkAdd(migrateLegacySkills(legacySkills))
+        }
+
+        const reviewLogsTable = tx.table<ReviewLogRecord, number>('reviewLogs')
+        await reviewLogsTable
+          .filter((log) => log.skillId.endsWith(`::${LEGACY_VOCAB_RU_PL_DIMENSION}`))
+          .modify((log) => {
+            log.skillId = migrateLegacyReviewLogSkillId(log.skillId)
+          })
+      })
   }
 }
 

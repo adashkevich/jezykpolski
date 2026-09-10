@@ -14,13 +14,24 @@ function vocabSkill(): SkillDescriptor {
   }
 }
 
-/** Этап 2 — написание по-польски (task 28). */
-function productionSkill(): SkillDescriptor {
+/** Этап 2 — узнавание по-польски среди вариантов (task 37). */
+function cuedRecallSkill(): SkillDescriptor {
   return {
-    skillId: 'kobieta|NOUN::vocab:ru-pl',
+    skillId: 'kobieta|NOUN::vocab:ru-pl-choice',
     wordId: 'kobieta|NOUN',
     kind: 'vocab',
-    dimension: 'vocab:ru-pl',
+    dimension: 'vocab:ru-pl-choice',
+    acceptedAnswers: [],
+  }
+}
+
+/** Этап 3 — написание по-польски (task 28, renamed by task 37). */
+function productionSkill(): SkillDescriptor {
+  return {
+    skillId: 'kobieta|NOUN::vocab:ru-pl-input',
+    wordId: 'kobieta|NOUN',
+    kind: 'vocab',
+    dimension: 'vocab:ru-pl-input',
     acceptedAnswers: ['kobieta'],
   }
 }
@@ -104,9 +115,34 @@ describe('pickExerciseType — vocab этап 1 (`vocab:pl-ru`, task 28)', () =>
   })
 })
 
-describe('pickExerciseType — vocab этап 2 (`vocab:ru-pl`, task 28)', () => {
+describe('pickExerciseType — vocab этап 2 (`vocab:ru-pl-choice`, task 37)', () => {
+  // Узнавание польского слова среди вариантов — тоже choice во всех состояниях, симметрично
+  // этапу 1: сам факт того, что у навыка появилась запись, означает, что этап 1 уже
+  // пройден (`progress/stage.ts#shouldUnlockCuedRecall`).
+  const cases: Array<[string, SkillRecord | undefined, PickedExerciseType]> = [
+    ['skill absent (never materialized)', undefined, 'choice'],
+    ['state=new', srs({ state: 'new', reps: 0 }), 'choice'],
+    ['state=learning, reps=0', srs({ state: 'learning', reps: 0 }), 'choice'],
+    ['state=learning, reps=2', srs({ state: 'learning', reps: 2 }), 'choice'],
+    ['state=review', srs({ state: 'review', reps: 10 }), 'choice'],
+    ['state=relearning', srs({ state: 'relearning', reps: 3 }), 'choice'],
+  ]
+
+  it.each(cases)('%s -> %s', (_label, record, expected) => {
+    expect(pickExerciseType(cuedRecallSkill(), record)).toBe(expected)
+  })
+
+  it('selfAssessOnReview does not turn узнавание по-польски into self-assess either', () => {
+    const record = srs({ state: 'review', reps: 10 })
+    expect(pickExerciseType(cuedRecallSkill(), record, { selfAssessOnReview: true })).toBe(
+      'choice',
+    )
+  })
+})
+
+describe('pickExerciseType — vocab этап 3 (`vocab:ru-pl-input`, task 28, renamed by task 37)', () => {
   // Написание по-польски — тоже во всех состояниях, включая `new`: сам факт того, что у
-  // навыка появилась запись, означает, что этап 1 уже пройден
+  // навыка появилась запись, означает, что этап 2 уже пройден
   // (`progress/stage.ts#shouldUnlockProduction`).
   const cases: Array<[string, SkillRecord | undefined, PickedExerciseType]> = [
     ['skill absent (never materialized)', undefined, 'input'],
@@ -188,11 +224,16 @@ describe('pickExerciseType — forceCategory (task 19, суженный зада
     expect(pickExerciseType(morphSkill(), record)).toBe('form-input')
   })
 
-  // Task 28: у перевода тип задания задан направлением навыка, а не категорией — иначе
-  // `forceCategory: 'recall'` воскресил бы удалённый «ввод русского перевода» (FR-52).
-  it('is ignored for vocabulary in both directions', () => {
+  // Task 28: у перевода тип задания задан измерением навыка, а не категорией — иначе
+  // `forceCategory: 'recall'` воскресил бы удалённый «ввод русского перевода» (FR-52). Task
+  // 37 widened this to the new middle stage too — see `session-scope.ts#
+  // filterForVocabExerciseType` / `build-practice-queue.ts#vocabMatchesExerciseType` for
+  // where the "Тип задания" restriction actually does reach vocabulary instead (as a
+  // due-skill/matching filter, not a `pickExerciseType` branch).
+  it('is ignored for vocabulary in all three stages', () => {
     const record = srs({ state: 'review', reps: 10 })
     expect(pickExerciseType(vocabSkill(), record, { forceCategory: 'recall' })).toBe('choice')
+    expect(pickExerciseType(cuedRecallSkill(), record, { forceCategory: 'recall' })).toBe('choice')
     expect(pickExerciseType(productionSkill(), record, { forceCategory: 'recognition' })).toBe(
       'input',
     )

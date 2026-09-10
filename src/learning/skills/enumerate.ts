@@ -11,7 +11,10 @@
  * Slot-construction rules (verified against real `public/content/paradigms/**` data — see
  * this task's decision log for the exact rows inspected):
  *
- *  - `vocab:pl-ru` / `vocab:ru-pl` always exist, paradigm or not.
+ *  - `vocab:pl-ru` / `vocab:ru-pl-choice` / `vocab:ru-pl-input` always exist, paradigm or not
+ *    (task 37 widened this from two dimensions to three — a middle "recognize the Polish
+ *    word among distractors" stage between recognizing the Russian translation and typing
+ *    the Polish word from scratch, `learning/progress/stage.ts`).
  *  - NOUN: `noun:<sg|pl>:<case>`, one skill per (number, case) pair. Deliberately excludes
  *    `gender` from the key even though a handful of NOUN paradigms (~202, task 02 §6) carry
  *    forms tagged with more than one `gender` — such a form simply becomes an *extra
@@ -162,10 +165,17 @@ export function enumerateSkills(word: WordIndexEntry, paradigm?: Paradigm): Skil
       acceptedAnswers: [],
     },
     {
-      skillId: encodeSkillId(wordId, 'vocab:ru-pl'),
+      skillId: encodeSkillId(wordId, 'vocab:ru-pl-choice'),
       wordId,
       kind: 'vocab',
-      dimension: 'vocab:ru-pl',
+      dimension: 'vocab:ru-pl-choice',
+      acceptedAnswers: [],
+    },
+    {
+      skillId: encodeSkillId(wordId, 'vocab:ru-pl-input'),
+      wordId,
+      kind: 'vocab',
+      dimension: 'vocab:ru-pl-input',
       acceptedAnswers: [],
     },
   ]

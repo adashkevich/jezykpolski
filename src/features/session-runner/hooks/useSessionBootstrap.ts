@@ -181,12 +181,15 @@ export function useSessionBootstrap(scope: SessionScope) {
     if (scope.kind === 'practice-extra') {
       // FR-137/FR-138 — see `session-scope.ts`'s own header on this scope: "Выбор перевода"
       // (`vocab-choice`) drills `vocab:pl-ru`, "Написание по-польски" (`vocab-spelling`)
-      // drills `vocab:ru-pl` — both single-slot, auto-graded exercises that go through the
-      // ordinary queue/registry path, `generateExercise` deciding `choice` vs `input` purely
-      // from the materialized skill's own dimension (`picker.ts#vocabExerciseType`).
+      // drills `vocab:ru-pl-input` (task 37 renamed the old `vocab:ru-pl` skill when it split
+      // into `vocab:ru-pl-choice`/`vocab:ru-pl-input` — this drill still targets the typing
+      // stage specifically, not the new middle stage) — both single-slot, auto-graded
+      // exercises that go through the ordinary queue/registry path, `generateExercise`
+      // deciding `choice` vs `input` purely from the materialized skill's own dimension
+      // (`picker.ts#vocabExerciseType`).
       extraVariant = scope.variant
-      const dimension: 'vocab:pl-ru' | 'vocab:ru-pl' =
-        scope.variant === 'vocab-choice' ? 'vocab:pl-ru' : 'vocab:ru-pl'
+      const dimension: 'vocab:pl-ru' | 'vocab:ru-pl-input' =
+        scope.variant === 'vocab-choice' ? 'vocab:pl-ru' : 'vocab:ru-pl-input'
       const wordIds = scope.wordIds.filter(
         (wordId) => !args.excludeSkillIds.has(encodeSkillId(wordId, dimension)),
       )
@@ -236,10 +239,14 @@ export function useSessionBootstrap(scope: SessionScope) {
       // applies to every non-Practice scope — the same restriction rule as Practice's own
       // per-run checkboxes, just settings-backed instead of configured per session. Default
       // value resolves to `undefined` (no restriction), i.e. today's pre-task-24 behavior.
+      // Task 37: the same `forceCategory` is now also handed to `resolveSessionCandidates`,
+      // which uses it to drop the excluded vocab stage(s) from the due pool — see
+      // `session-scope.ts#filterForVocabExerciseType` for why that's a due-skill filter
+      // rather than a `pickExerciseType` branch, unlike the morphological case below.
       forceCategory = resolveForceCategory(
         await settingsRepo.get(DEFAULT_EXERCISE_TYPES_SETTING_KEY, DEFAULT_EXERCISE_TYPES_DEFAULT),
       )
-      const candidates = await resolveSessionCandidates(scope, now)
+      const candidates = await resolveSessionCandidates(scope, now, forceCategory)
       const dueSkills = candidates.dueSkills.filter((s) => !args.excludeSkillIds.has(s.skillId))
       const candidateNewWords = candidates.candidateNewWords.filter(
         (w) => !args.excludeSkillIds.has(encodeSkillId(`${w.lemma}|${w.pos}`, 'vocab:pl-ru')),

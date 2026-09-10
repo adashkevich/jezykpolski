@@ -46,7 +46,7 @@ export type ConcreteGenderValue = Exclude<GenderValue, AdjGenderAggregate>
 // this task — see enumerate.ts for the exact construction rules and their rationale).
 // ---------------------------------------------------------------------------
 
-export type VocabDimension = 'vocab:pl-ru' | 'vocab:ru-pl'
+export type VocabDimension = 'vocab:pl-ru' | 'vocab:ru-pl-choice' | 'vocab:ru-pl-input'
 
 export type NounDimension = `noun:${NumberAbbrev}:${CaseValue}`
 

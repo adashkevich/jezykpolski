@@ -104,7 +104,7 @@ describe('aggregateWord', () => {
   it('averages maturity per group (vocab, morph, overall) from real records', () => {
     const known = new Map<SkillId, SkillRecord>([
       [encodeSkillId('kobieta|NOUN', 'vocab:pl-ru'), record({ stability: TARGET_STABILITY_DAYS })], // 1.0
-      // vocab:ru-pl absent -> 0
+      // vocab:ru-pl-choice, vocab:ru-pl-input absent -> 0
       [
         encodeSkillId('kobieta|NOUN', 'noun:sg:genitive'),
         record({ stability: TARGET_STABILITY_DAYS / 2 }),
@@ -112,7 +112,7 @@ describe('aggregateWord', () => {
       // noun:sg:dative absent -> 0
     ])
     const agg = aggregateWord(all, known)
-    expect(agg.vocabMaturity).toBeCloseTo((1 + 0) / 2)
+    expect(agg.vocabMaturity).toBeCloseTo((1 + 0 + 0) / 3)
     expect(agg.morphMaturity).toBeCloseTo((0.5 + 0) / 2)
     expect(agg.recordedSkillCount).toBe(2)
   })
@@ -131,9 +131,11 @@ describe('deriveStatus — threshold boundaries (architecture.md §5.4)', () => 
       overallMaturity: 0,
       recordedSkillCount: 1,
       totalSkillCount: 10,
-      // Task 28 (FR-83): всё, что выше `learning`, требует открытого этапа 2 — базой для
-      // проверок порогов ниже берётся именно он, а сам гейт проверяется отдельным блоком.
+      // Task 28/37 (FR-83): всё, что выше `learning`, требует, чтобы слово было хоть раз
+      // успешно набрано (`productionGraduated`) — базой для проверок порогов ниже берётся
+      // именно он, а сам гейт проверяется отдельным блоком.
       stage: 'production',
+      productionGraduated: true,
       ...overrides,
     }
   }
@@ -184,12 +186,13 @@ describe('deriveStatus — threshold boundaries (architecture.md §5.4)', () => 
 })
 
 // ---------------------------------------------------------------------------
-// Task 28 (FR-83): выбор значения из списка — это часть владения словом, но не всё. Пока
-// этап 2 (`vocab:ru-pl`) не открыт, слово не может подняться выше `learning`, каким бы
+// Task 28 (FR-83), gate tightened by task 37: выбор значения из списка — это часть владения
+// словом, но не всё. Пока слово ни разу не набрано успешно по-польски
+// (`productionGraduated === false`), оно не может подняться выше `learning`, каким бы
 // зрелым ни был навык узнавания.
 // ---------------------------------------------------------------------------
 
-describe('deriveStatus — гейт по этапу изучения (task 28, FR-83)', () => {
+describe('deriveStatus — гейт по этапу изучения (task 28/37, FR-83)', () => {
   function agg(overrides: Partial<WordAggregate>): WordAggregate {
     return {
       wordId: 'x|NOUN',
@@ -198,21 +201,28 @@ describe('deriveStatus — гейт по этапу изучения (task 28, F
       overallMaturity: 1,
       recordedSkillCount: 1,
       totalSkillCount: 10,
-      stage: 'recognition',
+      stage: 'cued-recall',
+      productionGraduated: false,
       ...overrides,
     }
   }
 
-  it('"learning" while only узнавание exists, even at full maturity', () => {
+  it('"learning" while слово ни разу не набрано (productionGraduated: false), even at full maturity', () => {
     expect(deriveStatus(agg({}))).toBe('learning')
   })
 
-  it('the very same aggregate becomes "mastered" once этап 2 is open', () => {
-    expect(deriveStatus(agg({ stage: 'production' }))).toBe('mastered')
+  it('the very same aggregate becomes "mastered" once production graduates', () => {
+    expect(deriveStatus(agg({ stage: 'production', productionGraduated: true }))).toBe('mastered')
   })
 
-  it('"new" still wins over the stage gate when nothing is recorded at all', () => {
-    expect(deriveStatus(agg({ recordedSkillCount: 0, stage: 'not-started' }))).toBe('new')
+  it('productionGraduated alone gates the status, not stage — "production" stage with an unreviewed skill is still "learning"', () => {
+    expect(deriveStatus(agg({ stage: 'production', productionGraduated: false }))).toBe('learning')
+  })
+
+  it('"new" still wins over the productionGraduated gate when nothing is recorded at all', () => {
+    expect(
+      deriveStatus(agg({ recordedSkillCount: 0, stage: 'not-started', productionGraduated: false })),
+    ).toBe('new')
   })
 })
 
@@ -254,12 +264,50 @@ describe('aggregateWord — stage', () => {
     expect(aggregateWord(all, known).stage).toBe('recognition')
   })
 
-  it('"production" once vocab:ru-pl is recorded', () => {
+  it('"cued-recall" once vocab:ru-pl-choice is recorded too (task 37)', () => {
     const known = new Map<SkillId, SkillRecord>([
       [encodeSkillId('kobieta|NOUN', 'vocab:pl-ru'), record({ dimension: 'vocab:pl-ru' })],
-      [encodeSkillId('kobieta|NOUN', 'vocab:ru-pl'), record({ dimension: 'vocab:ru-pl' })],
+      [
+        encodeSkillId('kobieta|NOUN', 'vocab:ru-pl-choice'),
+        record({ dimension: 'vocab:ru-pl-choice' }),
+      ],
+    ])
+    expect(aggregateWord(all, known).stage).toBe('cued-recall')
+  })
+
+  it('"production" once vocab:ru-pl-input is recorded', () => {
+    const known = new Map<SkillId, SkillRecord>([
+      [encodeSkillId('kobieta|NOUN', 'vocab:pl-ru'), record({ dimension: 'vocab:pl-ru' })],
+      [
+        encodeSkillId('kobieta|NOUN', 'vocab:ru-pl-choice'),
+        record({ dimension: 'vocab:ru-pl-choice' }),
+      ],
+      [
+        encodeSkillId('kobieta|NOUN', 'vocab:ru-pl-input'),
+        record({ dimension: 'vocab:ru-pl-input' }),
+      ],
     ])
     expect(aggregateWord(all, known).stage).toBe('production')
+  })
+
+  it('productionGraduated is true once vocab:ru-pl-input reaches "review" (task 37)', () => {
+    const known = new Map<SkillId, SkillRecord>([
+      [
+        encodeSkillId('kobieta|NOUN', 'vocab:ru-pl-input'),
+        record({ dimension: 'vocab:ru-pl-input', state: 'review' }),
+      ],
+    ])
+    expect(aggregateWord(all, known).productionGraduated).toBe(true)
+  })
+
+  it('productionGraduated is false while vocab:ru-pl-input is still "learning"', () => {
+    const known = new Map<SkillId, SkillRecord>([
+      [
+        encodeSkillId('kobieta|NOUN', 'vocab:ru-pl-input'),
+        record({ dimension: 'vocab:ru-pl-input', state: 'learning' }),
+      ],
+    ])
+    expect(aggregateWord(all, known).productionGraduated).toBe(false)
   })
 
   it('a morphological record alone never opens этап 2', () => {

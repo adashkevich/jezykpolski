@@ -26,7 +26,11 @@ function entry(lemma: string, pos: PosValue, rank: number, paradigmShard = -1): 
   return { lemma, pos, rank, level: 'A1', primaryRu: 'x', sensesShard: 0, paradigmShard }
 }
 
-function vocabSkill(wordId: string, dim: 'vocab:pl-ru' | 'vocab:ru-pl', stability: number): SkillRecord {
+function vocabSkill(
+  wordId: string,
+  dim: 'vocab:pl-ru' | 'vocab:ru-pl-choice' | 'vocab:ru-pl-input',
+  stability: number,
+): SkillRecord {
   return {
     skillId: `${wordId}::${dim}`,
     wordId,
@@ -45,9 +49,13 @@ function vocabSkill(wordId: string, dim: 'vocab:pl-ru' | 'vocab:ru-pl', stabilit
   }
 }
 
+/** All three vocab skills at the same `stability`, all `state: 'review'` — same maturity
+ *  math as with two (averaging equal values), and `productionGraduated` (task 37) is always
+ *  satisfied. */
 async function learnWord(wordId: string, stability: number): Promise<void> {
   await upsertSkill(vocabSkill(wordId, 'vocab:pl-ru', stability))
-  await upsertSkill(vocabSkill(wordId, 'vocab:ru-pl', stability))
+  await upsertSkill(vocabSkill(wordId, 'vocab:ru-pl-choice', stability))
+  await upsertSkill(vocabSkill(wordId, 'vocab:ru-pl-input', stability))
   await recomputeWordProgress(wordId)
 }
 

@@ -1,19 +1,24 @@
 /**
  * Exercise-type selection (`spec/tasks/09-exercise-engine.md` step 2,
- * `spec/tasks/28-two-stage-vocabulary-and-letter-diff.md` §1, `spec/architecture.md` §7.2,
+ * `spec/tasks/28-two-stage-vocabulary-and-letter-diff.md` §1,
+ * `spec/tasks/37-three-stage-vocabulary.md` §1, `spec/architecture.md` §7.2,
  * `spec/app-design.md` §7 "Как строить обучение одного слова" and §18 "Active recall
  * важнее recognition").
  *
- * Two different rules live here, and the split is the whole point of task 28:
+ * Two different rules live here, and the split is the whole point of task 28 (widened to a
+ * three-way split by task 37):
  *
- *  - **Vocabulary** — the exercise type follows the skill's *direction*, not its FSRS state
- *    (FR-80): `vocab:pl-ru` is always `choice` (этап 1, узнавание: выбрать значение из
- *    списка) and `vocab:ru-pl` is always `input` (этап 2, воспроизведение: написать слово
- *    по-польски). The progression between them is not a state machine inside this function
- *    at all — it's the two skills' own scheduling: `vocab:ru-pl` doesn't even exist as a
- *    `SkillRecord` until `progress/stage.ts#shouldUnlockProduction` says этап 1 пройден
- *    (`answer-pipeline.ts` materializes it then), which is what keeps FR-81's "этап 2 не
- *    открывается в той же сессии" true without any sequencing code here.
+ *  - **Vocabulary** — the exercise type follows the skill's *dimension*, not its FSRS state
+ *    (FR-80): `vocab:pl-ru` and `vocab:ru-pl-choice` are always `choice` (этап 1/2,
+ *    узнавание: выбрать значение из списка, сначала по-русски, потом по-польски среди
+ *    польских дистракторов) and `vocab:ru-pl-input` is always `input` (этап 3,
+ *    воспроизведение: написать слово по-польски). The progression between them is not a
+ *    state machine inside this function at all — it's the three skills' own scheduling: a
+ *    later stage doesn't even exist as a `SkillRecord` until
+ *    `progress/stage.ts#shouldUnlockCuedRecall` / `shouldUnlockProduction` says the previous
+ *    stage cleared its stability bar (`answer-pipeline.ts` materializes it then), which is
+ *    what keeps FR-81's "прогрессия не открывается в той же сессии" true without any
+ *    sequencing code here.
  *    `PL→RU input` (печатать русский перевод) is deliberately unreachable now — see the
  *    decision log for task 28 in `spec/tasks/00-progress.md`.
  *  - **Morphology** (noun/verb/adj/adv) — unchanged: the recognition/recall pair is still
@@ -58,11 +63,13 @@ export interface PickerOptions {
    *  "Ввод ответа" checked) keeps today's normal SRS-state-driven behavior.
    *
    *  Task 28: this only affects **morphological** skills now. A vocab skill's type is fixed
-   *  by its direction (`vocab:pl-ru` -> `choice`, `vocab:ru-pl` -> `input`), so there is
-   *  nothing left for a category restriction to choose there — forcing `'recall'` on
-   *  `vocab:pl-ru` would resurrect the very `PL→RU input` exercise task 28 removed. Both
-   *  UIs that expose the setting say so (`InterfaceSettingsSection.tsx`,
-   *  `TrainingSetupScreen.tsx`: "влияет на упражнения по формам слов"). */
+   *  by its dimension (`vocab:pl-ru`/`vocab:ru-pl-choice` -> `choice`, `vocab:ru-pl-input` ->
+   *  `input`), so there is nothing left for a category restriction to choose there — forcing
+   *  `'recall'` on `vocab:pl-ru` would resurrect the very `PL→RU input` exercise task 28
+   *  removed. Both UIs that expose the setting say so (`InterfaceSettingsSection.tsx`,
+   *  `TrainingSetupScreen.tsx`: "влияет на упражнения по формам слов"). Task 37's own "Тип
+   *  задания" restriction on *vocabulary* is a separate mechanism at the queue level
+   *  (`session-scope.ts`'s due-skill filter), not this one — see that module's header. */
   readonly forceCategory?: ExerciseCategory
 }
 
@@ -106,12 +113,15 @@ function recognitionType(skill: SkillDescriptor): PickedExerciseType {
 }
 
 /**
- * Task 28 (FR-80): a vocabulary skill's exercise type is its direction, full stop.
+ * Task 28 (FR-80), widened by task 37: a vocabulary skill's exercise type is its dimension,
+ * full stop.
  *
- * `vocab:pl-ru` -> `choice` in every SRS state, including `review`: узнавание is этап 1 and
- * never becomes a typing exercise — the typing этап is the *other* skill. `vocab:ru-pl` ->
+ * `vocab:pl-ru` and `vocab:ru-pl-choice` -> `choice` in every SRS state, including `review`:
+ * both are recognition stages (RU translation, then the Polish word itself, among
+ * distractors — `generate.ts#buildVocabChoice` is symmetric by `direction`) and never become
+ * a typing exercise — the typing этап is `vocab:ru-pl-input` alone. `vocab:ru-pl-input` ->
  * `input`, likewise in every state; the one exception is the explicit `selfAssessOnReview`
- * opt-out, which still turns a mature этап-2 skill into `self-assess` (architecture.md §7.2:
+ * opt-out, which still turns a mature этап-3 skill into `self-assess` (architecture.md §7.2:
  * "review → input (или self-assess при настройке)") — it is off by default and only ever
  * applies to `review`, so the default path is always "write it in Polish".
  */
@@ -120,7 +130,7 @@ function vocabExerciseType(
   srs: SkillRecord | undefined,
   options: PickerOptions,
 ): PickedExerciseType {
-  if (skill.dimension === 'vocab:pl-ru') return 'choice'
+  if (skill.dimension !== 'vocab:ru-pl-input') return 'choice'
   if (options.selfAssessOnReview && srs?.state === 'review') return 'self-assess'
   return 'input'
 }

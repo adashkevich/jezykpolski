@@ -89,7 +89,8 @@ describe('materializeQueueItem', () => {
     )
 
     // End-to-end confirmation of rule 4: the only row actually persisted for this word is
-    // vocab:pl-ru — vocab:ru-pl is never touched.
+    // vocab:pl-ru — the later stages (vocab:ru-pl-choice, vocab:ru-pl-input) are never
+    // touched.
     const persisted = await skillsRepo.getSkillsForWord(wordId)
     expect(persisted.map((s) => s.dimension)).toEqual(['vocab:pl-ru'])
   })
@@ -97,8 +98,8 @@ describe('materializeQueueItem', () => {
   // Task 31 (`spec/tasks/31-practice-vocabulary-drills.md` §3) — the `newWordDimension`
   // parameter `useSessionBootstrap.ts`'s `{ kind: 'practice-extra', variant: 'vocab-spelling'
   // }` branch relies on to materialize a brand-new word's *production* skill on demand,
-  // instead of the default `vocab:pl-ru`.
-  it('a "new" item materializes vocab:ru-pl instead when newWordDimension asks for it', async () => {
+  // instead of the default `vocab:pl-ru`. Renamed to `vocab:ru-pl-input` by task 37.
+  it('a "new" item materializes vocab:ru-pl-input instead when newWordDimension asks for it', async () => {
     const wordId = encodeWordId('stol', 'NOUN')
     const item: LearnQueueItem = {
       source: 'new',
@@ -108,20 +109,20 @@ describe('materializeQueueItem', () => {
     const ensureSpy = vi.spyOn(skillsRepo, 'ensureSkill')
     const cache = new SessionContentCache()
 
-    const { descriptor, skill } = await materializeQueueItem(item, cache, 'vocab:ru-pl')
+    const { descriptor, skill } = await materializeQueueItem(item, cache, 'vocab:ru-pl-input')
 
-    expect(descriptor.dimension).toBe('vocab:ru-pl')
-    expect(skill.skillId).toBe(encodeSkillId(wordId, 'vocab:ru-pl'))
+    expect(descriptor.dimension).toBe('vocab:ru-pl-input')
+    expect(skill.skillId).toBe(encodeSkillId(wordId, 'vocab:ru-pl-input'))
     expect(ensureSpy).toHaveBeenCalledTimes(1)
     expect(ensureSpy).toHaveBeenCalledWith(
-      encodeSkillId(wordId, 'vocab:ru-pl'),
+      encodeSkillId(wordId, 'vocab:ru-pl-input'),
       wordId,
       'vocab',
-      'vocab:ru-pl',
+      'vocab:ru-pl-input',
     )
 
     const persisted = await skillsRepo.getSkillsForWord(wordId)
-    expect(persisted.map((s) => s.dimension)).toEqual(['vocab:ru-pl'])
+    expect(persisted.map((s) => s.dimension)).toEqual(['vocab:ru-pl-input'])
   })
 
   it('a "due" item resolves the SkillDescriptor for the already-existing SkillRecord, without calling ensureSkill', async () => {
@@ -186,7 +187,7 @@ describe('generateExtraForWord', () => {
     expect(instance.exercise.type).toBe('choice')
   })
 
-  it('vocab-spelling over a vocab:ru-pl descriptor produces an "input" exercise', async () => {
+  it('vocab-spelling over a vocab:ru-pl-input descriptor produces an "input" exercise', async () => {
     const wordId = encodeWordId('kot', 'NOUN')
     const item: LearnQueueItem = {
       source: 'new',
@@ -194,7 +195,7 @@ describe('generateExtraForWord', () => {
       wordId,
     }
     const cache = new SessionContentCache()
-    const { descriptor, skill } = await materializeQueueItem(item, cache, 'vocab:ru-pl')
+    const { descriptor, skill } = await materializeQueueItem(item, cache, 'vocab:ru-pl-input')
 
     const instance = generateExtraForWord('vocab-spelling', descriptor, skill, cache, 0)
     expect(instance.exercise.type).toBe('input')

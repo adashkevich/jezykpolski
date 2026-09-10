@@ -35,7 +35,7 @@ function entry(lemma: string, rank: number): WordIndexEntry {
 
 function vocabSkill(
   wordId: string,
-  dim: 'vocab:pl-ru' | 'vocab:ru-pl',
+  dim: 'vocab:pl-ru' | 'vocab:ru-pl-choice' | 'vocab:ru-pl-input',
   stability: number,
 ): SkillRecord {
   return {
@@ -43,6 +43,29 @@ function vocabSkill(
     wordId,
     kind: 'vocab',
     dimension: dim,
+    state: stability > 0 ? 'review' : 'new',
+    stability,
+    difficulty: 3,
+    due: 1000,
+    reps: stability > 0 ? 2 : 0,
+    lapses: 0,
+    correct: 2,
+    incorrect: 0,
+    createdAt: 500,
+    updatedAt: 500,
+  }
+}
+
+/** Task 37: the pre-task-37 `vocab:ru-pl` dimension — used only to simulate a backup file
+ *  exported before that task, exercising `prepareImport`'s `migrateLegacySkills` normalization
+ *  (`legacy-vocab-migration.ts`). `vocabSkill` above deliberately no longer accepts this
+ *  dimension — every OTHER fixture in this file should use a current one. */
+function legacyRuPlSkill(wordId: string, stability: number): SkillRecord {
+  return {
+    skillId: `${wordId}::vocab:ru-pl`,
+    wordId,
+    kind: 'vocab',
+    dimension: 'vocab:ru-pl',
     state: stability > 0 ? 'review' : 'new',
     stability,
     difficulty: 3,
@@ -132,7 +155,7 @@ describe('export -> reset -> import round trip (acceptance point 1)', () => {
     for (const [i, w] of words.entries()) {
       const wordId = `${w}|NOUN`
       skills.push(vocabSkill(wordId, 'vocab:pl-ru', i * 30))
-      skills.push(vocabSkill(wordId, 'vocab:ru-pl', i * 20))
+      skills.push(vocabSkill(wordId, 'vocab:ru-pl-input', i * 20))
     }
     await db.skills.bulkAdd(skills)
     const { recomputeAll } = await import('./words-progress.repository.ts')
@@ -227,7 +250,7 @@ describe('prepareImport / applyImport — validation and edge cases (acceptance 
     const backup = await buildBackupExport('v1')
     const withSkill = {
       ...backup,
-      skills: [vocabSkill('kobieta|NOUN', 'vocab:pl-ru', 60), vocabSkill('kobieta|NOUN', 'vocab:ru-pl', 60)],
+      skills: [vocabSkill('kobieta|NOUN', 'vocab:pl-ru', 60), legacyRuPlSkill('kobieta|NOUN', 60)],
     }
 
     expect(await db.wordProgress.count()).toBe(0)
@@ -236,12 +259,15 @@ describe('prepareImport / applyImport — validation and edge cases (acceptance 
 
     const progress = await db.wordProgress.get('kobieta|NOUN')
     expect(progress).toBeDefined()
+    // Task 37: `prepareImport` migrates the legacy `vocab:ru-pl` row to `vocab:ru-pl-input`
+    // and backfills `vocab:ru-pl-choice` alongside it — all three vocab dimensions end up
+    // at stability 60 (maturity 1.0), so the word is `mastered`, same as before the split.
     expect(progress?.status).toBe('mastered')
   })
 
   it('replaces existing data transactionally — old rows are gone, only imported rows remain', async () => {
     initIndexStore([entry('kobieta', 1)])
-    await db.skills.add(vocabSkill('kobieta|NOUN', 'vocab:ru-pl', 5))
+    await db.skills.add(legacyRuPlSkill('kobieta|NOUN', 5))
     const sessionId = await db.sessions.add(session())
     await db.reviewLogs.add(reviewLog(sessionId as number, 'kobieta|NOUN::vocab:ru-pl', 'kobieta|NOUN'))
 
@@ -261,6 +287,68 @@ describe('prepareImport / applyImport — validation and edge cases (acceptance 
     expect(await db.skills.count()).toBe(0)
     expect(await db.sessions.count()).toBe(0)
     expect(await db.reviewLogs.count()).toBe(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Task 37 (`spec/tasks/37-three-stage-vocabulary.md` §3) — importing a backup exported
+// before the vocab:ru-pl split. `CURRENT_BACKUP_SCHEMA_VERSION` is deliberately NOT bumped
+// for this (see `prepareImport`'s own doc comment): the file's *shape* hasn't changed, only
+// the meaning of one dimension string, so an old file must still import cleanly, not be
+// rejected as an unsupported version.
+// ---------------------------------------------------------------------------
+
+describe('prepareImport — normalizes a pre-task-37 backup (legacy vocab:ru-pl)', () => {
+  it('migrates a legacy skills row and its reviewLogs reference, and reflects the backfill in the summary', () => {
+    initIndexStore([entry('kobieta', 1)])
+    const legacyBackup = {
+      schemaVersion: CURRENT_BACKUP_SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      contentVersion: 'v1',
+      skills: [vocabSkill('kobieta|NOUN', 'vocab:pl-ru', 30), legacyRuPlSkill('kobieta|NOUN', 20)],
+      reviewLogs: [reviewLog(1, 'kobieta|NOUN::vocab:ru-pl', 'kobieta|NOUN')],
+      sessions: [],
+      dailyStats: [],
+      settings: {},
+    }
+
+    const { data, summary } = prepareImport(legacyBackup, 'v1')
+
+    // The raw file has 2 skills; the summary counts the post-migration 3 (backfill included)
+    // — "будет импортировано N навыков" should reflect what the user actually gets.
+    expect(summary.skillsCount).toBe(3)
+
+    const byDimension = new Map(data.skills.map((s) => [s.dimension, s]))
+    expect(byDimension.has('vocab:ru-pl')).toBe(false)
+    expect(byDimension.get('vocab:ru-pl-input')?.skillId).toBe('kobieta|NOUN::vocab:ru-pl-input')
+    expect(byDimension.get('vocab:ru-pl-input')?.stability).toBe(20)
+    expect(byDimension.get('vocab:ru-pl-choice')?.skillId).toBe('kobieta|NOUN::vocab:ru-pl-choice')
+    expect(byDimension.get('vocab:ru-pl-choice')?.stability).toBe(20) // backfilled as a copy
+
+    expect(data.reviewLogs.map((l) => l.skillId)).toEqual(['kobieta|NOUN::vocab:ru-pl-input'])
+  })
+
+  it('applyImport writes the migrated rows — no vocab:ru-pl skillId ever reaches the DB', async () => {
+    initIndexStore([entry('kobieta', 1)])
+    const legacyBackup = {
+      schemaVersion: CURRENT_BACKUP_SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      contentVersion: 'v1',
+      skills: [legacyRuPlSkill('kobieta|NOUN', 15)],
+      reviewLogs: [],
+      sessions: [],
+      dailyStats: [],
+      settings: {},
+    }
+
+    const { data } = prepareImport(legacyBackup, 'v1')
+    await applyImport(data, 'v1')
+
+    const skills = await db.skills.toArray()
+    expect(skills.map((s) => s.skillId).sort()).toEqual([
+      'kobieta|NOUN::vocab:ru-pl-choice',
+      'kobieta|NOUN::vocab:ru-pl-input',
+    ])
   })
 })
 

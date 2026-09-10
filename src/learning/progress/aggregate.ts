@@ -10,7 +10,7 @@
  */
 import type { SkillId, WordId } from '../skills/skill-id.ts'
 import type { SkillDescriptor } from '../skills/enumerate.ts'
-import { stageOf, type LearningStage } from './stage.ts'
+import { hasGraduatedProduction, stageOf, type LearningStage } from './stage.ts'
 import type { SkillRecord, WordStatus } from '@/types/progress.ts'
 
 export type { WordStatus } from '@/types/progress.ts'
@@ -49,7 +49,8 @@ export function skillMaturity(skill: SkillRecord | undefined): number {
 
 export interface WordAggregate {
   readonly wordId: WordId
-  /** 0..1, average maturity over the `vocab:pl-ru` / `vocab:ru-pl` skills. */
+  /** 0..1, average maturity over the three vocab skills (`vocab:pl-ru`,
+   *  `vocab:ru-pl-choice`, `vocab:ru-pl-input` — task 37 widened this from two). */
   readonly vocabMaturity: number
   /**
    * 0..1, average maturity over every non-vocab skill. `undefined` — not `0` — when the
@@ -62,10 +63,15 @@ export interface WordAggregate {
   /** How many of `all`'s skills have a matching `SkillRecord` — `0` means a brand-new word. */
   readonly recordedSkillCount: number
   readonly totalSkillCount: number
-  /** Task 28 (FR-83): which of the two vocabulary stages this word has reached
+  /** Task 28/37 (FR-83): which of the three vocabulary stages this word has reached
    *  (`progress/stage.ts`). `deriveStatus` below uses it as a hard gate — узнавание одно
    *  никогда не делает слово `known`. */
   readonly stage: LearningStage
+  /** Task 37: has `vocab:ru-pl-input` ever graduated to `review` — i.e. was the word
+   *  actually typed correctly at least once (`progress/stage.ts#hasGraduatedProduction`).
+   *  `deriveStatus` gates `known` on this directly, not just on `stage === 'production'`
+   *  (the skill can exist — `stage` already `'production'` — before it has ever graduated). */
+  readonly productionGraduated: boolean
 }
 
 /** `agg` returns all-zero, `recordedSkillCount: 0` for a word with no `SkillRecord` at all —
@@ -76,7 +82,7 @@ export function aggregateWord(
 ): WordAggregate {
   if (all.length === 0) {
     throw new Error(
-      'aggregateWord: empty descriptor list (enumerateSkills always returns at least 2 vocab skills)',
+      'aggregateWord: empty descriptor list (enumerateSkills always returns at least 3 vocab skills)',
     )
   }
 
@@ -104,31 +110,34 @@ export function aggregateWord(
     recordedSkillCount,
     totalSkillCount: all.length,
     stage: stageOf(vocabRecords),
+    productionGraduated: hasGraduatedProduction(vocabRecords),
   }
 }
 
 /**
- * Status thresholds from architecture.md §5.4, applied in this exact order:
+ * Status thresholds from architecture.md §5.4, extended by task 37's `productionGraduated`
+ * gate, applied in this exact order:
  *
  * ```text
  * new       no SkillRecord at all for this word
  * learning  has records, but vocabMaturity < KNOWN_THRESHOLD
- *           OR этап 2 ещё не открыт (stage === 'recognition', task 28 / FR-83)
+ *           OR слово ни разу не набрано по-польски (productionGraduated === false, task 37)
  * known     vocabMaturity >= KNOWN_THRESHOLD
  * mastered  vocabMaturity >= MASTERED_THRESHOLD AND
  *           (word has no morphology OR morphMaturity >= MASTERED_THRESHOLD)
  * ```
  *
- * Про `stage` (task 28, FR-83): выбор значения из списка — это узнавание, часть владения
- * словом, но не всё. Пока `vocab:ru-pl` не открыт, пользователь ни разу не пробовал
- * написать слово по-польски, поэтому слово остаётся `learning`, каким бы зрелым ни стал
- * навык узнавания. Само по себе усреднение `vocabMaturity` по двум навыкам этого не
- * гарантирует: достаточно зрелый `vocab:pl-ru` вытягивает среднее выше `KNOWN_THRESHOLD`
- * в одиночку.
+ * Про `productionGraduated` (task 28 §FR-83, ужесточено task 37): выбор значения из списка —
+ * это узнавание, часть владения словом, но не всё. Пока `vocab:ru-pl-input` ни разу не
+ * выпустился в `review`, пользователь ни разу не набрал слово по-польски успешно, поэтому
+ * слово остаётся `learning`, каким бы зрелым ни стал навык узнавания. Само по себе
+ * усреднение `vocabMaturity` по трём навыкам этого не гарантирует: достаточно зрелые
+ * `vocab:pl-ru`/`vocab:ru-pl-choice` вытягивают среднее выше `KNOWN_THRESHOLD` и без единого
+ * набранного ответа.
  */
 export function deriveStatus(agg: WordAggregate): WordStatus {
   if (agg.recordedSkillCount === 0) return 'new'
-  if (agg.stage !== 'production') return 'learning'
+  if (!agg.productionGraduated) return 'learning'
   if (agg.vocabMaturity < KNOWN_THRESHOLD) return 'learning'
 
   const morphologyClearsBar =

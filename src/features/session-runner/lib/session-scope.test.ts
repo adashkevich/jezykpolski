@@ -456,13 +456,14 @@ describe('resolvePracticeCandidateWords (kind: practice)', () => {
     expect(candidates.map((c) => c.wordId)).toEqual([encodeWordId('kobieta', 'NOUN')])
   })
 
-  it('a word with no paradigm (paradigmShard -1) still yields its two vocab:* descriptors', async () => {
+  it('a word with no paradigm (paradigmShard -1) still yields its three vocab:* descriptors', async () => {
     initIndexStore([entry({ lemma: 'kobieta', pos: 'NOUN', rank: 1, paradigmShard: -1 })])
     const candidates = await resolvePracticeCandidateWords(practiceConfig())
     expect(candidates).toHaveLength(1)
     expect(candidates[0]!.descriptors.map((d) => d.dimension).sort()).toEqual([
       'vocab:pl-ru',
-      'vocab:ru-pl',
+      'vocab:ru-pl-choice',
+      'vocab:ru-pl-input',
     ])
   })
 
@@ -485,7 +486,13 @@ describe('resolvePracticeCandidateWords (kind: practice)', () => {
     const candidates = await resolvePracticeCandidateWords(practiceConfig())
     expect(candidates).toHaveLength(1)
     const dims = candidates[0]!.descriptors.map((d) => d.dimension).sort()
-    expect(dims).toEqual(['noun:sg:genitive', 'noun:sg:nominative', 'vocab:pl-ru', 'vocab:ru-pl'])
+    expect(dims).toEqual([
+      'noun:sg:genitive',
+      'noun:sg:nominative',
+      'vocab:pl-ru',
+      'vocab:ru-pl-choice',
+      'vocab:ru-pl-input',
+    ])
   })
 
   it('a status filter narrows candidates the same way /words does', async () => {

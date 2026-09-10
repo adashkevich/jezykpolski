@@ -28,7 +28,7 @@ function entry(lemma: string, pos: PosValue, rank: number): WordIndexEntry {
 
 function vocabSkill(
   wordId: string,
-  dim: 'vocab:pl-ru' | 'vocab:ru-pl',
+  dim: 'vocab:pl-ru' | 'vocab:ru-pl-choice' | 'vocab:ru-pl-input',
   stability: number,
 ): SkillRecord {
   return {
@@ -49,11 +49,16 @@ function vocabSkill(
   }
 }
 
-/** Writes both vocab skills at the same `stability` (so `vocabMaturity = stability / 60`
- *  exactly) and recomputes `wordProgress` for `wordId`. */
+/** Writes all three vocab skills at the same `stability` (so `vocabMaturity = stability / 60`
+ *  exactly, same as when there were two — averaging N equal values doesn't change the
+ *  average) and recomputes `wordProgress` for `wordId`. `vocab:ru-pl-input` is always
+ *  `state: 'review'` here (same as the other two), so `productionGraduated` (task 37) is
+ *  always satisfied — this helper's whole point is exercising the maturity thresholds, not
+ *  the graduation gate itself. */
 async function learnWord(wordId: string, stability: number): Promise<void> {
   await upsertSkill(vocabSkill(wordId, 'vocab:pl-ru', stability))
-  await upsertSkill(vocabSkill(wordId, 'vocab:ru-pl', stability))
+  await upsertSkill(vocabSkill(wordId, 'vocab:ru-pl-choice', stability))
+  await upsertSkill(vocabSkill(wordId, 'vocab:ru-pl-input', stability))
   await recomputeWordProgress(wordId)
 }
 
