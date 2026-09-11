@@ -17,14 +17,15 @@
  *
  * Resolved ambiguity for the decision log: `spec/app-design.md` §21's prose adds "для чисто
  * vocabulary-сессии он группируется по части речи и уровню" — a fallback for the degenerate
- * case where every skill in the session is `vocab:pl-ru`/`vocab:ru-pl` (so grouping by raw
- * dimension collapses to 1-2 rows). The supervisor's task-14 brief overrides this with a
+ * case where every skill in the session is vocab-kind (so grouping by raw dimension
+ * collapses to a handful of rows). The supervisor's task-14 brief overrides this with a
  * flat instruction ("группировка по измерению (dimension из skillId)") and that is what's
  * implemented here — the POS+level fallback needs `WordIndexEntry.level`, which isn't on
  * `ReviewLogRecord` and would require a content-index round trip this screen otherwise never
- * needs. `vocab:pl-ru`/`vocab:ru-pl` are still split into their own two rows below (by
- * translation direction) so a vocab-only session's breakdown isn't completely useless, just
- * not the POS/level grouping the older prose described.
+ * needs. The three vocab dimensions (task 37 widened this from two — `vocab:pl-ru`,
+ * `vocab:ru-pl-choice`, `vocab:ru-pl-input`) are still split into their own rows below (by
+ * stage) so a vocab-only session's breakdown isn't completely useless, just not the
+ * POS/level grouping the older prose described.
  */
 import {
   CASE_LABELS,
@@ -44,7 +45,8 @@ export interface DimensionGroup {
 
 const VOCAB_LABELS: Readonly<Record<string, DimensionLabel>> = {
   'vocab:pl-ru': { pl: 'Przekład PL→RU', ru: 'Перевод PL→RU' },
-  'vocab:ru-pl': { pl: 'Przekład RU→PL', ru: 'Перевод RU→PL' },
+  'vocab:ru-pl-choice': { pl: 'Rozpoznanie RU→PL', ru: 'Узнавание RU→PL' },
+  'vocab:ru-pl-input': { pl: 'Pisownia RU→PL', ru: 'Написание RU→PL' },
 }
 
 // `IMPERATIVE_LABEL` now lives in `learning/skills/dimensions.ts` (added by task 21, which

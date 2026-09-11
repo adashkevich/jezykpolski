@@ -83,33 +83,37 @@ export function FormsSection({
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-border p-4">
+    <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-card">
       <button
         type="button"
         onClick={handleToggle}
         aria-expanded={open}
-        className="flex items-center justify-between gap-2 text-left"
+        className="-m-1 flex min-h-11 items-center justify-between gap-2 rounded-lg p-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       >
-        <span className="font-heading text-base font-medium text-foreground">Формы слова</span>
-        <ChevronDown
+        <span className="font-heading text-headline-md text-foreground">Формы слова</span>
+        <span
           aria-hidden="true"
-          className={cn(
-            'size-4 shrink-0 text-muted-foreground transition-transform',
-            open && 'rotate-180',
-          )}
-        />
+          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary"
+        >
+          <ChevronDown
+            className={cn(
+              'size-5 text-foreground transition-transform motion-reduce:transition-none',
+              open && 'rotate-180',
+            )}
+          />
+        </span>
       </button>
 
       {open && (
         <div>
           {lazyParadigm.status === 'loading' && (
-            <p className="text-sm text-muted-foreground">Загрузка форм…</p>
+            <p className="text-body-sm text-muted-foreground">Загрузка форм…</p>
           )}
 
           {lazyParadigm.status === 'error' &&
             (online ? (
               <div className="flex flex-col items-start gap-2">
-                <p className="text-sm text-destructive">
+                <p className="text-body-sm text-destructive">
                   Не удалось загрузить формы
                   {lazyParadigm.error ? `: ${lazyParadigm.error.message}` : ''}.
                 </p>
@@ -118,7 +122,7 @@ export function FormsSection({
                 </Button>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-body-sm text-muted-foreground">
                 Формы недоступны офлайн. Откройте это слово ещё раз при подключении к сети —
                 или включите заранее в{' '}
                 <Link to="/settings" className="text-foreground underline underline-offset-2">
@@ -137,7 +141,7 @@ export function FormsSection({
                 skills={skills}
               />
             ) : (
-              <p className="text-sm text-muted-foreground">У этого слова нет форм.</p>
+              <p className="text-body-sm text-muted-foreground">У этого слова нет форм.</p>
             ))}
         </div>
       )}

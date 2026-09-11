@@ -40,13 +40,19 @@ import { pickExerciseType, type PickedExerciseType, type PickerOptions } from '.
 const DEFAULT_DISTRACTOR_COUNT = 3
 
 // ---------------------------------------------------------------------------
-// Direction — a vocab skill's dimension IS its direction (`vocab:pl-ru` / `vocab:ru-pl`,
-// `learning/skills/enumerate.ts`), so there is nothing to infer beyond reading it back.
+// Direction — a vocab skill's dimension determines its direction (`learning/skills/
+// enumerate.ts`). Task 37 split the old single `vocab:ru-pl` skill into two
+// (`vocab:ru-pl-choice`, `vocab:ru-pl-input`) that share the same `ru-pl` direction — both
+// show the Russian translation as the prompt and the Polish lemma as the answer, they only
+// differ in *how* the answer is given (pick vs type), which `pickExerciseType` decides, not
+// this function.
 // ---------------------------------------------------------------------------
 
 function directionOfVocabSkill(skill: SkillDescriptor): Direction {
   if (skill.dimension === 'vocab:pl-ru') return 'pl-ru'
-  if (skill.dimension === 'vocab:ru-pl') return 'ru-pl'
+  if (skill.dimension === 'vocab:ru-pl-choice' || skill.dimension === 'vocab:ru-pl-input') {
+    return 'ru-pl'
+  }
   throw new Error(
     `generateExercise: expected a "vocab:*" dimension for a vocab-kind skill, got "${skill.dimension}"`,
   )

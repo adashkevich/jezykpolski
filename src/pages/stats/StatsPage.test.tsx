@@ -26,7 +26,11 @@ function entry(lemma: string, pos: PosValue, rank: number, paradigmShard = -1): 
   return { lemma, pos, rank, level: 'A1', primaryRu: 'x', sensesShard: 0, paradigmShard }
 }
 
-function vocabSkill(wordId: string, dim: 'vocab:pl-ru' | 'vocab:ru-pl', stability: number): SkillRecord {
+function vocabSkill(
+  wordId: string,
+  dim: 'vocab:pl-ru' | 'vocab:ru-pl-choice' | 'vocab:ru-pl-input',
+  stability: number,
+): SkillRecord {
   return {
     skillId: `${wordId}::${dim}`,
     wordId,
@@ -45,9 +49,13 @@ function vocabSkill(wordId: string, dim: 'vocab:pl-ru' | 'vocab:ru-pl', stabilit
   }
 }
 
+/** All three vocab skills at the same `stability`, all `state: 'review'` — same maturity
+ *  math as with two (averaging equal values), and `productionGraduated` (task 37) is always
+ *  satisfied. */
 async function learnWord(wordId: string, stability: number): Promise<void> {
   await upsertSkill(vocabSkill(wordId, 'vocab:pl-ru', stability))
-  await upsertSkill(vocabSkill(wordId, 'vocab:ru-pl', stability))
+  await upsertSkill(vocabSkill(wordId, 'vocab:ru-pl-choice', stability))
+  await upsertSkill(vocabSkill(wordId, 'vocab:ru-pl-input', stability))
   await recomputeWordProgress(wordId)
 }
 
@@ -101,9 +109,11 @@ describe('StatsPage', () => {
     expect(screen.getByText('1')).toBeInTheDocument() // "Изучается"
     // "По уровням": A1 has 2 known out of 4 NOUN+VERB words in the index -> 50%.
     expect(screen.getByText('A1')).toBeInTheDocument()
-    // "Части речи": NOUN 1/3, VERB 1/1.
-    expect(screen.getByText('NOUN')).toBeInTheDocument()
-    expect(screen.getByText('VERB')).toBeInTheDocument()
+    // "По частям речи": NOUN 1/3, VERB 1/1 — rows are labeled in Russian now (design restyle).
+    expect(screen.getByText('Существительные')).toBeInTheDocument()
+    expect(screen.getByText('Глаголы')).toBeInTheDocument()
+    expect(screen.getByText('1 / 3')).toBeInTheDocument()
+    expect(screen.getByText('1 / 1')).toBeInTheDocument()
   })
 
   it('hides the morphology blocks until noun/verb skills are materialized, and shows the noun block once one is', async () => {

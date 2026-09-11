@@ -18,7 +18,7 @@ import type { ExerciseCategory } from '@/learning/exercises/picker.ts'
 import type { ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import type { HintMode } from '@/learning/exercises/hint-mode.ts'
 import type { LearnQueueItem, PracticeQueueItem } from '@/learning/session/session.types.ts'
-import { shouldUnlockProduction } from '@/learning/progress/stage.ts'
+import { shouldUnlockCuedRecall, shouldUnlockProduction } from '@/learning/progress/stage.ts'
 import { encodeSkillId } from '@/learning/skills/skill-id.ts'
 import { ensureSkill } from '@/db/repositories/skills.repository.ts'
 import type { SkillRecord } from '@/types/progress.ts'
@@ -35,25 +35,27 @@ export interface MaterializedQueueEntry {
  * Resolves the `SkillDescriptor` for `item` and, for a `'new'` word, materializes exactly
  * one vocab skill via `ensureSkill` — `newWordDimension` (default `'vocab:pl-ru'`, every
  * ordinary Learn caller's implicit choice, task rule 4 / FR-81's "progression isn't
- * front-loaded in one sitting"): этап 2 is normally opened later, by
- * `answer-pipeline.ts#unlockProductionStage`, once узнавание graduates.
+ * front-loaded in one sitting"): the later stages are normally opened later, by
+ * `answer-pipeline.ts#unlockNextVocabStage`, once each stage clears its stability bar.
  *
  * Task 31 (`spec/tasks/31-practice-vocabulary-drills.md` §3) widens this to
- * `'vocab:ru-pl'` too: `useSessionBootstrap.ts`'s `{ kind: 'practice-extra', variant:
+ * `'vocab:ru-pl-input'` too: `useSessionBootstrap.ts`'s `{ kind: 'practice-extra', variant:
  * 'vocab-spelling' }` branch needs a brand-new word's *production* skill materialized
  * on demand, the same `ensureSkill` path task 28 already made routine for Learn — no new
  * materialization logic, just a caller-chosen dimension instead of the hard-coded one.
  *
- * Task 28's backfill: a `'due'` item that is an already-graduated `vocab:pl-ru` also gets
- * `vocab:ru-pl` ensured here. Words learned *before* task 28 existed never went through the
- * answer-time promotion — without this line they would stay stuck on этап 1 forever, and
- * fixing that here (idempotent `ensureSkill`, same predicate as the answer path) is cheaper
- * and safer than a one-shot database migration over every skill row.
+ * Task 28's backfill, widened to a two-step chain by task 37: a `'due'` item that already
+ * cleared a stability bar gets the next stage's skill ensured here too —
+ * `vocab:pl-ru` -> `vocab:ru-pl-choice`, `vocab:ru-pl-choice` -> `vocab:ru-pl-input`. Words
+ * learned before a given threshold existed never went through the answer-time promotion —
+ * without this they would stay stuck on their current stage forever, and fixing that here
+ * (idempotent `ensureSkill`, same predicates as the answer path) is cheaper and safer than a
+ * one-shot database migration over every skill row.
  */
 export async function materializeQueueItem(
   item: LearnQueueItem,
   cache: SessionContentCache,
-  newWordDimension: 'vocab:pl-ru' | 'vocab:ru-pl' = 'vocab:pl-ru',
+  newWordDimension: 'vocab:pl-ru' | 'vocab:ru-pl-choice' | 'vocab:ru-pl-input' = 'vocab:pl-ru',
 ): Promise<MaterializedQueueEntry> {
   const wordId = item.source === 'due' ? item.skill.wordId : item.wordId
   await cache.preload(wordId)
@@ -70,8 +72,20 @@ export async function materializeQueueItem(
           `content no longer enumerates this dimension (stale SkillRecord?).`,
       )
     }
-    if (descriptor.dimension === 'vocab:pl-ru' && shouldUnlockProduction(item.skill)) {
-      await ensureSkill(encodeSkillId(wordId, 'vocab:ru-pl'), wordId, 'vocab', 'vocab:ru-pl')
+    if (descriptor.dimension === 'vocab:pl-ru' && shouldUnlockCuedRecall(item.skill)) {
+      await ensureSkill(
+        encodeSkillId(wordId, 'vocab:ru-pl-choice'),
+        wordId,
+        'vocab',
+        'vocab:ru-pl-choice',
+      )
+    } else if (descriptor.dimension === 'vocab:ru-pl-choice' && shouldUnlockProduction(item.skill)) {
+      await ensureSkill(
+        encodeSkillId(wordId, 'vocab:ru-pl-input'),
+        wordId,
+        'vocab',
+        'vocab:ru-pl-input',
+      )
     }
     return { descriptor, skill: item.skill }
   }
@@ -145,12 +159,12 @@ export function generateForSkill(
  * `generateExercise` entirely; those 2 exercise types are gone (FR-56/FR-57 cancelled), and
  * this version calls the ordinary `generateExercise` instead — the same call Learn makes for
  * any vocab skill. `descriptor` is already the exact `vocab:pl-ru` (variant `'vocab-choice'`)
- * or `vocab:ru-pl` (`'vocab-spelling'`) `SkillDescriptor` `useSessionBootstrap.ts`'s
+ * or `vocab:ru-pl-input` (`'vocab-spelling'`) `SkillDescriptor` `useSessionBootstrap.ts`'s
  * practice-extra branch materialized via `materializeQueueItem`'s `newWordDimension`
  * parameter — `picker.ts#vocabExerciseType` reads a vocab skill's type off its *dimension*
  * alone (never `srs`/`state`), so passing that descriptor through `generateExercise`
- * deterministically yields `choice` for `vocab:pl-ru` and `input` for `vocab:ru-pl`, without
- * this function ever needing to force a type of its own.
+ * deterministically yields `choice` for `vocab:pl-ru` and `input` for `vocab:ru-pl-input`,
+ * without this function ever needing to force a type of its own.
  */
 export function generateExtraForWord(
   variant: PracticeExtraVariant,
@@ -163,7 +177,7 @@ export function generateExtraForWord(
   // `descriptor` via `materializeQueueItem`'s `newWordDimension` argument, which it derives
   // from this exact `variant` (session-scope.ts's own table) — the two can only disagree if
   // that call site itself has a bug.
-  const expectedDimension = variant === 'vocab-choice' ? 'vocab:pl-ru' : 'vocab:ru-pl'
+  const expectedDimension = variant === 'vocab-choice' ? 'vocab:pl-ru' : 'vocab:ru-pl-input'
   if (descriptor.dimension !== expectedDimension) {
     throw new Error(
       `generateExtraForWord: variant "${variant}" expects a "${expectedDimension}" ` +

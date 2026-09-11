@@ -18,9 +18,9 @@ import type { PosValue } from '@/content/codec.ts'
 
 const TABS: ReadonlyArray<{ value: PosValue | null; label: string }> = [
   { value: null, label: 'Все' },
-  { value: 'NOUN', label: 'Сущ.' },
+  { value: 'NOUN', label: 'Существительные' },
   { value: 'VERB', label: 'Глаголы' },
-  { value: 'ADJ', label: 'Прил.' },
+  { value: 'ADJ', label: 'Прилагательные' },
   { value: 'ADV', label: 'Наречия' },
 ]
 
@@ -29,10 +29,12 @@ export function PosTabs() {
   const setPos = useFiltersStore((s) => s.setPos)
 
   return (
+    // Full-bleed horizontal chip strip (`spec/design/words.png`): cancels `PageContainer`'s
+    // side padding so the chips scroll edge to edge instead of clipping at the margin.
     <div
       role="tablist"
       aria-label="Часть речи"
-      className="flex gap-1 overflow-x-auto rounded-lg bg-muted p-1"
+      className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] min-[480px]:-mx-6 min-[480px]:px-6 [&::-webkit-scrollbar]:hidden"
     >
       {TABS.map((tab) => {
         const active = pos === tab.value
@@ -44,11 +46,11 @@ export function PosTabs() {
             aria-selected={active}
             onClick={() => setPos(tab.value)}
             className={cn(
-              'flex min-h-11 flex-1 items-center justify-center rounded-md px-2 text-sm font-medium whitespace-nowrap transition-colors',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+              'flex min-h-11 shrink-0 items-center justify-center rounded-xl border px-4 text-label-lg whitespace-nowrap transition-colors',
+              'focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40',
               active
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border bg-card text-foreground hover:bg-surface-low',
             )}
           >
             {tab.label}

@@ -21,6 +21,7 @@
  * since task 34 explicitly calls for verifying it as part of this same fix.
  */
 import { expect, type Page, test } from '@playwright/test'
+import { openTrainingBlock } from './support/training.ts'
 
 const MOBILE_VIEWPORT = { width: 320, height: 640 }
 
@@ -63,26 +64,29 @@ test.describe('320px mobile viewport — no auto-zoom, no horizontal scroll', ()
     await expectFocusedFontSizeAtLeast16(statusSelect)
   })
 
-  test('settings: theme and learning selects', async ({ page }) => {
+  // The "Тема" select is gone — the app is light-theme only for now (spec/design/DESIGN.md
+  // restyle), so only the learning selects remain on this screen.
+  test('settings: learning selects', async ({ page }) => {
     await page.goto('/settings')
     await expect(page.getByRole('link', { name: 'Polski' })).toBeVisible()
     await expectNoHorizontalScroll(page, '/settings')
 
-    await expectFocusedFontSizeAtLeast16(page.getByRole('combobox', { name: 'Тема' }))
     await expectFocusedFontSizeAtLeast16(
       page.getByRole('combobox', { name: 'Новых слов в день' }),
     )
   })
 
-  test('practice setup: level/frequency selects', async ({ page }) => {
+  test('practice setup: forms block select', async ({ page }) => {
     await page.goto('/practice')
-    // Task 36 (`spec/tasks/36-practice-screen-restructure.md` §1) removed the "Раздел" tabs —
-    // "Выборка слов" is level/status/frequency only now.
-    await expect(page.getByRole('heading', { name: 'Выборка слов' })).toBeVisible()
+    // Task 39 (`spec/tasks/39-practice-current-level.md` §4) removed the "Выборка слов" block
+    // entirely — the only remaining `<select>` on this screen lives inside a forms block, and
+    // only once it's expanded.
+    await expect(page.getByRole('button', { name: 'Начать: сопоставление' })).toBeVisible()
     await expectNoHorizontalScroll(page, '/practice')
 
-    await expectFocusedFontSizeAtLeast16(page.getByRole('combobox', { name: 'Уровень' }))
-    await expectFocusedFontSizeAtLeast16(page.getByRole('combobox', { name: 'Частотность' }))
+    await openTrainingBlock(page, 'Формы существительных')
+    await expectFocusedFontSizeAtLeast16(page.getByRole('combobox', { name: 'Количество заданий' }))
+    await expectNoHorizontalScroll(page, '/practice (forms configurator expanded)')
   })
 
   test('table practice: NOUN declension cell input', async ({ page }) => {

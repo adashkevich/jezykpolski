@@ -14,6 +14,10 @@ import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.reposi
 import { ensureSkill, getSkill } from '@/db/repositories/skills.repository.ts'
 import { getWordProgress } from '@/db/repositories/words-progress.repository.ts'
 import { getLogsForSession } from '@/db/repositories/reviews.repository.ts'
+import {
+  CUED_RECALL_UNLOCK_STABILITY_DAYS,
+  RECOGNITION_UNLOCK_STABILITY_DAYS,
+} from '@/learning/progress/stage.ts'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import type { Exercise } from '@/learning/exercises/exercise.types.ts'
@@ -569,20 +573,30 @@ describe('submitAnswer — typed letter-by-letter attempts (задача 29)', (
 })
 
 // ---------------------------------------------------------------------------
-// Task 28 (`spec/tasks/28-two-stage-vocabulary-and-letter-diff.md` §2, FR-80/FR-81):
-// верный выбор из списка выпускает узнавание в `review` и тем самым открывает этап 2 —
-// создаётся `vocab:ru-pl`, которого до этого момента физически не существует.
+// Task 28 (`spec/tasks/28-two-stage-vocabulary-and-letter-diff.md` §2, FR-80/FR-81),
+// widened to a three-stage chain by task 37 (`spec/tasks/37-three-stage-vocabulary.md`
+// §2): a stage's stability crossing its unlock bar (`progress/stage.ts`) materializes the
+// next stage's skill — `vocab:pl-ru` -> `vocab:ru-pl-choice` -> `vocab:ru-pl-input`, none of
+// which exist until then. Unlike task 28's original state-based gate, ONE correct answer is
+// no longer enough — FSRS's stability only grows meaningfully across a real elapsed gap
+// (same-day repeats don't move it at all, see `policy.ts` Rule 1's damping), so these tests
+// advance `now` to the skill's own `due` between answers, same as a real user reviewing on
+// schedule, rather than trying to fake a stability value directly.
 // ---------------------------------------------------------------------------
 
-describe('submitAnswer — открытие этапа 2', () => {
-  const PRODUCTION_SKILL_ID = 'kobieta|NOUN::vocab:ru-pl'
+describe('submitAnswer — открытие следующих этапов вокабуляра (task 37)', () => {
+  const CUED_RECALL_SKILL_ID = 'kobieta|NOUN::vocab:ru-pl-choice'
+  const PRODUCTION_SKILL_ID = 'kobieta|NOUN::vocab:ru-pl-input'
 
-  async function answerChoice(overrides: Partial<Parameters<typeof submitAnswer>[0]> = {}) {
+  async function answerSkill(
+    skillId: string,
+    overrides: Partial<Parameters<typeof submitAnswer>[0]> = {},
+  ) {
     return submitAnswer({
       sessionId: 1,
       mode: 'learn',
       exercise: CHOICE_EXERCISE,
-      skillId: SKILL_ID,
+      skillId,
       wordId: WORD_ID,
       kind: 'vocab',
       answerGiven: 'женщина',
@@ -593,64 +607,109 @@ describe('submitAnswer — открытие этапа 2', () => {
     })
   }
 
-  it('верный выбор графадуирует узнавание и создаёт навык написания', async () => {
+  async function answerChoice(overrides: Partial<Parameters<typeof submitAnswer>[0]> = {}) {
+    return answerSkill(SKILL_ID, overrides)
+  }
+
+  it('один верный ответ графадуирует узнавание в review, но стабильности ещё не хватает — этап 2 не открывается', async () => {
     await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
-    expect(await getSkill(PRODUCTION_SKILL_ID)).toBeUndefined()
+    expect(await getSkill(CUED_RECALL_SKILL_ID)).toBeUndefined()
 
     await answerChoice()
 
-    expect((await getSkill(SKILL_ID))!.state).toBe('review')
-    const production = await getSkill(PRODUCTION_SKILL_ID)
-    expect(production).toBeDefined()
-    expect(production!.dimension).toBe('vocab:ru-pl')
-    expect(production!.kind).toBe('vocab')
+    const afterFirst = (await getSkill(SKILL_ID))!
+    expect(afterFirst.state).toBe('review')
+    expect(afterFirst.stability).toBeLessThan(RECOGNITION_UNLOCK_STABILITY_DAYS)
+    expect(await getSkill(CUED_RECALL_SKILL_ID)).toBeUndefined()
+  })
+
+  it('второй верный ответ по расписанию пересекает порог стабильности — открывается этап 2', async () => {
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+    await answerChoice({ sessionId: 1, now: 1_000_000 })
+    const afterFirst = (await getSkill(SKILL_ID))!
+
+    await answerChoice({ sessionId: 2, now: afterFirst.due })
+    const afterSecond = (await getSkill(SKILL_ID))!
+    expect(afterSecond.stability).toBeGreaterThanOrEqual(RECOGNITION_UNLOCK_STABILITY_DAYS)
+
+    const cuedRecall = await getSkill(CUED_RECALL_SKILL_ID)
+    expect(cuedRecall).toBeDefined()
+    expect(cuedRecall!.dimension).toBe('vocab:ru-pl-choice')
+    expect(cuedRecall!.kind).toBe('vocab')
     // `due` в прошлом/настоящем: навык сразу «просрочен» и попадёт в ближайшую собранную
     // очередь — но не в текущую сессию, чья очередь уже построена целиком (FR-81).
+    expect(cuedRecall!.state).toBe('new')
+    // Этап 3 ещё не открыт — у только что созданного этапа 2 стабильность 0.
+    expect(await getSkill(PRODUCTION_SKILL_ID)).toBeUndefined()
+  })
+
+  it('дальнейшие верные ответы по расписанию доводят слово до этапа 3', async () => {
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+    await answerChoice({ sessionId: 1, now: 1_000_000 })
+    const afterFirst = (await getSkill(SKILL_ID))!
+    await answerChoice({ sessionId: 2, now: afterFirst.due })
+    expect(await getSkill(CUED_RECALL_SKILL_ID)).toBeDefined()
+
+    // Этап 2 сам проходит ту же лестницу: первый ответ недостаточен...
+    await answerSkill(CUED_RECALL_SKILL_ID, { sessionId: 3, now: afterFirst.due })
+    const cuedAfterFirst = (await getSkill(CUED_RECALL_SKILL_ID))!
+    expect(cuedAfterFirst.stability).toBeLessThan(CUED_RECALL_UNLOCK_STABILITY_DAYS)
+    expect(await getSkill(PRODUCTION_SKILL_ID)).toBeUndefined()
+
+    // ...второй, по расписанию, пересекает порог и открывает этап 3.
+    await answerSkill(CUED_RECALL_SKILL_ID, { sessionId: 4, now: cuedAfterFirst.due })
+    const production = await getSkill(PRODUCTION_SKILL_ID)
+    expect(production).toBeDefined()
+    expect(production!.dimension).toBe('vocab:ru-pl-input')
+    expect(production!.kind).toBe('vocab')
     expect(production!.state).toBe('new')
   })
 
-  it('неверный ответ оставляет узнавание в learning и этап 2 не открывает', async () => {
+  it('неверный ответ на новый навык оставляет низкую стабильность — этап 2 не открывается', async () => {
     await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
 
     await answerChoice({ answerGiven: 'мужчина' })
 
     expect((await getSkill(SKILL_ID))!.state).not.toBe('review')
-    expect(await getSkill(PRODUCTION_SKILL_ID)).toBeUndefined()
+    expect(await getSkill(CUED_RECALL_SKILL_ID)).toBeUndefined()
   })
 
-  it('в режиме mistakes SRS не применяется — этап 2 не открывается', async () => {
+  it('в режиме mistakes SRS не применяется — следующий этап не открывается', async () => {
     // `policy.ts#shouldApplySrs`: разбор ошибок вообще не двигает планировщик (FR-103), так
     // что графадуировать там нечего.
     await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
 
     await answerChoice({ mode: 'mistakes' })
 
-    expect(await getSkill(PRODUCTION_SKILL_ID)).toBeUndefined()
+    expect(await getSkill(CUED_RECALL_SKILL_ID)).toBeUndefined()
   })
 
-  it('Practice открывает этап 2 так же, как Learn — там SRS применяется, лишь демпфируется', async () => {
+  it('Practice открывает следующий этап так же, как Learn — там SRS применяется, лишь демпфируется', async () => {
     await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+    await answerChoice({ mode: 'practice', sessionId: 1, now: 1_000_000 })
+    const afterFirst = (await getSkill(SKILL_ID))!
 
-    await answerChoice({ mode: 'practice' })
+    await answerChoice({ mode: 'practice', sessionId: 2, now: afterFirst.due })
 
     expect((await getSkill(SKILL_ID))!.state).toBe('review')
-    expect(await getSkill(PRODUCTION_SKILL_ID)).toBeDefined()
+    expect(await getSkill(CUED_RECALL_SKILL_ID)).toBeDefined()
   })
 
   it('повторный верный ответ не пересоздаёт уже открытый навык', async () => {
     await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
-
-    await answerChoice()
-    const first = await getSkill(PRODUCTION_SKILL_ID)
+    await answerChoice({ sessionId: 1, now: 1_000_000 })
+    const afterFirst = (await getSkill(SKILL_ID))!
+    await answerChoice({ sessionId: 2, now: afterFirst.due })
+    const first = await getSkill(CUED_RECALL_SKILL_ID)
     expect(first).toBeDefined()
 
-    await answerChoice({ sessionId: 2, now: 2_000_000 })
-    const second = await getSkill(PRODUCTION_SKILL_ID)
+    await answerChoice({ sessionId: 3, now: afterFirst.due + 1000 })
+    const second = await getSkill(CUED_RECALL_SKILL_ID)
     expect(second!.createdAt).toBe(first!.createdAt)
     expect(second!.reps).toBe(0)
   })
 
-  it('слово остаётся learning, пока этап 2 только открыт, но не пройден (FR-83)', async () => {
+  it('слово остаётся learning, пока не набрано ни разу успешно (FR-83)', async () => {
     await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
     await answerChoice()
 

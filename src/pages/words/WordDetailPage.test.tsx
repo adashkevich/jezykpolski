@@ -457,9 +457,10 @@ describe('acceptance 6 — a paradigm-less word opens without errors and has no 
 
 describe('acceptance 7 — the two progress bars match the persisted wordProgress (== aggregateWord)', () => {
   it('shows vocabMaturity/morphMaturity as the "Слово"/"Формы" percentages', async () => {
-    // vocab:pl-ru stability 30 -> maturity 0.5 (TARGET_STABILITY_DAYS = 60); the other vocab
-    // skill (ru-pl) and every morphology skill stay unmaterialized (maturity 0), so
-    // vocabMaturity averages to 0.25 and morphMaturity to 0.
+    // vocab:pl-ru stability 30 -> maturity 0.5 (TARGET_STABILITY_DAYS = 60); the other two
+    // vocab skills (vocab:ru-pl-choice/vocab:ru-pl-input, task 37) and every morphology
+    // skill stay unmaterialized (maturity 0), so vocabMaturity averages to 0.5/3 ≈ 0.167 and
+    // morphMaturity to 0.
     const skill: SkillRecord = {
       skillId: `${KOBIETA_ID}::vocab:pl-ru`,
       wordId: KOBIETA_ID,
@@ -481,7 +482,7 @@ describe('acceptance 7 — the two progress bars match the persisted wordProgres
 
     renderWordDetail(KOBIETA_ID)
     await waitFor(() => expect(screen.getByText('Прогресс')).toBeInTheDocument())
-    await waitFor(() => expect(screen.getByLabelText('Слово: 25%')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByLabelText('Слово: 17%')).toBeInTheDocument())
     expect(screen.getByLabelText('Формы: 0%')).toBeInTheDocument()
   })
 })
@@ -509,7 +510,9 @@ describe('acceptance 8 — "Сбросить прогресс" deletes the word\
 
     const user = userEvent.setup()
     renderWordDetail(KOBIETA_ID)
-    await waitFor(() => expect(screen.getByLabelText('Слово: 50%')).toBeInTheDocument())
+    // stability 60 -> maturity 1.0 for vocab:pl-ru alone; averaged with the other two
+    // unmaterialized vocab dimensions (task 37) -> 1/3 ≈ 33%.
+    await waitFor(() => expect(screen.getByLabelText('Слово: 33%')).toBeInTheDocument())
 
     await user.click(screen.getByRole('button', { name: 'Сбросить прогресс' }))
     expect(screen.getByText(/Сбросить прогресс «kobieta»/)).toBeInTheDocument()
@@ -549,7 +552,7 @@ describe('acceptance 8 — "Сбросить прогресс" deletes the word\
 })
 
 describe('"Знаю" / "Не знаю" / "Учить" (FR-48, task 16 FR-29)', () => {
-  it('"Знаю" moves vocab:pl-ru and vocab:ru-pl to state "review" and shows an undo toast', async () => {
+  it('"Знаю" moves all three vocab dimensions to state "review" and shows an undo toast', async () => {
     const user = userEvent.setup()
     renderWordDetail(KOBIETA_ID)
 
@@ -557,7 +560,7 @@ describe('"Знаю" / "Не знаю" / "Учить" (FR-48, task 16 FR-29)', (
 
     await waitFor(async () => {
       const skills = await getSkillsForWord(KOBIETA_ID)
-      expect(skills).toHaveLength(2)
+      expect(skills).toHaveLength(3)
       expect(skills.every((s) => s.state === 'review')).toBe(true)
     })
     const toast = await screen.findByRole('status')
@@ -584,7 +587,7 @@ describe('"Знаю" / "Не знаю" / "Учить" (FR-48, task 16 FR-29)', (
     renderWordDetail(KOBIETA_ID)
 
     await user.click(screen.getByRole('button', { name: 'Знаю' }))
-    await waitFor(async () => expect(await getSkillsForWord(KOBIETA_ID)).toHaveLength(2))
+    await waitFor(async () => expect(await getSkillsForWord(KOBIETA_ID)).toHaveLength(3))
 
     await user.click(await screen.findByRole('button', { name: /отменить/i }))
 

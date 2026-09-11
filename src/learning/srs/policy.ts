@@ -182,8 +182,12 @@ export function applyPracticeDamping(
 // `review`-state skill.
 //
 // `db/repositories/swipe.repository.ts` is the only caller — it turns this pure `SrsState`
-// into an actual `SkillRecord` write (`vocab:pl-ru` + `vocab:ru-pl` for "Знаю",
-// `vocab:pl-ru` only for "Не знаю", per the task text) and owns the undo snapshot.
+// into an actual `SkillRecord` write (all three vocab dimensions — `vocab:pl-ru`,
+// `vocab:ru-pl-choice`, `vocab:ru-pl-input` — for "Знаю", `vocab:pl-ru` only for "Не знаю",
+// per the task text; task 37 widened "Знаю" from two dimensions to three when the middle
+// stage was added, so `deriveStatus`'s `productionGraduated` gate — которое требует
+// `vocab:ru-pl-input.state === 'review'` — still clears for a swiped word) and owns the undo
+// snapshot.
 // ---------------------------------------------------------------------------
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
@@ -214,8 +218,9 @@ export const SWIPE_KNOWN_INITIAL_STABILITY = 30
 export const SWIPE_KNOWN_DUE_DAYS = 5
 
 /**
- * The `SrsState` a "Знаю" swipe/button writes to `vocab:pl-ru` and `vocab:ru-pl` alike (task
- * text §2: both directions, same treatment). `state: 'review'` + `lastReviewAt: now` treats
+ * The `SrsState` a "Знаю" swipe/button writes to all three vocab dimensions alike (task text
+ * §2: same treatment for every direction/stage — task 37 widened this from the original two
+ * dimensions to three). `state: 'review'` + `lastReviewAt: now` treats
  * the swipe itself as a self-reported review event (closest existing analogue:
  * `SelfAssessedResult` in this same file) — `reps: 1` reflects that "the user just told us
  * they know it" the same way a first graded review would, so a later real review's

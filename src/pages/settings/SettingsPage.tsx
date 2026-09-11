@@ -7,7 +7,6 @@
 import { PageContainer } from '@/components/app/PageContainer.tsx'
 import { PageHeader } from '@/components/app/PageHeader.tsx'
 import { LearningSettingsSection } from '@/features/settings/components/LearningSettingsSection.tsx'
-import { InterfaceSettingsSection } from '@/features/settings/components/InterfaceSettingsSection.tsx'
 import { DataSection } from '@/features/settings/components/DataSection.tsx'
 import { AboutSection } from '@/features/settings/components/AboutSection.tsx'
 
@@ -16,7 +15,6 @@ export function SettingsPage() {
     <PageContainer>
       <PageHeader title="Настройки" />
       <LearningSettingsSection />
-      <InterfaceSettingsSection />
       <DataSection />
       <AboutSection />
     </PageContainer>

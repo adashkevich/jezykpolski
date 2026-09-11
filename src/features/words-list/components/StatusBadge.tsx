@@ -17,15 +17,14 @@ interface StatusMeta {
   readonly className: string
 }
 
+/** Tinted pills per DESIGN.md "Chips & Grammatical Badges": carmine tint for new words, slate
+ *  for the learning queue, blue for known, emerald for mastered. Each text/tint pair is
+ *  ≥ 4.5:1 (see the palette notes in `globals.css`). */
 const STATUS_META: Readonly<Record<WordStatus, StatusMeta>> = {
-  new: { label: 'Новое', icon: Circle, className: 'text-muted-foreground' },
-  learning: { label: 'Изучаю', icon: Clock, className: 'text-blue-600 dark:text-blue-400' },
-  known: { label: 'Знаю', icon: BadgeCheck, className: 'text-emerald-600 dark:text-emerald-400' },
-  mastered: {
-    label: 'Освоено',
-    icon: Sparkles,
-    className: 'text-violet-600 dark:text-violet-400',
-  },
+  new: { label: 'Новое', icon: Circle, className: 'bg-primary-soft text-primary-strong' },
+  learning: { label: 'Изучаю', icon: Clock, className: 'bg-surface-high text-[#3c475a]' },
+  known: { label: 'Знаю', icon: BadgeCheck, className: 'bg-info-soft text-info' },
+  mastered: { label: 'Освоено', icon: Sparkles, className: 'bg-success-soft text-success' },
 }
 
 export function StatusBadge({ status, className }: { status: WordStatus; className?: string }) {
@@ -34,12 +33,12 @@ export function StatusBadge({ status, className }: { status: WordStatus; classNa
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 text-xs font-medium whitespace-nowrap',
+        'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-label-md font-semibold whitespace-nowrap',
         meta.className,
         className,
       )}
     >
-      <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+      <Icon aria-hidden="true" className="size-4 shrink-0" />
       {meta.label}
     </span>
   )

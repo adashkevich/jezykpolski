@@ -28,7 +28,7 @@ function entry(lemma: string, pos: PosValue, rank: number): WordIndexEntry {
 
 function vocabSkill(
   wordId: string,
-  dim: 'vocab:pl-ru' | 'vocab:ru-pl',
+  dim: 'vocab:pl-ru' | 'vocab:ru-pl-choice' | 'vocab:ru-pl-input',
   stability: number,
   due: number,
 ): SkillRecord {
@@ -50,12 +50,14 @@ function vocabSkill(
   }
 }
 
-/** Writes both vocab skills at the same `stability` and recomputes `wordProgress` for
+/** Writes all three vocab skills at the same `stability` and recomputes `wordProgress` for
  *  `wordId`. `due` defaults to far in the past (already due), matching the common case
- *  where "has progress" and "has something due" go together in these tests. */
+ *  where "has progress" and "has something due" go together in these tests. All three are
+ *  `state: 'review'`, so `productionGraduated` (task 37) is always satisfied. */
 async function learnWord(wordId: string, stability: number, due = 1000): Promise<void> {
   await upsertSkill(vocabSkill(wordId, 'vocab:pl-ru', stability, due))
-  await upsertSkill(vocabSkill(wordId, 'vocab:ru-pl', stability, due))
+  await upsertSkill(vocabSkill(wordId, 'vocab:ru-pl-choice', stability, due))
+  await upsertSkill(vocabSkill(wordId, 'vocab:ru-pl-input', stability, due))
   await recomputeWordProgress(wordId)
 }
 
@@ -121,12 +123,16 @@ describe('HomePage', () => {
   it('due reviews pending: CTA reads "Продолжить обучение" with the real due count', async () => {
     initIndexStore([entry('kobieta', 'NOUN', 1)])
     await openDatabase()
-    await learnWord('kobieta|NOUN', 10) // learning, due in the past by default (both vocab skills)
+    await learnWord('kobieta|NOUN', 10) // learning, due in the past by default (all three vocab skills)
 
     renderHomePage()
 
-    // Two due skills (vocab:pl-ru + vocab:ru-pl), not two words — countDue counts skills.
-    await waitFor(() => expect(screen.getByText(/2 слова готовы к повторению/)).toBeInTheDocument())
+    // Three due skills (vocab:pl-ru + vocab:ru-pl-choice + vocab:ru-pl-input, task 37), not
+    // one word — countDue counts skills.
+    // Big number + unit on one line, the predicate below it (`spec/design/main.png`).
+    await waitFor(() => expect(screen.getByText('готовы к повторению прямо сейчас')).toBeInTheDocument())
+    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText('слова')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Продолжить обучение' })).toBeInTheDocument()
   })
 
@@ -162,8 +168,8 @@ describe('HomePage', () => {
     expect(screen.getByText('1 / 3')).toBeInTheDocument()
     // "Глаголы": 1 learned (być) out of 1 verb in the index.
     expect(screen.getByText('1 / 1')).toBeInTheDocument()
-    // "Прилагательные": no adjectives in the fixture index at all.
-    expect(screen.getByText('0 / 0')).toBeInTheDocument()
+    // "Прилагательные" and "Наречия": no adjectives or adverbs in the fixture index at all.
+    expect(screen.getAllByText('0 / 0')).toHaveLength(2)
   })
 
   it('"Открыть" opens /words with the POS filter cleared', async () => {
@@ -215,5 +221,52 @@ describe('HomePage', () => {
     await waitFor(() => expect(screen.getByText(/0 повторений/)).toBeInTheDocument())
     expect(screen.getByText(/0 новых слов/)).toBeInTheDocument()
     expect(screen.queryByText(/%/)).not.toBeInTheDocument()
+  })
+
+  // Task 38 (`spec/tasks/38-strict-level-progression.md`) — the level-gate line shows only
+  // the ONE level new words are currently drawn from, and switches the instant that level's
+  // last unstarted word is started; it never lists several levels at once.
+  it('level-gate line: shows only the current level\'s remaining count, not every unlocked level', async () => {
+    initIndexStore([
+      entry('kot', 'NOUN', 1), // A1, unstarted
+      entry('pies', 'NOUN', 2), // A1, unstarted
+      { ...entry('dom', 'NOUN', 3), level: 'A2' }, // A2, unstarted — must stay invisible
+    ])
+    await openDatabase()
+
+    renderHomePage()
+
+    await waitFor(() =>
+      expect(screen.getByText('Сейчас изучаем: A1 · осталось 2 слова')).toBeInTheDocument(),
+    )
+    expect(screen.queryByText(/A2/)).not.toBeInTheDocument()
+  })
+
+  it('level-gate line switches to the next level the instant the current one is fully started (no ratchet, no early threshold)', async () => {
+    initIndexStore([
+      entry('kot', 'NOUN', 1), // A1, will be started below
+      { ...entry('dom', 'NOUN', 2), level: 'A2' }, // A2, unstarted throughout
+    ])
+    await openDatabase()
+    await learnWord('kot|NOUN', 10) // A1's only word started -> A1 fully started
+
+    renderHomePage()
+
+    await waitFor(() =>
+      expect(screen.getByText('Сейчас изучаем: A2 · осталось 1 слово')).toBeInTheDocument(),
+    )
+  })
+
+  it('hides the level-gate line once the whole dictionary is started', async () => {
+    initIndexStore([entry('kot', 'NOUN', 1)])
+    await openDatabase()
+    await learnWord('kot|NOUN', 60, Date.now() + 999_999_999)
+
+    renderHomePage()
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Учить новые слова' })).toBeInTheDocument(),
+    )
+    expect(screen.queryByText(/Сейчас изучаем/)).not.toBeInTheDocument()
   })
 })

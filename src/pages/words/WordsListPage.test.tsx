@@ -19,7 +19,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
+import { MemoryRouter, Route, Routes } from 'react-router'
 import { WordsListPage } from './WordsListPage.tsx'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
@@ -122,8 +122,6 @@ const FIXTURE_WORDS: readonly WordIndexEntry[] = [
 
 const DEFAULT_FILTER_STATE = {
   levels: [],
-  upToMode: false,
-  upToLevel: null,
   pos: null,
   status: null,
   topN: null,
@@ -137,21 +135,11 @@ function stubScrollContainerSize() {
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400)
 }
 
-/** Surfaces `location.state` as text so a test can assert on the payload `LearnFab` passes
- *  to `navigate('/practice', { state: ... })` (task 19 — "Учить" opens the training-setup
- *  screen pre-filled with the current filter, not `/session` directly) without needing the
- *  real `PracticeSetupPage`. */
-function PracticeStateProbe() {
-  const location = useLocation()
-  return <pre data-testid="practice-state">{JSON.stringify(location.state)}</pre>
-}
-
 function renderWordsListPage() {
   return render(
     <MemoryRouter initialEntries={['/words']}>
       <Routes>
         <Route path="/words" element={<WordsListPage />} />
-        <Route path="/practice" element={<PracticeStateProbe />} />
         <Route path="/words/:wordId" element={<div>word detail stub</div>} />
       </Routes>
     </MemoryRouter>,
@@ -221,17 +209,6 @@ describe('WordsListPage', () => {
     expect(screen.getByRole('link', { name: /implikacja/ })).toBeInTheDocument()
   })
 
-  it('"До уровня B1" includes every word at or below B1', async () => {
-    const user = userEvent.setup()
-    renderWordsListPage()
-    await user.click(screen.getByRole('checkbox', { name: /до уровня/i }))
-    await user.click(screen.getByRole('button', { name: 'B1' }))
-    // A1 (4) + A2 (1) + B1 (2: żółty, szybko) = 7, excludes B2/C1/C2.
-    expect(screen.getByText('Найдено 7')).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /aczkolwiek/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /implikacja/ })).not.toBeInTheDocument()
-  })
-
   it('search matches the Polish lemma', async () => {
     const user = userEvent.setup()
     renderWordsListPage()
@@ -287,17 +264,6 @@ describe('WordsListPage', () => {
     await user.click(screen.getByRole('button', { name: /фильтры/i }))
     await user.selectOptions(screen.getByLabelText('Статус'), 'Знаю')
     await waitFor(() => expect(screen.getByText('Ничего не найдено')).toBeInTheDocument())
-  })
-
-  it('"Учить" navigates to /practice carrying the current filter as router state (task 19)', async () => {
-    const user = userEvent.setup()
-    renderWordsListPage()
-    fireClickTab('Глаголы')
-    await user.click(screen.getByRole('button', { name: /учить/i }))
-
-    const stateText = screen.getByTestId('practice-state').textContent ?? ''
-    const state = JSON.parse(stateText) as { filter: { pos?: string[] } }
-    expect(state.filter.pos).toEqual(['VERB'])
   })
 
   it('filters survive unmount/remount (e.g. navigating to a word card and back)', async () => {

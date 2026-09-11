@@ -118,17 +118,20 @@ async function applyTriage(
 }
 
 /**
- * Swipe-right / "Знаю" button (task text §2): `vocab:pl-ru` AND `vocab:ru-pl` both move to
- * FSRS `review` at `SWIPE_KNOWN_INITIAL_STABILITY` — see `policy.ts` for why that yields
- * word status `known`, never `mastered`. Each dimension is resolved independently against its
- * own existing record (`policy.ts#resolveSwipeKnownState`) so a skill that already has real
- * review history at or above that floor is never dragged back down to it.
+ * Swipe-right / "Знаю" button (task text §2): all three vocab dimensions (`vocab:pl-ru`,
+ * `vocab:ru-pl-choice`, `vocab:ru-pl-input` — task 37 widened this from two to three when the
+ * middle recognition-of-Polish stage was added) move to FSRS `review` at
+ * `SWIPE_KNOWN_INITIAL_STABILITY` — see `policy.ts` for why that yields word status `known`,
+ * never `mastered`. Each dimension is resolved independently against its own existing record
+ * (`policy.ts#resolveSwipeKnownState`) so a skill that already has real review history at or
+ * above that floor is never dragged back down to it.
  */
 export async function markWordKnown(wordId: WordId, now = Date.now()): Promise<TriageSnapshot> {
   const resolve = (previous: SkillRecord | undefined) => resolveSwipeKnownState(previous, now)
   return applyTriage(wordId, [
     { dimension: 'vocab:pl-ru', srsState: resolve },
-    { dimension: 'vocab:ru-pl', srsState: resolve },
+    { dimension: 'vocab:ru-pl-choice', srsState: resolve },
+    { dimension: 'vocab:ru-pl-input', srsState: resolve },
   ])
 }
 

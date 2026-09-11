@@ -7,8 +7,6 @@ import type { LevelValue } from '@/content/codec.ts'
 
 const DEFAULTS = {
   levels: [] as LevelValue[],
-  upToMode: false,
-  upToLevel: null,
   pos: null,
   status: null,
   topN: null,
@@ -37,15 +35,6 @@ describe('useFiltersStore', () => {
     expect(useFiltersStore.getState().levels).toEqual(['B2'])
   })
 
-  it('turning upToMode off clears a previously picked upToLevel', () => {
-    useFiltersStore.getState().setUpToMode(true)
-    useFiltersStore.getState().setUpToLevel('B1')
-    expect(useFiltersStore.getState().upToLevel).toBe('B1')
-
-    useFiltersStore.getState().setUpToMode(false)
-    expect(useFiltersStore.getState().upToLevel).toBeNull()
-  })
-
   it('reset restores every persisted field to defaults but leaves scrollOffset alone', () => {
     useFiltersStore.getState().setSearch('kot')
     useFiltersStore.getState().toggleLevel('C1')
@@ -56,7 +45,6 @@ describe('useFiltersStore', () => {
     const state = useFiltersStore.getState()
     expect(state.search).toBe('')
     expect(state.levels).toEqual([])
-    expect(state.upToMode).toBe(false)
     expect(state.scrollOffset).toBe(240)
   })
 
@@ -94,13 +82,7 @@ describe('useFiltersStore', () => {
 })
 
 describe('filtersToQuery', () => {
-  it('maps upToMode to WordQuery.upToLevel and drops the plain levels list', () => {
-    const q = filtersToQuery({ ...DEFAULTS, upToMode: true, upToLevel: 'B1', levels: ['A1'] })
-    expect(q.upToLevel).toBe('B1')
-    expect(q.levels).toBeUndefined()
-  })
-
-  it('maps the plain multi-select levels when upToMode is off', () => {
+  it('maps the multi-select levels and never sets upToLevel', () => {
     const q = filtersToQuery({ ...DEFAULTS, levels: ['A1', 'B2'] })
     expect(q.levels).toEqual(['A1', 'B2'])
     expect(q.upToLevel).toBeUndefined()

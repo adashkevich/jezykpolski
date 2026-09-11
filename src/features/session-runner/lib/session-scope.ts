@@ -102,20 +102,22 @@ import {
   NEW_WORDS_START_LEVEL_DEFAULT,
   NEW_WORDS_START_LEVEL_SETTING_KEY,
   orderNewWordCandidates,
+  practicePoolLevel,
   unlockedLevels,
 } from '@/learning/session/level-gate.ts'
 import type { PracticeCandidateWord, PracticeConfig } from '@/learning/session/session.types.ts'
-import type { SkillRecord, WordStatus } from '@/types/progress.ts'
+import type { ExerciseCategory } from '@/learning/exercises/picker.ts'
+import type { SkillRecord } from '@/types/progress.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
-import type { LevelValue } from '@/content/codec.ts'
 
 /**
  * Task 31 (`spec/tasks/31-practice-vocabulary-drills.md` §2, FR-137/FR-138) — which of the 2
  * lexical drills a `{ kind: 'practice-extra' }` scope runs. Replaces task 27's original pair
  * of Practice-only quiz types (FR-56/FR-57, cancelled — neither exercised a real `vocab:*`
  * skill): `vocab-choice` is этап 1 of word learning (узнавание, PL→RU `choice`
- * over `vocab:pl-ru`), `vocab-spelling` is этап 2 (воспроизведение, RU→PL `input` over
- * `vocab:ru-pl`) — the same two stages task 28 already made the normal Learn progression,
+ * over `vocab:pl-ru`), `vocab-spelling` is этап 3 (воспроизведение, RU→PL `input` over
+ * `vocab:ru-pl-input` — task 37 renamed this skill when it split the old two-stage
+ * progression into three) — the same stages the normal Learn progression already makes,
  * just forced on demand from a Practice batch instead of waiting for FSRS to schedule them.
  * Both are single-slot, auto-graded exercises that go through the ordinary `SessionRunner`
  * queue/registry path unchanged — what makes them "extra" is only that
@@ -126,24 +128,15 @@ import type { LevelValue } from '@/content/codec.ts'
  * (and "Сопоставление") to be POS-independent: they used to share `TrainingSetupScreen`'s
  * `config.section`-filtered `candidateWords`, which meant "Выбор перевода" only ever offered
  * nouns (or verbs, or adjectives) depending on which tab was active, and adverbs were
- * unreachable from any lexical drill. `LexicalWordFilter` below is the section-less remainder
- * of that filter (level/status/frequency only) — every one of these three drills now samples
- * from `resolveLexicalCandidateWordIds(filter)` instead.
+ * unreachable from any lexical drill.
+ *
+ * Task 39 (`spec/tasks/39-practice-current-level.md`, FR-147) removed the manual "Выборка
+ * слов" (level/status/frequency) entirely: the pool for all three lexical drills is now
+ * every word at or below the same level gate the daily session uses
+ * ({@link resolveLexicalCandidateWordIds}, no parameters) — there is no longer a
+ * user-chosen filter to carry, so the `practice-extra` scope no longer has a `filter` field.
  */
 export type PracticeExtraVariant = 'vocab-choice' | 'vocab-spelling'
-
-/** The screen-wide "Выборка слов" filter (`TrainingSetupScreen`'s always-expanded top
- *  section) — level/status/frequency, deliberately with no `pos` field. Task 36's three
- *  lexical drills ("Выбор перевода", "Написание по-польски", "Сопоставление") are the only
- *  consumers; the forms-training blocks keep using the full `PracticeConfig` (which still has
- *  its own per-section `pos` via `practiceConfigFor`, `features/training-setup/lib/practice-config.ts`).
- *  Carried on the `practice-extra` scope (below) so `SessionResultPage`'s "Ещё" can resample a
- *  fresh batch without the screen itself. */
-export interface LexicalWordFilter {
-  readonly upToLevel: LevelValue | null
-  readonly status: readonly WordStatus[]
-  readonly topN: 500 | 1000 | 2000 | 5000 | null
-}
 
 export type SessionScope =
   | { readonly kind: 'global' }
@@ -156,7 +149,6 @@ export type SessionScope =
       readonly kind: 'practice-extra'
       readonly variant: PracticeExtraVariant
       readonly wordIds: readonly WordId[]
-      readonly filter: LexicalWordFilter
     }
 
 /** Every `SessionScope` `resolveSessionCandidates` below actually knows how to handle — see
@@ -207,13 +199,11 @@ export function parseSessionScope(locationState: unknown): SessionScope {
       const extra = state.practiceExtra as {
         variant: PracticeExtraVariant
         wordIds: WordId[]
-        filter: LexicalWordFilter
       }
       return {
         kind: 'practice-extra',
         variant: extra.variant,
         wordIds: extra.wordIds,
-        filter: extra.filter,
       }
     }
     if (Array.isArray(state.skillIds)) {
@@ -327,9 +317,11 @@ async function resolveSkillScope(skillIds: readonly SkillId[]): Promise<SessionC
  * `queryWords` call (no second `getAllWordProgress()`) plus the in-memory content index
  * (`words-progress.repository.ts#computeLevelPoolCounts`) — a 7998-entry in-memory pass, not
  * a new Dexie query. `unlockedLevels` then narrows `queryWords`'s `levels` filter (task 04's
- * `WordQuery.levels`, already existed) before `orderNewWordCandidates` interleaves the result
- * 2:1 by level — `buildLearnQueue` no longer re-sorts this list itself (task 35 also removed
- * its internal `rank` sort, see that module's header), so whatever order comes out of here is
+ * `WordQuery.levels`, already existed) before `orderNewWordCandidates` orders the result —
+ * under task 38's strict progression that's "the one open level with unstarted words first by
+ * rank, then any earlier-still-open level" (no interleave any more, see that function's own
+ * header) — `buildLearnQueue` no longer re-sorts this list itself (task 35 also removed its
+ * internal `rank` sort, see that module's header), so whatever order comes out of here is
  * exactly what ends up in the queue.
  */
 async function resolveGlobalScope(now: number): Promise<SessionCandidates> {
@@ -352,17 +344,65 @@ async function resolveGlobalScope(now: number): Promise<SessionCandidates> {
   return { dueSkills, candidateNewWords, targetSize, newWordsBudget }
 }
 
-export function resolveSessionCandidates(
+/**
+ * Task 37's "Тип задания" restriction on vocabulary (`learning/exercises/
+ * default-exercise-type.ts#resolveForceCategory`) — a companion to `picker.ts`'s
+ * `PickerOptions.forceCategory`, which only ever affects morphological skills (a vocab
+ * skill's exercise type is fixed by its dimension, `picker.ts#vocabExerciseType` — there is
+ * no "input variant of vocab:pl-ru" to switch to, unlike a form-choice/form-input pair). The
+ * only way to honor the restriction for vocabulary is to drop the skill(s) of the excluded
+ * stage from the due pool outright:
+ *
+ *  - "только выбор" (`forceCategory === 'recognition'`) drops `vocab:ru-pl-input`;
+ *  - "только ввод" (`forceCategory === 'recall'`) drops `vocab:pl-ru` and
+ *    `vocab:ru-pl-choice`, and zeroes `newWordsBudget` — a brand-new word's first stage is
+ *    always a choice exercise (`vocab:pl-ru`), so it physically cannot be introduced under
+ *    this restriction.
+ *
+ * Dropped skills stay in the DB, still overdue — they simply aren't offered this session;
+ * `LearningSettingsSection.tsx`'s description warns that leaving the restriction on for a
+ * long time lets that backlog grow, this module has no opinion on how long the user keeps it
+ * on.
+ *
+ * Applied only to `word`/`filter`/`global` — the three scopes that pull from the full
+ * due/new pool. Deliberately NOT `mistake` (dropping a skill there would silently hide a
+ * mistake the user explicitly asked to review right now — a regression, not a restriction)
+ * or `skill` (an explicit single-cell pick from a declension table, always morphological in
+ * practice, so the filter would never match anything there anyway).
+ */
+function filterForVocabExerciseType(
+  candidates: SessionCandidates,
+  forceCategory: ExerciseCategory | undefined,
+): SessionCandidates {
+  if (!forceCategory) return candidates
+
+  const excludedDimensions: ReadonlySet<string> =
+    forceCategory === 'recognition'
+      ? new Set(['vocab:ru-pl-input'])
+      : new Set(['vocab:pl-ru', 'vocab:ru-pl-choice'])
+
+  return {
+    ...candidates,
+    dueSkills: candidates.dueSkills.filter((skill) => !excludedDimensions.has(skill.dimension)),
+    newWordsBudget: forceCategory === 'recall' ? 0 : candidates.newWordsBudget,
+  }
+}
+
+export async function resolveSessionCandidates(
   scope: LearnLikeSessionScope,
   now: number,
+  forceCategory?: ExerciseCategory,
 ): Promise<SessionCandidates> {
   switch (scope.kind) {
     case 'word':
-      return resolveWordScope(scope.wordId, now)
+      return filterForVocabExerciseType(await resolveWordScope(scope.wordId, now), forceCategory)
     case 'filter':
-      return resolveFilterScope(scope.filter, now)
+      return filterForVocabExerciseType(
+        await resolveFilterScope(scope.filter, now),
+        forceCategory,
+      )
     case 'global':
-      return resolveGlobalScope(now)
+      return filterForVocabExerciseType(await resolveGlobalScope(now), forceCategory)
     case 'mistake':
       return resolveMistakeScope(scope.skillIds)
     case 'skill':
@@ -424,16 +464,25 @@ export async function resolvePracticeCandidateWords(
 // whole point is that these three drills stopped being tied to one part of speech.
 // ---------------------------------------------------------------------------------------
 
-export async function resolveLexicalCandidateWordIds(
-  filter: LexicalWordFilter,
-): Promise<WordId[]> {
-  const progress = await getAllWordProgress()
-  const query: WordQuery = {
-    upToLevel: filter.upToLevel ?? undefined,
-    status: filter.status.length > 0 ? filter.status : undefined,
-    topN: filter.topN,
-    sort: 'frequency',
-  }
-  const matchingWords = queryWords(query, progress)
+/**
+ * Task 39 (`spec/tasks/39-practice-current-level.md`, FR-147) removed the manual "Выборка
+ * слов" filter — the pool is now every word at or below `level-gate.ts#practicePoolLevel`
+ * (`upToLevel`, the same rank-based ceiling `WordQuery.upToLevel` has always used — a level
+ * *below* that ceiling was never excluded here, same as when a user picked it by hand), no
+ * `status`/`topN` narrowing at all. No parameters: unlike the old per-visit
+ * `LexicalWordFilter`, there is nothing left for a caller to vary.
+ *
+ * Not quite the same gate `resolveGlobalScope` applies to the daily session's *new*-word
+ * queue: that one also excludes every level below `newWordsStartLevel` outright (`levels:
+ * unlockedLevels(...)`, an explicit set) — Practice has never gated by `newWordsStartLevel`
+ * at all, so this only reuses `practicePoolLevel` for the *ceiling*, not the floor.
+ */
+export async function resolveLexicalCandidateWordIds(): Promise<WordId[]> {
+  const [progress, startLevel] = await Promise.all([
+    getAllWordProgress(),
+    settingsRepo.get(NEW_WORDS_START_LEVEL_SETTING_KEY, NEW_WORDS_START_LEVEL_DEFAULT),
+  ])
+  const upToLevel = practicePoolLevel(computeLevelPoolCounts(progress), startLevel)
+  const matchingWords = queryWords({ upToLevel, sort: 'frequency' }, progress)
   return [...new Set(matchingWords.map((word) => encodeWordId(word.lemma, word.pos)))]
 }

@@ -17,6 +17,6 @@ export function SettingRow({ label, children }: { label: string; children: React
 // `CONTROL_CLASS` (task 34, `spec/tasks/34-viewport-zoom-fix.md` §2) makes it a `cn(...)` call
 // instead of a literal — `react-refresh/only-export-components`'s `allowConstantExport` only
 // exempts literal exports, not computed ones, so a non-component export like that would break
-// fast refresh for every file that imports this component. `LearningSettingsSection.tsx` and
-// `InterfaceSettingsSection.tsx` (its only two consumers) each now build the same class list
-// locally instead: `cn(CONTROL_CLASS, 'h-9 px-2.5')`, not exported from either.
+// fast refresh for every file that imports this component. `LearningSettingsSection.tsx` (its
+// only consumer since the theme selector was removed — light theme only for now) builds the
+// class list locally instead: `cn(CONTROL_CLASS, 'h-9 px-2.5')`.

@@ -40,11 +40,16 @@ afterEach(async () => {
 })
 
 describe('markWordKnown', () => {
-  it('creates vocab:pl-ru and vocab:ru-pl in state "review", never touching other skills', async () => {
+  it('creates all three vocab dimensions in state "review", never touching other skills', async () => {
     await markWordKnown('kobieta|NOUN', NOW)
 
     const skills = await getSkillsForWord('kobieta|NOUN')
-    expect(skills).toHaveLength(2)
+    expect(skills).toHaveLength(3)
+    expect(skills.map((s) => s.dimension).sort()).toEqual([
+      'vocab:pl-ru',
+      'vocab:ru-pl-choice',
+      'vocab:ru-pl-input',
+    ])
     for (const skill of skills) {
       expect(skill.state).toBe('review')
       expect(skill.stability).toBe(SWIPE_KNOWN_INITIAL_STABILITY)
@@ -125,7 +130,7 @@ describe('markWordKnown', () => {
     expect(updated?.lastReviewAt).toBe(advanced.lastReviewAt)
   })
 
-  it('evaluates vocab:pl-ru and vocab:ru-pl independently — one can stay advanced while the other is newly raised', async () => {
+  it('evaluates each vocab dimension independently — one can stay advanced while the others are newly raised', async () => {
     const advanced: SkillRecord = {
       skillId: 'kobieta|NOUN::vocab:pl-ru',
       wordId: 'kobieta|NOUN',
@@ -150,8 +155,11 @@ describe('markWordKnown', () => {
     const plRu = await getSkill('kobieta|NOUN::vocab:pl-ru')
     expect(plRu?.stability).toBe(45)
 
-    const ruPl = await getSkill('kobieta|NOUN::vocab:ru-pl')
-    expect(ruPl?.stability).toBe(SWIPE_KNOWN_INITIAL_STABILITY)
+    const ruPlChoice = await getSkill('kobieta|NOUN::vocab:ru-pl-choice')
+    expect(ruPlChoice?.stability).toBe(SWIPE_KNOWN_INITIAL_STABILITY)
+
+    const ruPlInput = await getSkill('kobieta|NOUN::vocab:ru-pl-input')
+    expect(ruPlInput?.stability).toBe(SWIPE_KNOWN_INITIAL_STABILITY)
   })
 })
 
@@ -173,9 +181,12 @@ describe('markWordUnknown', () => {
     const skill = await getSkill('kobieta|NOUN::vocab:pl-ru')
     expect(skill?.state).toBe('new')
     expect(skill?.due).toBe(NOW + DAY_MS)
-    // vocab:ru-pl (materialized by the earlier "Знаю") is untouched by "Не знаю".
-    const ruPl = await getSkill('kobieta|NOUN::vocab:ru-pl')
-    expect(ruPl?.state).toBe('review')
+    // vocab:ru-pl-choice/vocab:ru-pl-input (materialized by the earlier "Знаю") are
+    // untouched by "Не знаю".
+    const ruPlChoice = await getSkill('kobieta|NOUN::vocab:ru-pl-choice')
+    expect(ruPlChoice?.state).toBe('review')
+    const ruPlInput = await getSkill('kobieta|NOUN::vocab:ru-pl-input')
+    expect(ruPlInput?.state).toBe('review')
   })
 
   it('still resets fully to new even when prior stability was already at/above the known floor — the monotonic guard added for markWordKnown must not apply here', async () => {

@@ -38,7 +38,8 @@ describe('encodeSkillId / decodeSkillId round-trip on every dimension shape', ()
 
   const dimensions: Dimension[] = [
     'vocab:pl-ru',
-    'vocab:ru-pl',
+    'vocab:ru-pl-choice',
+    'vocab:ru-pl-input',
     'noun:sg:genitive',
     'noun:pl:instrumental',
     'verb:present:1:sg',

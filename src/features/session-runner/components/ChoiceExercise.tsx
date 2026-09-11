@@ -75,12 +75,19 @@ export function ChoiceExercise({
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-2xl font-semibold text-foreground">{exercise.prompt}</h2>
+      <div className="flex flex-col gap-1">
+        <p className="text-label-md font-semibold tracking-[0.06em] text-muted-foreground uppercase">
+          Выберите перевод
+        </p>
+        <h2 className="text-headline-lg font-extrabold break-words text-foreground">
+          {exercise.prompt}
+        </h2>
+      </div>
       <div
         role="radiogroup"
         aria-label="Варианты ответа"
         onKeyDown={handleKeyDown}
-        className="flex flex-col gap-2"
+        className="flex flex-col gap-2.5"
       >
         {exercise.options.map((option, index) => {
           const state = stateOf(option)
@@ -94,29 +101,37 @@ export function ChoiceExercise({
               disabled={disabled || answered}
               onClick={() => pick(option)}
               className={cn(
-                'flex min-h-11 items-center gap-3 rounded-lg border px-4 py-2 text-left text-base outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:transition-none disabled:cursor-not-allowed',
-                state === 'idle' && 'border-border bg-background hover:bg-muted',
-                state === 'correct' && 'border-success bg-success/10 text-success',
-                state === 'incorrect' && 'border-error bg-error/10 text-error',
-                state === 'other' && 'border-border bg-background text-muted-foreground',
+                // DESIGN.md "Interactive Stride": ≥52px option targets with 8px+ spacing.
+                'flex min-h-11 items-center gap-4 rounded-2xl border-2 bg-card px-4 py-3 text-left text-body-lg font-medium shadow-card outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/40 motion-reduce:transition-none disabled:cursor-not-allowed',
+                state === 'idle' && 'border-transparent text-foreground ring-1 ring-border hover:ring-primary/30',
+                state === 'correct' && 'border-success text-foreground',
+                state === 'incorrect' && 'border-error bg-error/5 text-error',
+                state === 'other' && 'border-transparent text-muted-foreground ring-1 ring-border',
               )}
             >
               <span
                 aria-hidden="true"
-                className="flex size-6 shrink-0 items-center justify-center rounded-full border border-current/40 text-xs font-medium"
+                className={cn(
+                  'flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-label-lg',
+                  state === 'correct'
+                    ? 'border-success bg-success-soft text-success'
+                    : state === 'incorrect'
+                      ? 'border-error/40 text-error'
+                      : 'border-border text-muted-foreground',
+                )}
               >
                 {index + 1}
               </span>
-              <span className="flex-1">{option}</span>
+              <span className="flex-1 break-words">{option}</span>
               {state === 'correct' && (
                 <>
-                  <CheckCircle2 aria-hidden="true" className="size-5 shrink-0" />
+                  <CheckCircle2 aria-hidden="true" className="size-6 shrink-0 text-success" />
                   <span className="sr-only">Правильный ответ</span>
                 </>
               )}
               {state === 'incorrect' && (
                 <>
-                  <XCircle aria-hidden="true" className="size-5 shrink-0" />
+                  <XCircle aria-hidden="true" className="size-6 shrink-0" />
                   <span className="sr-only">Неверно</span>
                 </>
               )}

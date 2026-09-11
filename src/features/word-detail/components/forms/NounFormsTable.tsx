@@ -47,6 +47,17 @@ import { encodeSkillId, type SkillId, type WordId } from '@/learning/skills/skil
 import type { CaseValue } from '@/content/codec.ts'
 import type { Paradigm } from '@/types/content.ts'
 import type { SkillRecord } from '@/types/progress.ts'
+import { cn } from '@/lib/utils'
+import {
+  CELL_BUTTON_CLASS,
+  CELL_EMPTY_CLASS,
+  CELL_FORM_CLASS,
+  CELL_STATE_CLASS,
+  TABLE_CLASS,
+  TH_COL_CLASS,
+  TH_ROW_CLASS,
+  TR_CLASS,
+} from './table-styles.ts'
 
 function cellText(forms: readonly string[]): string {
   return forms.length > 0 ? forms.join(' / ') : '—'
@@ -80,7 +91,7 @@ function NounFormsCell({
   onTrain: (skillId: SkillId) => void
 }) {
   if (forms.length === 0) {
-    return <td className="py-1.5 pr-3 text-muted-foreground">—</td>
+    return <td className={CELL_EMPTY_CLASS}>—</td>
   }
 
   const dimension: NounDimension = `noun:${numberAbbrev}:${caseValue}`
@@ -95,10 +106,10 @@ function NounFormsCell({
         type="button"
         onClick={() => onTrain(skillId)}
         aria-label={`${caseLabel.pl} (${caseLabel.ru}), ${numberLabel}: ${cellText(forms)} — ${stateLabel}. Тренировать.`}
-        className="flex w-full flex-col items-start gap-0.5 px-3 py-1.5 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+        className={CELL_BUTTON_CLASS}
       >
-        <span className="text-foreground">{cellText(forms)}</span>
-        <span aria-hidden="true" className="text-[10px] leading-none text-muted-foreground">
+        <span className={CELL_FORM_CLASS}>{cellText(forms)}</span>
+        <span aria-hidden="true" className={CELL_STATE_CLASS}>
           {stateLabel}
         </span>
       </button>
@@ -127,28 +138,30 @@ export function NounFormsTable({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[420px] border-collapse text-sm">
+    <div className="flex flex-col gap-4">
+      <div className="-mx-1 overflow-x-auto px-1">
+        <table className={cn(TABLE_CLASS, 'min-w-[300px]')}>
           <thead>
-            <tr className="border-b border-border text-left text-muted-foreground">
-              <th scope="col" className="py-1.5 pr-3 font-medium">
+            <tr>
+              <th scope="col" className={TH_COL_CLASS}>
                 Падеж
               </th>
-              <th scope="col" className="py-1.5 pr-3 font-medium">
+              <th scope="col" className={TH_COL_CLASS}>
                 Ед. число
               </th>
-              <th scope="col" className="py-1.5 font-medium">
+              <th scope="col" className={TH_COL_CLASS}>
                 Мн. число
               </th>
             </tr>
           </thead>
           <tbody>
             {table.rows.map((row) => (
-              <tr key={row.case} className="border-b border-border/60 last:border-0">
-                <th scope="row" className="py-1.5 pr-3 text-left font-medium text-foreground">
-                  {CASE_LABELS[row.case].pl}
-                  <span className="block text-xs font-normal text-muted-foreground">
+              <tr key={row.case} className={TR_CLASS}>
+                <th scope="row" className={TH_ROW_CLASS}>
+                  <span className="block text-label-md font-semibold tracking-[0.04em] uppercase">
+                    {CASE_LABELS[row.case].pl}
+                  </span>
+                  <span className="block text-label-sm font-medium text-muted-foreground">
                     {CASE_LABELS[row.case].ru}
                   </span>
                 </th>
@@ -177,8 +190,7 @@ export function NounFormsTable({
       </div>
       <Button
         type="button"
-        variant="outline"
-        size="sm"
+        variant="secondary"
         onClick={() => navigate(`/practice/table/${encodeURIComponent(wordId)}`)}
         className="min-h-11 self-start"
       >

@@ -21,7 +21,8 @@ function nounWord(lemma: string): PracticeCandidateWord {
     wordId,
     descriptors: [
       descriptor(wordId, 'vocab:pl-ru', 'vocab'),
-      descriptor(wordId, 'vocab:ru-pl', 'vocab'),
+      descriptor(wordId, 'vocab:ru-pl-choice', 'vocab'),
+      descriptor(wordId, 'vocab:ru-pl-input', 'vocab'),
       descriptor(wordId, 'noun:sg:nominative', 'noun'),
       descriptor(wordId, 'noun:sg:genitive', 'noun'),
       descriptor(wordId, 'noun:pl:genitive', 'noun'),
@@ -94,14 +95,41 @@ describe('buildPracticeQueue', () => {
     }
   })
 
-  it('includes vocab:pl-ru and vocab:ru-pl together when includeTranslation is on', () => {
+  it('includes all three vocab dimensions together when includeTranslation is on', () => {
     const plan = buildPracticeQueue({
       config: baseConfig({ includeTranslation: true, dimensionSelection: {} }),
       candidateWords: [nounWord('kobieta')],
       seed: 1,
     })
     const dims = plan.items.map((i) => i.dimension).sort()
-    expect(dims).toEqual(['vocab:pl-ru', 'vocab:ru-pl'])
+    expect(dims).toEqual(['vocab:pl-ru', 'vocab:ru-pl-choice', 'vocab:ru-pl-input'])
+  })
+
+  it('task 37: "Тип задания" also restricts which vocab stage(s) match', () => {
+    const recognitionOnly = buildPracticeQueue({
+      config: baseConfig({
+        includeTranslation: true,
+        dimensionSelection: {},
+        exerciseTypes: { choice: true, input: false },
+      }),
+      candidateWords: [nounWord('kobieta')],
+      seed: 1,
+    })
+    expect(recognitionOnly.items.map((i) => i.dimension).sort()).toEqual([
+      'vocab:pl-ru',
+      'vocab:ru-pl-choice',
+    ])
+
+    const recallOnly = buildPracticeQueue({
+      config: baseConfig({
+        includeTranslation: true,
+        dimensionSelection: {},
+        exerciseTypes: { choice: false, input: true },
+      }),
+      candidateWords: [nounWord('kobieta')],
+      seed: 1,
+    })
+    expect(recallOnly.items.map((i) => i.dimension)).toEqual(['vocab:ru-pl-input'])
   })
 
   it('an empty dimension selection matches nothing (not "everything") — acceptance point 6', () => {

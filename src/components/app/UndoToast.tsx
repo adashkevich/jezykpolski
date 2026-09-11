@@ -9,10 +9,9 @@
  * completed action, not an error demanding immediate attention — NFR-11's accessibility bar
  * without being obnoxious to screen-reader users mid-scroll.
  *
- * Default bottom offset matches `LearnFab.tsx`'s own floating-above-`BottomNavigation`
- * convention (`5rem` clears the nav bar, `+ env(safe-area-inset-bottom)` clears the home
- * indicator, `+ 0.75rem` is the same breathing room `LearnFab` uses). `className` can
- * override it — `WordsListPage.tsx` does, to sit above `LearnFab` itself rather than under it.
+ * Default bottom offset floats it above `BottomNavigation` (`5rem` clears the nav bar,
+ * `+ env(safe-area-inset-bottom)` clears the home indicator, `+ 0.75rem` of breathing room).
+ * `className` can override it.
  */
 import { Undo2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button.tsx'

@@ -54,26 +54,29 @@ export function WordHeader({
   const gender = entry.pos === 'NOUN' && paradigm ? resolveHeaderGender(paradigm) : undefined
 
   return (
-    <header className="flex flex-col gap-1.5">
-      <h1 className="font-heading text-3xl leading-tight font-semibold text-foreground">
+    <header className="flex flex-col gap-3">
+      {/* Lexical tag pills (DESIGN.md §5): level in carmine tint, grammar in blue tint,
+          frequency in neutral slate. */}
+      <div className="flex flex-wrap items-center gap-1.5 text-label-md font-semibold">
+        <span className="rounded-md bg-primary-soft px-2 py-1 text-primary-strong">
+          {entry.level}
+        </span>
+        <span className="rounded-md bg-info-soft px-2 py-1 text-info">
+          {POS_FULL_LABEL[entry.pos]}
+        </span>
+        {gender && (
+          <span className="rounded-md bg-info-soft px-2 py-1 text-info">
+            {GENDER_LABELS[gender].pl} ({GENDER_LABELS[gender].ru})
+          </span>
+        )}
+        <span className="tnum rounded-md bg-secondary px-2 py-1 text-muted-foreground first-letter:uppercase">
+          частота #{entry.rank}
+        </span>
+      </div>
+      <h1 className="font-heading text-[2.25rem] leading-[2.75rem] font-bold tracking-[-0.02em] text-foreground sm:text-display-lg">
         {entry.lemma}
       </h1>
-      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground">
-        <span>{POS_FULL_LABEL[entry.pos]}</span>
-        {gender && (
-          <>
-            <span aria-hidden="true">·</span>
-            <span>
-              {GENDER_LABELS[gender].pl} ({GENDER_LABELS[gender].ru})
-            </span>
-          </>
-        )}
-        <span aria-hidden="true">·</span>
-        <span>{entry.level}</span>
-        <span aria-hidden="true">·</span>
-        <span>частота #{entry.rank}</span>
-      </div>
-      <p className="text-lg text-foreground">{primaryTranslation}</p>
+      <p className="text-headline-md text-foreground">{primaryTranslation}</p>
     </header>
   )
 }

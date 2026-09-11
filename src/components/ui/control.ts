@@ -22,4 +22,4 @@
  * property it doesn't want.
  */
 export const CONTROL_CLASS =
-  'h-11 rounded-lg border border-border bg-background text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm'
+  'h-11 rounded-lg border border-input bg-card text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 md:text-sm'

@@ -13,7 +13,8 @@
  * header for why this is a single source of truth rather than two independent fetches.
  */
 import { useMemo } from 'react'
-import { useParams } from 'react-router'
+import { ArrowLeft } from 'lucide-react'
+import { Link, useParams } from 'react-router'
 import { PageContainer } from '@/components/app/PageContainer.tsx'
 import { PageHeader } from '@/components/app/PageHeader.tsx'
 import { parseWordParam } from '@/app/word-path.ts'
@@ -68,28 +69,40 @@ function WordDetailContent({ wordId, entry }: { wordId: WordId; entry: WordIndex
   const hasParadigm = entry.paradigmShard !== -1
 
   return (
-    <PageContainer className="gap-5">
-      <WordHeader
-        entry={entry}
-        primaryTranslation={primaryTranslation}
-        paradigm={lazyParadigm.paradigm}
-      />
+    <PageContainer className="gap-4">
+      <Link
+        to="/words"
+        className="-ml-1 flex min-h-11 w-fit items-center gap-2 rounded-lg px-1 text-body-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
+        <ArrowLeft aria-hidden="true" className="size-5" />
+        Словарь
+      </Link>
 
-      <SensesList status={sensesStatus} senses={senses} error={sensesError} />
+      <section className="flex flex-col gap-6 rounded-3xl border border-border bg-card p-5 shadow-card">
+        <WordHeader
+          entry={entry}
+          primaryTranslation={primaryTranslation}
+          paradigm={lazyParadigm.paradigm}
+        />
+
+        <SensesList status={sensesStatus} senses={senses} error={sensesError} />
+      </section>
 
       {hasParadigm && (
         <FormsSection pos={entry.pos} wordId={wordId} lazyParadigm={lazyParadigm} skills={skills} />
       )}
 
-      <ProgressSection
-        entry={entry}
-        wordProgress={wordProgress}
-        hasParadigm={hasParadigm}
-        paradigm={lazyParadigm.paradigm}
-        skills={skills}
-      />
+      <section className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-5 shadow-card">
+        <ProgressSection
+          entry={entry}
+          wordProgress={wordProgress}
+          hasParadigm={hasParadigm}
+          paradigm={lazyParadigm.paradigm}
+          skills={skills}
+        />
 
-      <WordActions wordId={wordId} lemma={entry.lemma} />
+        <WordActions wordId={wordId} lemma={entry.lemma} />
+      </section>
     </PageContainer>
   )
 }

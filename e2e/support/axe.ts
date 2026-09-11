@@ -21,30 +21,3 @@ export async function expectNoAxeViolations(page: Page, screenLabel: string): Pr
     [],
   )
 }
-
-/**
- * Switches the page to dark theme via `prefers-color-scheme` emulation, NOT by directly
- * toggling the `.dark` class on `<html>`.
- *
- * FOUND DURING THIS TASK'S OWN a11y PASS: a first version of this helper called
- * `document.documentElement.classList.add('dark')` directly. That is silently undone —
- * every failing test that used it was actually still scanning the LIGHT theme, confirmed by
- * comparing the axe-reported colors (`#737373`/`#f5f5f5`, the light tokens) against what the
- * real dark tokens render as. The cause: `THEME_SETTING_KEY` defaults to `'system'`
- * (`features/settings/lib/theme.ts`), and `useThemeSync.ts` — mounted app-wide in
- * `AppProviders.tsx` — re-applies whatever `applyTheme(preference)` that setting resolves to
- * on every render once its `useLiveQuery` settles; for the untouched `'system'` default,
- * `applyTheme` removes both `.dark`/`.light` (see that function's own header), which fires
- * shortly after this helper's one-time class toggle and reverts it. Emulating the OS-level
- * media feature instead is what `globals.css`'s own `@media (prefers-color-scheme: dark) {
- * :root:not(.light) {...} }` block is built to respond to — the same mechanism a real user
- * with a dark-mode OS and this app's default settings would hit, and nothing in the app ever
- * fights a media-query match the way it fights a manually-toggled class. Call this BEFORE
- * `page.goto` so the very first paint already renders dark, matching what a real "OS already
- * dark" visit looks like (Playwright's `emulateMedia` still applies correctly if called
- * after navigation too — CSS media features are live — but "before" is what every call site
- * in this suite uses and is the least surprising order).
- */
-export async function setDarkTheme(page: Page): Promise<void> {
-  await page.emulateMedia({ colorScheme: 'dark' })
-}

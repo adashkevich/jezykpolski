@@ -30,8 +30,6 @@ export interface FilteredWords {
 
 export function useFilteredWords(): FilteredWords {
   const levels = useFiltersStore((s) => s.levels)
-  const upToMode = useFiltersStore((s) => s.upToMode)
-  const upToLevel = useFiltersStore((s) => s.upToLevel)
   const pos = useFiltersStore((s) => s.pos)
   const status = useFiltersStore((s) => s.status)
   const topN = useFiltersStore((s) => s.topN)
@@ -42,8 +40,8 @@ export function useFilteredWords(): FilteredWords {
   const progress = progressMaybe ?? EMPTY_PROGRESS
 
   const query = useMemo<WordQuery>(
-    () => filtersToQuery({ levels, upToMode, upToLevel, pos, status, topN, sort, search }),
-    [levels, upToMode, upToLevel, pos, status, topN, sort, search],
+    () => filtersToQuery({ levels, pos, status, topN, sort, search }),
+    [levels, pos, status, topN, sort, search],
   )
 
   const results = useMemo(() => queryWords(query, progress), [query, progress])

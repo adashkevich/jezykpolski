@@ -20,19 +20,19 @@ export function MaturityBar({
 }) {
   const percent = Math.round(Math.min(1, Math.max(0, value)) * 100)
   return (
-    <div className={cn('flex flex-col gap-1', className)}>
-      <div className="flex items-baseline justify-between text-sm">
-        <span className="font-medium text-foreground">{label}</span>
-        <span className="text-muted-foreground">{percent}%</span>
+    <div className={cn('flex flex-col gap-1.5', className)}>
+      <div className="flex items-baseline justify-between">
+        <span className="text-label-md font-semibold text-foreground">{label}</span>
+        <span className="tnum text-label-md font-semibold text-foreground">{percent}%</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
+      <div className="h-2.5 overflow-hidden rounded-full bg-track">
         <div
           role="progressbar"
           aria-label={`${label}: ${percent}%`}
           aria-valuenow={percent}
           aria-valuemin={0}
           aria-valuemax={100}
-          className="h-full rounded-full bg-primary transition-[width]"
+          className="h-full rounded-full bg-primary-strong transition-[width]"
           style={{ width: `${percent}%` }}
         />
       </div>

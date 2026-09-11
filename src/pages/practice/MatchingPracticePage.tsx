@@ -8,10 +8,11 @@
  * Task 36 (`spec/tasks/36-practice-screen-restructure.md` §4, FR-149) — this drill has no
  * separate results page (unlike the two `/session`-routed lexical drills), so "Ещё"/"К списку
  * практик" (`PracticeDrillActions`) render right here once `MatchingExercise` reports
- * `onDone`, instead of immediately navigating away. "Ещё" resamples a fresh batch from the
- * same `filter` router-state carried alongside `wordIds`, and remounts
- * `MatchingPracticeContent` under a new `key` (its own hook captures `wordIds` once on mount,
- * same convention as every other session-scoped hook in this feature).
+ * `onDone`, instead of immediately navigating away. "Ещё" resamples a fresh batch (task 39,
+ * `spec/tasks/39-practice-current-level.md`: from the level gate's own pool, no filter to
+ * carry any more) and remounts `MatchingPracticeContent` under a new `key` (its own hook
+ * captures `wordIds` once on mount, same convention as every other session-scoped hook in
+ * this feature).
  */
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
@@ -20,10 +21,7 @@ import { PageHeader } from '@/components/app/PageHeader.tsx'
 import { EmptyState } from '@/components/app/EmptyState.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import type { WordId } from '@/learning/skills/skill-id.ts'
-import {
-  resolveLexicalCandidateWordIds,
-  type LexicalWordFilter,
-} from '@/features/session-runner/lib/session-scope.ts'
+import { resolveLexicalCandidateWordIds } from '@/features/session-runner/lib/session-scope.ts'
 import { MATCHING_PAIR_COUNT, sampleWordBatch } from '@/learning/practice/lexical-batch.ts'
 import { useMatchingPracticeSession } from '@/features/session-runner/hooks/useMatchingPracticeSession.ts'
 import { MatchingExercise } from '@/features/session-runner/components/MatchingExercise.tsx'
@@ -31,7 +29,6 @@ import { PracticeDrillActions } from '@/features/session-runner/components/Pract
 
 interface MatchingBatch {
   readonly wordIds: readonly WordId[]
-  readonly filter: LexicalWordFilter
 }
 
 function MatchingPracticeContent({
@@ -128,9 +125,9 @@ export function MatchingPracticePage() {
   async function handleAgain() {
     if (!state) return
     setResampling(true)
-    const ids = await resolveLexicalCandidateWordIds(state.filter)
+    const ids = await resolveLexicalCandidateWordIds()
     const wordIds = sampleWordBatch(ids, MATCHING_PAIR_COUNT, Date.now())
-    navigate('/practice/matching', { replace: true, state: { wordIds, filter: state.filter } })
+    navigate('/practice/matching', { replace: true, state: { wordIds } })
   }
 
   return (

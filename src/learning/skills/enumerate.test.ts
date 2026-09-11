@@ -52,16 +52,17 @@ describe('enumerateSkills — NOUN with a paradigm (kobieta|NOUN, real data)', (
   const paradigm: Paradigm = { forms: KOBIETA_FORMS, dominantGender: 'feminine' }
   const skills = enumerateSkills(w, paradigm)
 
-  it('produces exactly 2 vocab skills + 14 real noun slots (2 numbers x 7 cases), no more', () => {
-    expect(skills).toHaveLength(16)
-    expect(skills.filter((s) => s.kind === 'vocab')).toHaveLength(2)
+  it('produces exactly 3 vocab skills + 14 real noun slots (2 numbers x 7 cases), no more', () => {
+    expect(skills).toHaveLength(17)
+    expect(skills.filter((s) => s.kind === 'vocab')).toHaveLength(3)
     expect(skills.filter((s) => s.kind === 'noun')).toHaveLength(14)
   })
 
-  it('includes vocab:pl-ru and vocab:ru-pl, wordId-scoped', () => {
+  it('includes all three vocab dimensions, wordId-scoped', () => {
     const dims = skills.map((s) => s.dimension)
     expect(dims).toContain('vocab:pl-ru')
-    expect(dims).toContain('vocab:ru-pl')
+    expect(dims).toContain('vocab:ru-pl-choice')
+    expect(dims).toContain('vocab:ru-pl-input')
     for (const s of skills) expect(s.wordId).toBe('kobieta|NOUN')
   })
 
@@ -107,12 +108,16 @@ describe('enumerateSkills — NOUN with a paradigm (kobieta|NOUN, real data)', (
 })
 
 describe('enumerateSkills — word without a paradigm (one of the 14 real words with none)', () => {
-  it('returns exactly the 2 vocab skills and does not throw', () => {
+  it('returns exactly the 3 vocab skills and does not throw', () => {
     const w = word({ lemma: 'ja', pos: 'NOUN', paradigmShard: -1 })
     expect(() => enumerateSkills(w)).not.toThrow()
     const skills = enumerateSkills(w)
-    expect(skills).toHaveLength(2)
-    expect(skills.map((s) => s.dimension).sort()).toEqual(['vocab:pl-ru', 'vocab:ru-pl'])
+    expect(skills).toHaveLength(3)
+    expect(skills.map((s) => s.dimension).sort()).toEqual([
+      'vocab:pl-ru',
+      'vocab:ru-pl-choice',
+      'vocab:ru-pl-input',
+    ])
     expect(skills.every((s) => s.kind === 'vocab')).toBe(true)
   })
 
@@ -194,9 +199,9 @@ describe('enumerateSkills — pluralia tantum (drzwi|NOUN, real data: only plura
     expect(nounDims.every((d) => d.startsWith('noun:pl:'))).toBe(true)
     expect(nounDims.some((d) => d.startsWith('noun:sg:'))).toBe(false)
 
-    // Still exactly the 2 vocab skills — a pluralia tantum is not otherwise special-cased.
-    expect(skills.filter((s) => s.kind === 'vocab')).toHaveLength(2)
-    expect(skills).toHaveLength(9)
+    // Still exactly the 3 vocab skills — a pluralia tantum is not otherwise special-cased.
+    expect(skills.filter((s) => s.kind === 'vocab')).toHaveLength(3)
+    expect(skills).toHaveLength(10)
   })
 })
 
@@ -344,7 +349,7 @@ describe('enumerateSkills — VERB (mieć|VERB, real data shapes)', () => {
       { form: 'mieć', mood: 'infinitive', aspect: 'imperfective', analytic: false },
     ]
     const skills = enumerateSkills(w, { forms })
-    expect(skills).toHaveLength(2) // vocab only
+    expect(skills).toHaveLength(3) // vocab only
   })
 
   it('present tense -> verb:present:<person>:<number>', () => {
@@ -494,7 +499,7 @@ describe('enumerateSkills — ADV (szybko|ADV, real data shapes)', () => {
   it('positive degree produces no skill (== the lemma, already vocab)', () => {
     const w = word({ lemma: 'szybko', pos: 'ADV' })
     const forms: DecodedForm[] = [{ form: 'szybko', degree: 'positive', analytic: false }]
-    expect(enumerateSkills(w, { forms })).toHaveLength(2)
+    expect(enumerateSkills(w, { forms })).toHaveLength(3)
   })
 
   it('comparative/superlative -> adv:degree:<degree>', () => {
