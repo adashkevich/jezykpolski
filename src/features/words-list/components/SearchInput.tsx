@@ -46,7 +46,7 @@ export function SearchInput() {
     <div className="relative">
       <Search
         aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+        className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-foreground"
       />
       <input
         type="search"
@@ -55,16 +55,19 @@ export function SearchInput() {
         placeholder="być или быть…"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        className={cn(CONTROL_CLASS, 'w-full pr-11 pl-9 placeholder:text-muted-foreground')}
+        className={cn(
+          CONTROL_CLASS,
+          'h-14 w-full rounded-2xl border-border pr-13 pl-12 shadow-card placeholder:text-muted-foreground md:text-body-lg [&::-webkit-search-cancel-button]:hidden',
+        )}
       />
       {value && (
         <button
           type="button"
           aria-label="Очистить поиск"
           onClick={() => setValue('')}
-          className="absolute top-1/2 right-0 flex size-11 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="absolute top-1/2 right-1.5 flex size-11 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
-          <X aria-hidden="true" className="size-4" />
+          <X aria-hidden="true" className="size-5" />
         </button>
       )}
     </div>

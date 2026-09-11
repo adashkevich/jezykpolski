@@ -79,14 +79,13 @@ test('critical learning flow: filter, learn, reload, mistake review, SRS damping
   await expect(page.getByRole('checkbox', { name: 'Выбор' })).toBeChecked()
   await expect(inputCheckbox).not.toBeChecked()
 
-  // 3. Words list, "до A1" filter — real UI path: level chip "A1" + "До уровня" checkbox
-  // (`LevelFilter.tsx`), then confirm the result count actually narrowed.
+  // 3. Words list, A1 filter — real UI path: level chip "A1" (`LevelFilter.tsx`), then
+  // confirm the result count actually narrowed.
   await page.goto('/words')
   const foundCount = page.getByText(/^Найдено /)
   await expect(foundCount).toBeVisible()
   const beforeFilterText = await foundCount.innerText()
 
-  await page.getByRole('checkbox', { name: /До уровня/ }).check()
   await page.getByRole('button', { name: 'A1', exact: true }).click()
   await expect(foundCount).not.toHaveText(beforeFilterText)
   const afterFilterText = await foundCount.innerText()

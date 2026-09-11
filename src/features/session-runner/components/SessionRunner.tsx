@@ -145,22 +145,24 @@ export function SessionRunner({ runtime, onFinished }: SessionRunnerProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <SessionProgressBar current={currentIndex} total={queue.length} />
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => setExitDialogOpen(true)}
-          aria-label="Выйти из сессии"
-        >
-          <LogOut aria-hidden="true" className="size-4" />
-          Выйти
-        </Button>
-      </div>
+    <div className="flex flex-col gap-6">
+      <SessionProgressBar
+        current={currentIndex}
+        total={queue.length}
+        trailing={
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="-mr-2"
+            onClick={() => setExitDialogOpen(true)}
+            aria-label="Выйти из сессии"
+          >
+            <LogOut aria-hidden="true" className="size-5" />
+            Выйти
+          </Button>
+        }
+      />
 
       {currentInstance ? (
         <ActiveQuestion

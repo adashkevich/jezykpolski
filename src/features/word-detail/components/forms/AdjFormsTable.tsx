@@ -48,6 +48,16 @@ import type { Paradigm } from '@/types/content.ts'
 import type { SkillRecord } from '@/types/progress.ts'
 import { cn } from '@/lib/utils'
 import { DegreeComparisonBlock, type DegreeRow } from './DegreeComparisonBlock.tsx'
+import {
+  CELL_FORM_CLASS,
+  SEGMENT_ITEM_ACTIVE_CLASS,
+  SEGMENT_ITEM_CLASS,
+  SEGMENT_TRACK_CLASS,
+  TABLE_CLASS,
+  TH_COL_CLASS,
+  TH_ROW_CLASS,
+  TR_CLASS,
+} from './table-styles.ts'
 
 function cellText(forms: readonly string[]): string {
   return forms.length > 0 ? forms.join(' / ') : '—'
@@ -102,38 +112,29 @@ export function AdjFormsTable({
 
   return (
     <div className="flex flex-col gap-4">
-      <div
-        role="group"
-        aria-label="Число"
-        className="inline-flex w-fit rounded-lg border border-border p-0.5"
-      >
+      <div role="group" aria-label="Число" className={SEGMENT_TRACK_CLASS}>
         {(['singular', 'plural'] as const).map((option) => (
           <button
             key={option}
             type="button"
             aria-pressed={number === option}
             onClick={() => setNumber(option)}
-            className={cn(
-              'min-h-8 rounded-md px-3 text-sm font-medium transition-colors',
-              number === option
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
+            className={cn(SEGMENT_ITEM_CLASS, number === option && SEGMENT_ITEM_ACTIVE_CLASS)}
           >
             {option === 'singular' ? 'Ед. число' : 'Мн. число'}
           </button>
         ))}
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-sm">
+      <div className="-mx-1 overflow-x-auto px-1">
+        <table className={cn(TABLE_CLASS, 'min-w-[640px]')}>
           <thead>
-            <tr className="border-b border-border text-left text-muted-foreground">
-              <th scope="col" className="py-1.5 pr-3 font-medium">
+            <tr>
+              <th scope="col" className={TH_COL_CLASS}>
                 Падеж
               </th>
               {GENDER_DISPLAY_ORDER.map((gender) => (
-                <th key={gender} id={`${idPrefix}-${gender}`} scope="col" className="py-1.5 pr-3 font-medium">
+                <th key={gender} id={`${idPrefix}-${gender}`} scope="col" className={TH_COL_CLASS}>
                   {GENDER_LABELS[gender].pl}
                 </th>
               ))}
@@ -141,8 +142,11 @@ export function AdjFormsTable({
           </thead>
           <tbody>
             {table.rows.map((row) => (
-              <tr key={row.case} className="border-b border-border/60 last:border-0">
-                <th scope="row" className="py-1.5 pr-3 text-left font-medium text-foreground">
+              <tr key={row.case} className={TR_CLASS}>
+                <th
+                  scope="row"
+                  className={cn(TH_ROW_CLASS, 'text-label-md tracking-[0.04em] uppercase')}
+                >
                   {CASE_LABELS[row.case].pl}
                 </th>
                 {mergeGenderCells(row).map((cell) => (
@@ -150,7 +154,7 @@ export function AdjFormsTable({
                     key={cell.genders[0]}
                     colSpan={cell.genders.length}
                     headers={cell.genders.map((gender) => `${idPrefix}-${gender}`).join(' ')}
-                    className="py-1.5 pr-3 text-foreground"
+                    className={cn('px-3 py-2', CELL_FORM_CLASS)}
                   >
                     {cell.text}
                   </td>

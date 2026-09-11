@@ -85,9 +85,9 @@ export function WordActions({ wordId, lemma }: { wordId: WordId; lemma: string }
       <div className="flex gap-2">
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           onClick={handleMarkUnknown}
-          className="min-h-11 flex-1"
+          className="min-h-12 flex-1"
         >
           <X aria-hidden="true" className="size-4" />
           Не знаю
@@ -96,7 +96,7 @@ export function WordActions({ wordId, lemma }: { wordId: WordId; lemma: string }
           type="button"
           variant="secondary"
           onClick={handleMarkKnown}
-          className="min-h-11 flex-1"
+          className="min-h-12 flex-1"
         >
           <Check aria-hidden="true" className="size-4" />
           Знаю
@@ -105,19 +105,19 @@ export function WordActions({ wordId, lemma }: { wordId: WordId; lemma: string }
       <Button
         type="button"
         onClick={() => navigate('/session', { state: { wordId } })}
-        className="min-h-11"
+        className="min-h-13 text-body-lg font-semibold shadow-cta"
       >
-        <GraduationCap aria-hidden="true" className="size-4" />
+        <GraduationCap aria-hidden="true" className="size-5" />
         Учить
       </Button>
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
         onClick={() => {
           setResetError(null)
           setDialogOpen(true)
         }}
-        className="min-h-11"
+        className="min-h-11 text-muted-foreground"
       >
         <RotateCcw aria-hidden="true" className="size-4" />
         Сбросить прогресс

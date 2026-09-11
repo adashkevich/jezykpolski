@@ -76,8 +76,10 @@ export function ProgressSection({
   const morphMaturity = wordProgress?.morphMaturity ?? 0
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-border p-4">
-      <h2 className="font-heading text-base font-medium text-foreground">Прогресс</h2>
+    // No card chrome of its own — `WordDetailPage` wraps this together with `WordActions` in
+    // one "spaced repetition" card, as in the design mockups.
+    <div className="flex flex-col gap-4">
+      <h2 className="font-heading text-headline-md text-foreground">Прогресс</h2>
 
       <div className="flex flex-col gap-3">
         <MaturityBar label="Слово" value={vocabMaturity} />
@@ -89,7 +91,7 @@ export function ProgressSection({
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="flex w-fit items-center gap-1 text-sm font-medium text-primary"
+          className="flex min-h-11 w-fit items-center gap-1 text-label-lg text-primary-strong"
         >
           Детализация по измерениям
           <ChevronDown
@@ -104,14 +106,19 @@ export function ProgressSection({
           <div className="flex flex-col gap-3">
             {groups.map((group) => (
               <div key={group.title} className="flex flex-col gap-1">
-                <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                <h3 className="text-label-sm tracking-[0.06em] text-muted-foreground uppercase">
                   {group.title}
                 </h3>
-                <ul className="flex flex-col gap-0.5">
+                <ul className="flex flex-col">
                   {group.rows.map((row) => (
-                    <li key={row.key} className="flex items-center justify-between text-sm">
+                    <li
+                      key={row.key}
+                      className="flex items-center justify-between rounded-lg px-2 py-1.5 text-body-sm odd:bg-surface-low"
+                    >
                       <span className="text-foreground">{row.label}</span>
-                      <span className="text-muted-foreground">{formatMaturity(row.value)}</span>
+                      <span className="tnum font-semibold text-muted-foreground">
+                        {formatMaturity(row.value)}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -119,10 +126,10 @@ export function ProgressSection({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-body-sm text-muted-foreground">
             Раскройте «Формы слова», чтобы увидеть детализацию по падежам/временам.
           </p>
         ))}
-    </section>
+    </div>
   )
 }

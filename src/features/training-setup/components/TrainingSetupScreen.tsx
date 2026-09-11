@@ -66,6 +66,7 @@ import {
 } from '../lib/practice-config.ts'
 import type { PracticeConfig } from '@/learning/session/session.types.ts'
 import type { PracticeExtraVariant } from '@/features/session-runner/lib/session-scope.ts'
+import { LearnHero } from '@/features/learn/components/LearnHero.tsx'
 import { usePracticeCandidateWords } from '../hooks/usePracticeCandidateWords.ts'
 import { useLexicalCandidateWords } from '../hooks/useLexicalCandidateWords.ts'
 import { useTrainingBlockOrder } from '../hooks/useTrainingBlockOrder.ts'
@@ -444,14 +445,11 @@ export function TrainingSetupScreen({ initialFilter }: { initialFilter?: WordQue
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Практика"
-        description={
-          practiceLevel
-            ? `Свободная тренировка — слова текущего уровня (${practiceLevel} и ниже, FR-111).`
-            : 'Свободная тренировка — вы сами задаёте, что тренировать (FR-111).'
-        }
-      />
+      <PageHeader title="Практика" visuallyHidden />
+
+      {/* The daily Learn session, same hero as Home — always first, outside the usage-ranked
+          order below (it isn't a Practice drill and isn't recorded by `recordRun`). */}
+      <LearnHero />
 
       {/* Task 33's usage-ranked order, now over 6 ids (task 36 §3). Each block's JSX lives in
           `blocksById`, a plain lookup table rather than 6 elements inlined in document order —

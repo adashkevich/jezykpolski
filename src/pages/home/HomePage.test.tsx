@@ -129,7 +129,10 @@ describe('HomePage', () => {
 
     // Three due skills (vocab:pl-ru + vocab:ru-pl-choice + vocab:ru-pl-input, task 37), not
     // one word — countDue counts skills.
-    await waitFor(() => expect(screen.getByText(/3 слова готовы к повторению/)).toBeInTheDocument())
+    // Big number + unit on one line, the predicate below it (`spec/design/main.png`).
+    await waitFor(() => expect(screen.getByText('готовы к повторению прямо сейчас')).toBeInTheDocument())
+    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText('слова')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Продолжить обучение' })).toBeInTheDocument()
   })
 
@@ -165,8 +168,8 @@ describe('HomePage', () => {
     expect(screen.getByText('1 / 3')).toBeInTheDocument()
     // "Глаголы": 1 learned (być) out of 1 verb in the index.
     expect(screen.getByText('1 / 1')).toBeInTheDocument()
-    // "Прилагательные": no adjectives in the fixture index at all.
-    expect(screen.getByText('0 / 0')).toBeInTheDocument()
+    // "Прилагательные" and "Наречия": no adjectives or adverbs in the fixture index at all.
+    expect(screen.getAllByText('0 / 0')).toHaveLength(2)
   })
 
   it('"Открыть" opens /words with the POS filter cleared', async () => {

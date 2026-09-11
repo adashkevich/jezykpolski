@@ -57,7 +57,7 @@ const STATUS_META: Readonly<Record<FeedbackStatus, StatusMeta>> = {
     label: 'Верно!',
     icon: CheckCircle2,
     textClassName: 'text-success',
-    panelClassName: 'border-success/40 bg-success/10',
+    panelClassName: 'border-success/30 bg-success-soft/60',
   },
   assisted: {
     label: 'Верно, но с подсказкой',
@@ -109,30 +109,31 @@ export function ExerciseFeedback({ feedback, correctAnswer, attempt, onNext }: E
       role="status"
       aria-live="polite"
       className={cn(
-        'flex flex-col gap-3 rounded-lg border p-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200',
+        'flex flex-col gap-3 rounded-2xl border p-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200',
         meta.panelClassName,
       )}
     >
-      <div className={cn('flex items-center gap-2 text-base font-semibold', meta.textClassName)}>
-        <Icon aria-hidden="true" className="size-5 shrink-0" />
+      <div className={cn('flex items-center gap-2 text-headline-sm', meta.textClassName)}>
+        <Icon aria-hidden="true" className="size-6 shrink-0" />
         <span>{meta.label}</span>
       </div>
 
       {status === 'assisted' && (
-        <p className="text-sm text-foreground">Слово вернётся на повторение.</p>
+        <p className="text-body-md text-foreground">Слово вернётся на повторение.</p>
       )}
 
       {(status === 'nearMiss' || status === 'incorrect') && (
-        <p className="text-sm text-foreground">
+        <p className="text-body-md text-foreground">
           Правильный ответ: <strong className="font-semibold">{correctAnswer}</strong>
         </p>
       )}
 
+      {/* DESIGN.md primary action: full-width, 52px, carmine. */}
       <button
         ref={nextButtonRef}
         type="button"
         onClick={onNext}
-        className="min-h-11 self-end rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground outline-none transition-colors hover:bg-primary/80 focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:transition-none"
+        className="mt-1 min-h-13 w-full rounded-xl bg-primary px-5 text-body-lg font-semibold text-primary-foreground shadow-cta outline-none transition-all hover:bg-primary-hover focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98] motion-reduce:transition-none"
       >
         Далее
       </button>

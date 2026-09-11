@@ -1,6 +1,6 @@
-import { BarChart3, BookOpen, Dumbbell, Home, type LucideIcon } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { cn } from '@/lib/utils'
+import { BookIcon, ChartIcon, DumbbellIcon, HomeIcon, type NavIcon } from './NavIcons.tsx'
 
 /**
  * Mobile bottom tab bar (`spec/tasks/06-app-shell-pwa.md` §2, `architecture.md` §9):
@@ -18,16 +18,16 @@ import { cn } from '@/lib/utils'
 interface NavItem {
   readonly to: string
   readonly label: string
-  readonly icon: LucideIcon
+  readonly icon: NavIcon
   readonly isActive: (pathname: string) => boolean
 }
 
 const NAV_ITEMS: readonly NavItem[] = [
-  { to: '/', label: 'Главная', icon: Home, isActive: (p) => p === '/' },
+  { to: '/', label: 'Главная', icon: HomeIcon, isActive: (p) => p === '/' },
   {
     to: '/words',
     label: 'Слова',
-    icon: BookOpen,
+    icon: BookIcon,
     isActive: (p) =>
       p.startsWith('/words') ||
       p.startsWith('/nouns') ||
@@ -37,10 +37,10 @@ const NAV_ITEMS: readonly NavItem[] = [
   {
     to: '/practice',
     label: 'Практика',
-    icon: Dumbbell,
+    icon: DumbbellIcon,
     isActive: (p) => p.startsWith('/practice') || p.startsWith('/session'),
   },
-  { to: '/stats', label: 'Прогресс', icon: BarChart3, isActive: (p) => p.startsWith('/stats') },
+  { to: '/stats', label: 'Прогресс', icon: ChartIcon, isActive: (p) => p.startsWith('/stats') },
 ]
 
 export function BottomNavigation() {
@@ -49,10 +49,10 @@ export function BottomNavigation() {
   return (
     <nav
       aria-label="Основная навигация"
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+      className="fixed inset-x-0 bottom-0 z-20 bg-card shadow-[0_-1px_0_rgb(15_23_42/0.05),0_-4px_16px_rgb(15_23_42/0.03)]"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <ul className="mx-auto grid max-w-screen-sm grid-cols-4">
+      <ul className="mx-auto grid max-w-screen-sm grid-cols-4 px-2 sm:px-4">
         {NAV_ITEMS.map((item) => {
           const active = item.isActive(pathname)
           const Icon = item.icon
@@ -64,12 +64,12 @@ export function BottomNavigation() {
                 className={cn(
                   // min-h-11 (44px) keeps the touch target at/above the NFR-11 floor even
                   // though the column is already much wider than 44px on a 320px viewport.
-                  'flex min-h-11 flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium transition-colors',
+                  'flex min-h-16 flex-col items-center justify-center gap-1 py-2 text-label-md font-semibold transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50',
                   active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                <Icon aria-hidden="true" className="size-5" />
+                <Icon active={active} className="size-6" />
                 <span>{item.label}</span>
               </Link>
             </li>

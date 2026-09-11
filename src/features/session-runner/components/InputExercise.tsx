@@ -36,8 +36,10 @@ export function InputExercise({
   const inputLanguage: 'pl' | 'ru' = exercise.direction === 'pl-ru' ? 'ru' : 'pl'
 
   return (
-    <div className="flex flex-col gap-3">
-      <h2 className="text-2xl font-semibold text-foreground">{exercise.prompt}</h2>
+    <div className="flex flex-col gap-5">
+      <h2 className="text-headline-lg font-extrabold break-words text-foreground">
+        {exercise.prompt}
+      </h2>
       <LetterSlotsInput
         accepted={exercise.accepted}
         showPolishKeys={inputLanguage === 'pl'}

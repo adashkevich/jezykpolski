@@ -61,7 +61,7 @@ const POLISH_SPECIAL_CHARS = ['ą', 'ć', 'ę', 'ł', 'ń', 'ó', 'ś', 'ź', '�
  *  (`text-foreground`) и обычным начертанием; единственный оставшийся неcветовой признак —
  *  пунктирное подчёркивание, которого NFR-11 и требует. */
 const CELL_CLASS: Readonly<Record<CellState, string>> = {
-  empty: 'border-border text-transparent',
+  empty: 'border-track text-transparent',
   correct: 'border-success text-success',
   corrected: 'border-warning text-warning underline decoration-warning decoration-dotted decoration-2',
   wrong: 'border-error bg-error/15 font-bold text-error underline decoration-error decoration-2',
@@ -76,7 +76,11 @@ const CELL_CLASS: Readonly<Record<CellState, string>> = {
  *  высоте (критерий приёмки MVP №14) держит `h-11`/`min-w-11`, ряд переносится `flex-wrap`, а
  *  контейнер скроллится по горизонтали (`overflow-x-auto`), если много слотов всё равно не
  *  помещается в одну строку — страница на 320px по-прежнему не скроллится вбок. */
-const SLOT_CLASS = 'h-11 min-w-11 text-lg'
+const SLOT_CLASS = 'h-11 min-w-11 text-headline-md'
+
+/** Secondary white "chip" controls under the slots (`spec/design/task-input.png`). */
+const TOOL_BUTTON_CLASS =
+  'flex min-h-11 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-card outline-none transition-colors hover:bg-surface-low focus-visible:ring-3 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none'
 
 export interface LetterSlotsInputProps {
   readonly accepted: readonly string[]
@@ -189,8 +193,8 @@ export function LetterSlotsInput({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="relative">
+    <div className="flex flex-col gap-4">
+      <div className="relative rounded-2xl border border-border bg-card shadow-card">
         <input
           ref={inputRef}
           type="text"
@@ -216,16 +220,13 @@ export function LetterSlotsInput({
         <p id={descriptionId} className="sr-only">
           Вводите буквы по порядку — неверная буква заменяется следующим нажатием.
         </p>
-        <div
-          aria-hidden="true"
-          className="overflow-x-auto rounded-lg border border-transparent px-2 py-1"
-        >
+        <div aria-hidden="true" className="overflow-x-auto px-3 py-4">
           {/* **Изменено задачей 36** (`spec/tasks/36-practice-screen-restructure.md` §5,
               FR-151) — задача 30 §2.3 требовала выравнивания по левому краю ("уже набранные
               буквы не «прыгали» при добавлении слота"); по прямому запросу пользователя ряд
               теперь центрируется. Контейнер выше остаётся `overflow-x-auto`, так что длинное
               слово по-прежнему скроллится внутри себя, а не растягивает страницу на 320px. */}
-          <div className="flex flex-wrap justify-center gap-1">
+          <div className="flex flex-wrap justify-center gap-1.5">
             {visibleCells.map((cell, index) =>
               cell.state === 'separator' ? (
                 <span key={index} className="w-3" />
@@ -234,7 +235,7 @@ export function LetterSlotsInput({
                   key={index}
                   data-cell-state={cell.state}
                   className={cn(
-                    'flex items-end justify-center border-b-2 pb-1 font-mono transition-colors motion-reduce:transition-none',
+                    'flex items-end justify-center border-b-[3px] pb-0.5 font-semibold transition-colors motion-reduce:transition-none',
                     SLOT_CLASS,
                     CELL_CLASS[cell.state],
                   )}
@@ -259,9 +260,9 @@ export function LetterSlotsInput({
             onMouseDown={(event) => event.preventDefault()}
             onClick={handleHint}
             aria-label="Подсказка: показать следующую букву"
-            className="flex min-h-11 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none"
+            className={cn(TOOL_BUTTON_CLASS, 'gap-2 px-4 text-label-lg')}
           >
-            <Lightbulb aria-hidden="true" className="size-4" />
+            <Lightbulb aria-hidden="true" className="size-5 text-warning" />
             Подсказка
           </button>
           <button
@@ -271,35 +272,40 @@ export function LetterSlotsInput({
             onClick={handleReveal}
             aria-label="Показать слово"
             aria-describedby={revealWarningId}
-            className="flex size-11 items-center justify-center rounded-lg border border-border text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none"
+            className={cn(TOOL_BUTTON_CLASS, 'size-11')}
           >
-            <Eye aria-hidden="true" className="size-4" />
+            <Eye aria-hidden="true" className="size-5" />
           </button>
-          <p id={revealWarningId} className="text-xs text-muted-foreground">
+          <p id={revealWarningId} className="text-body-sm text-muted-foreground">
             Показать слово — задание засчитается как ошибка
           </p>
         </div>
       )}
 
       {showPolishKeys && !answered && (
-        <div
-          role="group"
-          aria-label="Быстрый ввод польских диакритических знаков"
-          className="flex flex-wrap gap-1"
-        >
-          {POLISH_SPECIAL_CHARS.map((char) => (
-            <button
-              key={char}
-              type="button"
-              aria-label={`Вставить «${char}»`}
-              disabled={disabled || attempt.complete}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => applyPolishChar(char)}
-              className="flex size-11 items-center justify-center rounded-md border border-border text-base text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:transition-none"
-            >
-              {char}
-            </button>
-          ))}
+        <div className="flex flex-col gap-2">
+          <p aria-hidden="true" className="text-body-sm text-muted-foreground">
+            Польские символы
+          </p>
+          <div
+            role="group"
+            aria-label="Быстрый ввод польских диакритических знаков"
+            className="flex flex-wrap gap-1.5"
+          >
+            {POLISH_SPECIAL_CHARS.map((char) => (
+              <button
+                key={char}
+                type="button"
+                aria-label={`Вставить «${char}»`}
+                disabled={disabled || attempt.complete}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => applyPolishChar(char)}
+                className={cn(TOOL_BUTTON_CLASS, 'size-11 text-body-lg font-medium')}
+              >
+                {char}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

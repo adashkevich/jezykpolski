@@ -1,26 +1,23 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
-@import '@fontsource-variable/geist';
+@import '@fontsource-variable/inter';
 
+/*
+ * "Modern Polish Lexicon" design system (`spec/design/DESIGN.md`, mockups in `spec/design/*.png`).
+ *
+ * LIGHT THEME ONLY for now (explicit product decision): there is no `.dark` token block and no
+ * `prefers-color-scheme: dark` mirror any more. The variant below is kept only so the
+ * `dark:` utilities that shadcn's own `shadcn/tailwind.css` may emit stay bound to an opt-in
+ * class nobody sets, instead of silently falling back to Tailwind's default media-query
+ * variant (which would flip parts of the UI dark under an OS-level dark preference).
+ */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
+  --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -33,189 +30,175 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-soft: var(--primary-soft);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-foreground: var(--foreground);
+  --color-foreground-variant: var(--foreground-variant);
   --color-background: var(--background);
+  --color-surface-low: var(--surface-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-high: var(--surface-high);
+  --color-track: var(--track);
   --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
   --color-error: var(--error);
   --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
   --color-state-new: var(--state-new);
   --color-state-learning: var(--state-learning);
   --color-state-known: var(--state-known);
   --color-state-mastered: var(--state-mastered);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+
+  /* DESIGN.md "Shapes": 8px base (chips, inputs, table cells), 16–20px cards/sheets, 24px
+   * flashcards, pills. `lg` stays close to the previous shadcn value so existing inline
+   * controls don't balloon. */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+
+  /* DESIGN.md "Elevation & Depth" — tonal layers + crisp micro-borders, low-amplitude shadows. */
+  --shadow-card: 0 1px 3px rgb(15 23 42 / 0.04), 0 6px 16px rgb(15 23 42 / 0.04);
+  --shadow-raised: 0 4px 20px rgb(15 23 42 / 0.08);
+  --shadow-cta: 0 8px 22px rgb(214 34 70 / 0.24);
+  --shadow-modal: 0 16px 48px rgb(15 23 42 / 0.16);
+  --shadow-bar: 0 1px 0 rgb(15 23 42 / 0.05), 0 4px 16px rgb(15 23 42 / 0.03);
+
+  /* DESIGN.md typography scale (Inter). Line heights respect the diacritic rule: never below
+   * 1.35x on display sizes / 1.45x on body text. */
+  --text-display-lg: 2.5rem;
+  --text-display-lg--line-height: 3rem;
+  --text-display-lg--letter-spacing: -0.02em;
+  --text-display-lg--font-weight: 700;
+  --text-headline-lg: 1.75rem;
+  --text-headline-lg--line-height: 2.25rem;
+  --text-headline-lg--letter-spacing: -0.015em;
+  --text-headline-lg--font-weight: 700;
+  --text-headline-md: 1.375rem;
+  --text-headline-md--line-height: 1.875rem;
+  --text-headline-md--letter-spacing: -0.01em;
+  --text-headline-md--font-weight: 600;
+  --text-headline-sm: 1.125rem;
+  --text-headline-sm--line-height: 1.625rem;
+  --text-headline-sm--letter-spacing: -0.005em;
+  --text-headline-sm--font-weight: 600;
+  --text-body-lg: 1.0625rem;
+  --text-body-lg--line-height: 1.625rem;
+  --text-body-lg--letter-spacing: -0.005em;
+  --text-body-md: 0.9375rem;
+  --text-body-md--line-height: 1.375rem;
+  --text-body-sm: 0.8125rem;
+  --text-body-sm--line-height: 1.1875rem;
+  --text-label-lg: 0.875rem;
+  --text-label-lg--line-height: 1.25rem;
+  --text-label-lg--letter-spacing: 0.01em;
+  --text-label-lg--font-weight: 600;
+  --text-label-md: 0.75rem;
+  --text-label-md--line-height: 1.125rem;
+  --text-label-md--letter-spacing: 0.02em;
+  --text-label-md--font-weight: 500;
+  --text-label-sm: 0.6875rem;
+  --text-label-sm--line-height: 1rem;
+  --text-label-sm--letter-spacing: 0.04em;
+  --text-label-sm--font-weight: 600;
 }
 
 /*
- * ACCESSIBILITY FIX (task 26, axe scan): `--muted-foreground`, `--destructive`/`--error`,
- * `--success`, and `--warning` below were darkened from their original values in this LIGHT
- * theme block only (the `.dark` block and the `@media (prefers-color-scheme: dark)` mirror
- * below it were already measured compliant — dark-theme text sits on much darker
- * backgrounds, giving it contrast headroom the light theme's near-white tints don't have).
- *
- * Each of these is used as TEXT color against either the plain light `--background`/`--card`
- * (white) or a `/10`-opacity tint of itself over that same white (`bg-error/10`,
- * `bg-success/10`, `bg-warning/10` — `ExerciseFeedback.tsx`'s correct/near-miss/incorrect
- * panels, `ChoiceExercise.tsx`'s per-option state, `button.tsx`'s `destructive` variant).
- * Measured live via `@axe-core/playwright` against the real rendered app (not computed by
- * hand): the original values gave `muted-foreground` 4.34:1 against `bg-muted` (needs
- * 4.5:1), `destructive`/`error` 3.98:1 against their own `/10` tint, `success` 3.29:1, and
- * `warning` 2.09:1 — the last two meaning the single most common exercise-feedback state
- * ("Верно!") failed WCAG AA contrast for every learner in light mode until this fix. New
- * values keep the same hue/chroma (only `L` moved) and were re-verified to land at
- * 4.8-5.7:1 against their respective real backgrounds — comfortable margin, not a bare pass.
+ * Light palette (DESIGN.md "Colors"). Every value used as TEXT was checked for WCAG AA
+ * (task 26's axe scan contract) against the surfaces it actually sits on:
+ *  - `--primary` (#D62246) is the carmine accent for fills (CTA, active tab, bars); white text
+ *    on it is 4.9:1. Red *text* on light surfaces uses `--primary-strong` (#B00032, 7.1:1 on
+ *    white, 5.9:1 on `--primary-soft`) — the plain accent would fail AA at small sizes there.
+ *  - `--success` is emerald-700 rather than DESIGN.md's #059669 (3.8:1 on white, fails AA for
+ *    the "Верно!" feedback text); #059669 survives as `--state-mastered`, a non-text fill.
+ *  - `--muted-foreground` (#545F73, M3 "secondary") is 6.1:1 on white and 5.6:1 on
+ *    `--surface-container`.
  */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.5 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --success: oklch(0.48 0.16 145);
-  --error: oklch(0.5 0.245 27.325);
-  --warning: oklch(0.48 0.16 75);
-  --state-new: oklch(0.65 0.02 260);
-  --state-learning: oklch(0.75 0.16 75);
-  --state-known: oklch(0.7 0.14 220);
-  --state-mastered: oklch(0.6 0.16 145);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+  --background: #f8f9ff;
+  --foreground: #0b1c30;
+  --foreground-variant: #5b4041;
+  --card: #ffffff;
+  --card-foreground: #0b1c30;
+  --popover: #ffffff;
+  --popover-foreground: #0b1c30;
+
+  --primary: #d62246;
+  --primary-foreground: #ffffff;
+  --primary-hover: #b91c3c;
+  --primary-strong: #b00032;
+  --primary-soft: #fee2e2;
+
+  --secondary: #e5eeff;
+  --secondary-foreground: #0b1c30;
+  --muted: #eff4ff;
+  --muted-foreground: #545f73;
+  --accent: #eff4ff;
+  --accent-foreground: #0b1c30;
+
+  --surface-low: #eff4ff;
+  --surface-container: #e5eeff;
+  --surface-high: #dce9ff;
+  --track: #e3ebfa;
+
+  --destructive: #ba1a1a;
+  --error: #ba1a1a;
+  --success: #047857;
+  --success-soft: #d1fae5;
+  --warning: #b45309;
+  --info: #004cca;
+  --info-soft: #dbe1ff;
+
+  --state-new: #64748b;
+  --state-learning: #2563eb;
+  --state-known: #004cca;
+  --state-mastered: #059669;
+
+  --border: rgb(15 23 42 / 0.08);
+  --input: rgb(15 23 42 / 0.12);
+  --ring: #d62246;
+
+  --chart-1: #d62246;
+  --chart-2: #2865ed;
+  --chart-3: #545f73;
+  --chart-4: #059669;
+  --chart-5: #b45309;
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --success: oklch(0.7 0.17 145);
-  --error: oklch(0.704 0.191 22.216);
-  --warning: oklch(0.8 0.15 80);
-  --state-new: oklch(0.55 0.02 260);
-  --state-learning: oklch(0.8 0.15 80);
-  --state-known: oklch(0.72 0.13 220);
-  --state-mastered: oklch(0.7 0.17 145);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
-
-/*
- * System-preference dark mode (`spec/tasks/06-app-shell-pwa.md` §8: "Светлая и тёмная через
- * CSS-переменные и prefers-color-scheme"). Task 24 owns the manual toggle (adding/removing
- * `.dark`, and — forward-compatible with that — a `.light` class to force light even when the
- * system prefers dark); until then, `prefers-color-scheme` is the *only* thing that switches
- * themes, so it has to work standalone, not just as a fallback the toggle overrides. Token
- * values are identical to `.dark` above by construction — keep the two in sync.
- */
-@media (prefers-color-scheme: dark) {
-  :root:not(.light) {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --success: oklch(0.7 0.17 145);
-    --error: oklch(0.704 0.191 22.216);
-    --warning: oklch(0.8 0.15 80);
-    --state-new: oklch(0.55 0.02 260);
-    --state-learning: oklch(0.8 0.15 80);
-    --state-known: oklch(0.72 0.13 220);
-    --state-mastered: oklch(0.7 0.17 145);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
-  }
+@utility tnum {
+  font-feature-settings:
+    'tnum' 1,
+    'cv05' 1;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+    color-scheme: light;
+    font-feature-settings: 'cv05' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  body {
+    @apply bg-background text-body-md text-foreground;
   }
 }

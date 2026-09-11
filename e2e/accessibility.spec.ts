@@ -2,10 +2,9 @@
  * Automated `axe-core` accessibility scan (`spec/tasks/26-quality-a11y-e2e.md` §1: "Проверить
  * `axe` на каждом основном экране") — the automated half of the task's a11y checklist. The
  * checklist items `axe` cannot verify at all (keyboard tab *order*, `prefers-reduced-motion`
- * actually disabling animation, and contrast specifically under this app's own `.dark` class
- * rather than just whatever theme the page loaded in) are covered separately: the manual
- * code-level pass documented in this task's final report, plus this file's own dark-theme
- * pass below for contrast.
+ * actually disabling animation) are covered separately by the manual code-level pass
+ * documented in this task's final report. The app ships a single light theme, so the scans
+ * below cover contrast for every theme there is.
  *
  * Each of the app's 12 main screens gets its own `test()` so a failure names exactly which
  * screen regressed, even though several screens require real navigation (not a bare `goto`)
@@ -18,7 +17,7 @@
  */
 import { expect, test } from '@playwright/test'
 import { answerChoiceExercise } from './support/exercise.ts'
-import { expectNoAxeViolations, setDarkTheme } from './support/axe.ts'
+import { expectNoAxeViolations } from './support/axe.ts'
 import { openTrainingBlock } from './support/training.ts'
 
 test.describe('accessibility (axe) — light theme, real screens', () => {
@@ -157,51 +156,7 @@ test.describe('accessibility (axe) — light theme, real screens', () => {
 })
 
 // ---------------------------------------------------------------------------------------
-// Dark theme — a representative subset (not all 12 screens a second time): the checklist
-// item this covers is color CONTRAST specifically, which is a property of `globals.css`'s
-// shared `.dark` token set (`src/app/styles/globals.css`) applied uniformly across the app,
-// not something that varies per-screen the way keyboard order or landmarks might. One screen
-// from each visually-distinct "family" (static content page, a list with colored status
-// badges, an interactive exercise with the non-color correct/incorrect feedback panel) is
-// enough to catch a token-level contrast regression without re-running full navigation flows
-// for all 12 screens twice.
+// The dark-theme pass that used to live here is gone: the app is light-theme only since the
+// `spec/design/DESIGN.md` restyle (no `.dark` tokens, no `prefers-color-scheme: dark` mirror
+// in `globals.css`), so a dark scan would only re-check the same light screens above.
 // ---------------------------------------------------------------------------------------
-test.describe('accessibility (axe) — dark theme, representative screens', () => {
-  test('home (/) — dark', async ({ page }) => {
-    await setDarkTheme(page)
-    await page.goto('/')
-    await expect(page.getByRole('link', { name: 'Polski' })).toBeVisible()
-    await expectNoAxeViolations(page, '/ (dark)')
-  })
-
-  test('words list (/words) — dark', async ({ page }) => {
-    await setDarkTheme(page)
-    await page.goto('/words')
-    await expect(page.getByText(/^Найдено \d/)).toBeVisible()
-    await expectNoAxeViolations(page, '/words (dark)')
-  })
-
-  test('session feedback panel — dark', async ({ page }) => {
-    await setDarkTheme(page)
-    await page.goto('/settings')
-    const inputCheckbox = page.getByRole('checkbox', { name: 'Ввод' })
-    if (await inputCheckbox.isChecked()) await inputCheckbox.click()
-
-    await page.goto('/')
-    await page.getByRole('button', { name: /обучение|слова/i }).click()
-    await expect(page).toHaveURL(/\/session$/)
-    await page.getByRole('radiogroup', { name: 'Варианты ответа' }).getByRole('radio').first().click()
-    await expect(page.getByRole('status').filter({ hasText: /Верно!|Неверно|Почти/ })).toBeVisible()
-    // See the light-theme session-feedback test above for why this wait is here (animation
-    // settle, not a real steady-state contrast issue).
-    await page.waitForTimeout(300)
-    await expectNoAxeViolations(page, '/session (feedback, dark)')
-  })
-
-  test('settings (/settings) — dark', async ({ page }) => {
-    await setDarkTheme(page)
-    await page.goto('/settings')
-    await expect(page.getByRole('link', { name: 'Polski' })).toBeVisible()
-    await expectNoAxeViolations(page, '/settings (dark)')
-  })
-})

@@ -77,19 +77,31 @@ export function DegreeComparisonBlock({
     navigate('/session', { state: { targetSkillIds: [skillId] } })
   }
 
+  // Tiles side by side (`spec/design/word-adjective.png`): degree name above, the form below —
+  // the plain positive in ink, comparative/superlative in carmine since they're the changed
+  // forms worth noticing.
+  const tileClass =
+    'flex h-full w-full flex-col items-center justify-center gap-1 rounded-xl bg-secondary px-2 py-3 text-center'
+  const formClass = (degree: DegreeValue) =>
+    degree === 'positive'
+      ? 'text-headline-sm font-bold break-words text-foreground'
+      : 'text-headline-sm font-bold break-words text-primary-strong'
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <h4 className="text-sm font-medium text-foreground">Степени сравнения</h4>
-      <ul className="flex flex-col gap-1 text-sm">
+    <div className="flex flex-col gap-2">
+      <h4 className="text-label-md font-semibold tracking-[0.06em] text-muted-foreground uppercase">
+        Степени сравнения
+      </h4>
+      <ul className="grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] gap-2">
         {rows.map((row) => {
           const label = DEGREE_LABELS[row.degree]
           const formsText = row.forms.join(' / ')
 
           if (!hasSkillFor(kind, row.degree)) {
             return (
-              <li key={row.degree} className="flex items-baseline gap-2 px-1 py-0.5">
-                <span className="text-muted-foreground">{label.pl}:</span>
-                <span className="text-foreground">{formsText}</span>
+              <li key={row.degree} className={tileClass}>
+                <span className="text-label-md text-muted-foreground">{label.pl}:</span>
+                <span className={formClass(row.degree)}>{formsText}</span>
               </li>
             )
           }
@@ -103,11 +115,11 @@ export function DegreeComparisonBlock({
                 type="button"
                 onClick={() => handleTrain(skillId)}
                 aria-label={`${label.pl} (${label.ru}): ${formsText} — ${stateLabel}. Тренировать.`}
-                className="flex w-full items-baseline gap-2 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+                className={`${tileClass} transition-colors hover:bg-surface-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50`}
               >
-                <span className="text-muted-foreground">{label.pl}:</span>
-                <span className="text-foreground">{formsText}</span>
-                <span aria-hidden="true" className="ml-auto text-[10px] leading-none text-muted-foreground">
+                <span className="text-label-md text-muted-foreground">{label.pl}:</span>
+                <span className={formClass(row.degree)}>{formsText}</span>
+                <span aria-hidden="true" className="text-[10px] leading-none text-muted-foreground">
                   {stateLabel}
                 </span>
               </button>

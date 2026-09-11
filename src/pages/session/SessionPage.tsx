@@ -60,7 +60,11 @@ export function SessionPage() {
 
   return (
     <PageContainer>
-      <PageHeader title="Сессия" description="Учим и повторяем — очередь собирает алгоритм." />
+      <PageHeader
+        title="Сессия"
+        description="Учим и повторяем — очередь собирает алгоритм."
+        visuallyHidden
+      />
 
       {status.phase === 'loading' && (
         <p

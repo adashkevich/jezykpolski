@@ -66,30 +66,33 @@ export function FilterSheet({ resultCount }: { resultCount: number }) {
 
   return (
     <div className="flex items-center justify-between gap-3">
-      <p className="text-sm text-muted-foreground" aria-live="polite">
+      <p className="tnum pl-1 text-headline-sm text-foreground" aria-live="polite">
         Найдено {resultCount.toLocaleString('ru-RU')}
       </p>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
-          <Button type="button" variant="outline" className="min-h-11 gap-1.5">
-            <SlidersHorizontal aria-hidden="true" className="size-4" />
+          <Button type="button" variant="secondary" className="min-h-12 gap-2 px-4">
+            <SlidersHorizontal aria-hidden="true" className="size-5 text-primary-strong" />
             Фильтры
             {activeCount > 0 && (
               <span
                 aria-hidden="true"
-                className="flex size-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground"
+                className="flex size-6 items-center justify-center rounded-full bg-primary-strong text-label-md font-bold text-primary-foreground"
               >
                 {activeCount}
               </span>
             )}
           </Button>
         </SheetTrigger>
-        <SheetContent side="bottom" className="max-h-[85svh] overflow-y-auto">
+        <SheetContent
+          side="bottom"
+          className="max-h-[85svh] overflow-y-auto rounded-t-3xl border-border shadow-modal"
+        >
           <SheetHeader>
             <SheetTitle>Фильтры и сортировка</SheetTitle>
           </SheetHeader>
           <div className="flex flex-col gap-4 px-4 pb-6">
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+            <label className="flex flex-col gap-1.5 text-label-lg text-foreground">
               Статус
               <select
                 value={status ?? ''}
@@ -104,7 +107,7 @@ export function FilterSheet({ resultCount }: { resultCount: number }) {
               </select>
             </label>
 
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+            <label className="flex flex-col gap-1.5 text-label-lg text-foreground">
               Частотность
               <select
                 value={topN ?? ''}
@@ -121,7 +124,7 @@ export function FilterSheet({ resultCount }: { resultCount: number }) {
               </select>
             </label>
 
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+            <label className="flex flex-col gap-1.5 text-label-lg text-foreground">
               Сортировка
               <select
                 value={sort}

@@ -38,23 +38,28 @@ import { UpdateBanner } from './UpdateBanner.tsx'
 export function AppShell() {
   return (
     <div className="flex h-svh flex-col bg-background text-foreground">
+      {/* Same bar on every route (spec/design mockups): wordmark left — "Język" in ink,
+          "Polski" in carmine — and the settings gear right. Inner row shares
+          `PageContainer`/`BottomNavigation`'s `max-w-screen-sm` column so all three align. */}
       <header
-        className="sticky top-0 z-20 flex min-h-14 shrink-0 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+        className="sticky top-0 z-20 shrink-0 bg-card shadow-bar"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <Link
-          to="/"
-          className="rounded-md font-heading text-base font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-        >
-          Polski
-        </Link>
-        <Link
-          to="/settings"
-          aria-label="Настройки"
-          className="flex size-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-        >
-          <Settings aria-hidden="true" className="size-5" />
-        </Link>
+        <div className="mx-auto flex min-h-16 w-full max-w-screen-sm items-center justify-between px-4 sm:px-6">
+          <Link
+            to="/"
+            className="rounded-md font-heading text-headline-md font-bold tracking-[-0.02em] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            Język<span className="text-primary">Polski</span>
+          </Link>
+          <Link
+            to="/settings"
+            aria-label="Настройки"
+            className="-mr-2 flex size-11 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <Settings aria-hidden="true" className="size-6" strokeWidth={1.75} />
+          </Link>
+        </div>
       </header>
 
       <UpdateBanner />
@@ -69,7 +74,7 @@ export function AppShell() {
           matter what the current route renders inside it. */}
       <main
         tabIndex={0}
-        className="flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))]"
+        className="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))]"
       >
         <Outlet />
       </main>

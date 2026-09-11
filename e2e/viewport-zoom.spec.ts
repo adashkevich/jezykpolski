@@ -64,12 +64,13 @@ test.describe('320px mobile viewport — no auto-zoom, no horizontal scroll', ()
     await expectFocusedFontSizeAtLeast16(statusSelect)
   })
 
-  test('settings: theme and learning selects', async ({ page }) => {
+  // The "Тема" select is gone — the app is light-theme only for now (spec/design/DESIGN.md
+  // restyle), so only the learning selects remain on this screen.
+  test('settings: learning selects', async ({ page }) => {
     await page.goto('/settings')
     await expect(page.getByRole('link', { name: 'Polski' })).toBeVisible()
     await expectNoHorizontalScroll(page, '/settings')
 
-    await expectFocusedFontSizeAtLeast16(page.getByRole('combobox', { name: 'Тема' }))
     await expectFocusedFontSizeAtLeast16(
       page.getByRole('combobox', { name: 'Новых слов в день' }),
     )

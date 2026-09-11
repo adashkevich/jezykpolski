@@ -66,8 +66,8 @@ export interface PickerOptions {
    *  by its dimension (`vocab:pl-ru`/`vocab:ru-pl-choice` -> `choice`, `vocab:ru-pl-input` ->
    *  `input`), so there is nothing left for a category restriction to choose there — forcing
    *  `'recall'` on `vocab:pl-ru` would resurrect the very `PL→RU input` exercise task 28
-   *  removed. Both UIs that expose the setting say so (`InterfaceSettingsSection.tsx`,
-   *  `TrainingSetupScreen.tsx`: "влияет на упражнения по формам слов"). Task 37's own "Тип
+   *  removed. The UI that exposes the setting says so (`TrainingSetupScreen.tsx`: "влияет на
+   *  упражнения по формам слов"). Task 37's own "Тип
    *  задания" restriction on *vocabulary* is a separate mechanism at the queue level
    *  (`session-scope.ts`'s due-skill filter), not this one — see that module's header. */
   readonly forceCategory?: ExerciseCategory

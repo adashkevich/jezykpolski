@@ -33,12 +33,16 @@ export function StatProgressBar({
 }) {
   const percent = Math.round(Math.min(1, Math.max(0, value)) * 100)
   return (
-    <div className={cn('flex flex-col gap-1', className)}>
-      <div className="flex items-baseline justify-between text-sm">
-        <span className={muted ? 'text-muted-foreground' : 'text-foreground'}>{label}</span>
-        <span className="tabular-nums text-muted-foreground">{percent}%</span>
+    <div className={cn('flex flex-col gap-1.5', className)}>
+      <div className="flex items-baseline justify-between gap-3">
+        <span
+          className={cn('text-body-md font-medium', muted ? 'text-muted-foreground' : 'text-foreground')}
+        >
+          {label}
+        </span>
+        <span className="tnum text-label-lg text-muted-foreground">{percent}%</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
+      <div className="h-2 overflow-hidden rounded-full bg-track">
         <div
           role="progressbar"
           aria-label={`${label}: ${percent}%`}
@@ -47,7 +51,7 @@ export function StatProgressBar({
           aria-valuemax={100}
           className={cn(
             'h-full rounded-full transition-[width]',
-            muted ? 'bg-muted-foreground/40' : 'bg-primary',
+            muted ? 'bg-muted-foreground/40' : 'bg-primary-strong',
           )}
           style={{ width: `${percent}%` }}
         />

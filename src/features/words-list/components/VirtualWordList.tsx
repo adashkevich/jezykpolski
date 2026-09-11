@@ -39,6 +39,8 @@ export function VirtualWordList({
   showFormsBar,
   onMarkKnown,
   onMarkUnknown,
+  onScroll,
+  paddingStart = 0,
 }: {
   words: readonly WordIndexEntry[]
   progress: ReadonlyMap<WordId, WordProgressRecord>
@@ -47,8 +49,18 @@ export function VirtualWordList({
   onMarkKnown: (entry: WordIndexEntry) => void
   /** Swipe-left / "Не знаю" button (task 16, FR-29) — forwarded straight to every `WordRow`. */
   onMarkUnknown: (entry: WordIndexEntry) => void
+  /** Called with the scroll container on every scroll — drives the page's hide-on-scroll chrome. */
+  onScroll?: (el: HTMLDivElement) => void
+  /** Empty band above row 0 — room for the page's filter chrome overlaid on the list's top. */
+  paddingStart?: number
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  // Read through a ref so the mount-only listener effect below never re-runs (and re-restores
+  // the scroll offset) just because the parent passed a new callback.
+  const onScrollRef = useRef(onScroll)
+  useLayoutEffect(() => {
+    onScrollRef.current = onScroll
+  })
 
   // Scroll position restore (`spec/tasks/07-words-list.md` §8, acceptance "возврат с карточки
   // слова сохраняет позицию скролла"): read the last saved offset once, on mount, before
@@ -63,6 +75,9 @@ export function VirtualWordList({
     getScrollElement: () => scrollRef.current,
     estimateSize: () => WORD_ROW_HEIGHT,
     overscan: 8,
+    paddingStart,
+    // Small breathing room under the last row, so it doesn't sit flush against the nav bar.
+    paddingEnd: 12,
     initialOffset: initialOffsetRef.current,
   })
 
@@ -72,16 +87,21 @@ export function VirtualWordList({
     if (initialOffsetRef.current > 0) {
       el.scrollTop = initialOffsetRef.current
     }
+    // Hands `onScroll` its baseline position up front, so the user's first scroll already counts.
+    onScrollRef.current?.(el)
 
     // Persist the offset continuously while scrolling (not just on unmount) — a `scroll`
     // event fires at most once per animation frame in every real browser, so this is not a
     // per-pixel write storm; `setScrollOffset` itself is a cheap in-memory zustand `set`
     // (not the persisted half of the store — see `filters.store.ts`'s file header).
     const setScrollOffset = useFiltersStore.getState().setScrollOffset
-    const handleScroll = () => setScrollOffset(el.scrollTop)
+    const handleScroll = () => {
+      setScrollOffset(el.scrollTop)
+      onScrollRef.current?.(el)
+    }
     el.addEventListener('scroll', handleScroll, { passive: true })
     return () => {
-      handleScroll()
+      setScrollOffset(el.scrollTop)
       el.removeEventListener('scroll', handleScroll)
     }
   }, [])
@@ -91,7 +111,9 @@ export function VirtualWordList({
       ref={scrollRef}
       role="list"
       aria-label="Список слов"
-      className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+      // `-mx-1 px-1`: the row cards' soft shadow would otherwise be clipped flush at the
+      // scroll container's left/right edges.
+      className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1"
     >
       <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {

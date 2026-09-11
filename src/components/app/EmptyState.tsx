@@ -22,7 +22,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center gap-3 rounded-xl border border-dashed border-border px-6 py-10 text-center',
+        'flex flex-col items-center gap-3 rounded-2xl border border-border bg-card px-6 py-10 text-center shadow-card',
         className,
       )}
     >
@@ -31,8 +31,8 @@ export function EmptyState({
           {icon}
         </div>
       )}
-      <p className="font-medium text-foreground">{title}</p>
-      {description && <p className="max-w-sm text-sm text-muted-foreground">{description}</p>}
+      <p className="text-headline-sm text-foreground">{title}</p>
+      {description && <p className="max-w-sm text-body-sm text-muted-foreground">{description}</p>}
       {action && <div className="mt-1">{action}</div>}
     </div>
   )

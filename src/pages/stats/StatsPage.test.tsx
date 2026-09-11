@@ -109,9 +109,11 @@ describe('StatsPage', () => {
     expect(screen.getByText('1')).toBeInTheDocument() // "Изучается"
     // "По уровням": A1 has 2 known out of 4 NOUN+VERB words in the index -> 50%.
     expect(screen.getByText('A1')).toBeInTheDocument()
-    // "Части речи": NOUN 1/3, VERB 1/1.
-    expect(screen.getByText('NOUN')).toBeInTheDocument()
-    expect(screen.getByText('VERB')).toBeInTheDocument()
+    // "По частям речи": NOUN 1/3, VERB 1/1 — rows are labeled in Russian now (design restyle).
+    expect(screen.getByText('Существительные')).toBeInTheDocument()
+    expect(screen.getByText('Глаголы')).toBeInTheDocument()
+    expect(screen.getByText('1 / 3')).toBeInTheDocument()
+    expect(screen.getByText('1 / 1')).toBeInTheDocument()
   })
 
   it('hides the morphology blocks until noun/verb skills are materialized, and shows the noun block once one is', async () => {

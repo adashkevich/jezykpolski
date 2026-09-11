@@ -62,8 +62,10 @@ import type { WordIndexEntry } from '@/types/content.ts'
 import type { WordProgressRecord } from '@/types/progress.ts'
 import { StatusBadge } from './StatusBadge.tsx'
 
-/** Fixed row height in pixels — shared with `VirtualWordList`'s `estimateSize`. */
-export const WORD_ROW_HEIGHT = 84
+/** Fixed row height in pixels — shared with `VirtualWordList`'s `estimateSize`. Includes the
+ *  8px gap below each card (`pb-2` on the row's outer wrapper), since virtual rows are
+ *  absolutely positioned and can't use a flex `gap`. */
+export const WORD_ROW_HEIGHT = 120
 
 /** Horizontal drag distance (px) past which releasing the pointer commits the swipe. */
 export const SWIPE_COMMIT_THRESHOLD_PX = 88
@@ -191,7 +193,8 @@ export function WordRow({
   const revealStrength = clamp(Math.abs(dragX) / SWIPE_COMMIT_THRESHOLD_PX, 0, 1)
 
   return (
-    <div className="relative h-full w-full overflow-hidden border-b border-border">
+    <div className="h-full w-full pb-2">
+    <div className="relative h-full w-full overflow-hidden rounded-2xl border border-border bg-card shadow-card">
       {/* Swipe reveal background — purely decorative, never intercepts pointer/keyboard. */}
       <div
         aria-hidden="true"
@@ -218,7 +221,7 @@ export function WordRow({
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onClickCapture={handleClickCapture}
-        className={`relative flex h-full touch-pan-y items-center bg-background ${
+        className={`relative flex h-full touch-pan-y items-stretch bg-card ${
           settling
             ? 'motion-safe:transition-transform motion-safe:duration-200 motion-reduce:transition-none'
             : ''
@@ -227,60 +230,66 @@ export function WordRow({
       >
         <Link
           to={wordPath(wordId)}
-          className="flex h-full min-w-0 flex-1 items-center gap-3 px-4 transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+          className="flex h-full min-w-0 flex-1 items-center gap-3 py-3 pl-5 transition-colors hover:bg-surface-low/60 focus-visible:bg-surface-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
         >
-          <div className="min-w-0 flex-1">
-            <div className="truncate leading-tight font-medium text-foreground">{entry.lemma}</div>
-            <div className="truncate text-sm leading-tight text-muted-foreground">
-              {entry.primaryRu}
-            </div>
-            <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-              <span>{POS_LABEL[entry.pos]}</span>
-              <span aria-hidden="true">·</span>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <div className="truncate text-headline-md font-bold text-foreground">{entry.lemma}</div>
+            <div className="truncate text-body-md text-foreground-variant">{entry.primaryRu}</div>
+            <div className="mt-1 flex items-center gap-2 text-label-md font-semibold text-muted-foreground">
+              <span className="rounded-md bg-secondary px-2 py-0.5 text-foreground/80">
+                {POS_LABEL[entry.pos]}
+              </span>
               <span>{entry.level}</span>
               <span aria-hidden="true">·</span>
-              <span>#{entry.rank}</span>
-            </div>
-            <div className="mt-1.5 h-1 max-w-40 overflow-hidden rounded-full bg-muted">
+              <span className="tnum">#{entry.rank}</span>
+              {/* Sits inline in the meta row, so it no longer needs an always-present empty
+                  track to keep the fixed row height stable — only rendered when the POS tab
+                  asks for it. */}
               {showFormsBar && (
-                <div
-                  role="progressbar"
-                  aria-label={`${FORMS_BAR_LABEL[entry.pos]}: ${morphPercent}%`}
-                  aria-valuenow={morphPercent}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  className="h-full rounded-full bg-primary"
-                  style={{ width: `${morphPercent}%` }}
-                />
+                <div className="ml-1 h-1 w-12 shrink-0 overflow-hidden rounded-full bg-track">
+                  <div
+                    role="progressbar"
+                    aria-label={`${FORMS_BAR_LABEL[entry.pos]}: ${morphPercent}%`}
+                    aria-valuenow={morphPercent}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${morphPercent}%` }}
+                  />
+                </div>
               )}
             </div>
           </div>
-          <StatusBadge status={status} className="shrink-0" />
         </Link>
 
-        {/* Non-gesture equivalents (NFR-11, task 16 §5) — siblings of the Link, not nested
-         *  inside it, so they're independently reachable by Tab and don't trigger navigation. */}
-        <div className="flex shrink-0 items-center gap-1 pr-2">
-          <button
-            type="button"
-            aria-label={`«${entry.lemma}»: не знаю`}
-            title="Не знаю — начать изучение"
-            onClick={() => onMarkUnknown(entry)}
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--color-error)]/10 hover:text-[var(--color-error)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-          >
-            <X aria-hidden="true" className="size-4" />
-          </button>
-          <button
-            type="button"
-            aria-label={`«${entry.lemma}»: знаю`}
-            title="Знаю"
-            onClick={() => onMarkKnown(entry)}
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--color-success)]/10 hover:text-[var(--color-success)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-          >
-            <Check aria-hidden="true" className="size-4" />
-          </button>
+        {/* Status pill on top, the non-gesture triage equivalents (NFR-11, task 16 §5) under
+         *  it — siblings of the Link, not nested inside it, so they're independently reachable
+         *  by Tab and don't trigger navigation. */}
+        <div className="flex shrink-0 flex-col items-end justify-center gap-1 py-2 pr-3 pl-1">
+          <StatusBadge status={status} />
+          <div className="flex items-center">
+            <button
+              type="button"
+              aria-label={`«${entry.lemma}»: не знаю`}
+              title="Не знаю — начать изучение"
+              onClick={() => onMarkUnknown(entry)}
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-error/10 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              <X aria-hidden="true" className="size-4" />
+            </button>
+            <button
+              type="button"
+              aria-label={`«${entry.lemma}»: знаю`}
+              title="Знаю"
+              onClick={() => onMarkKnown(entry)}
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-success/10 hover:text-success focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              <Check aria-hidden="true" className="size-4" />
+            </button>
+          </div>
         </div>
       </div>
+    </div>
     </div>
   )
 }

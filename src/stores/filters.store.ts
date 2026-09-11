@@ -38,11 +38,8 @@ export type SortOption = WordQuery['sort']
 export type TopNOption = 500 | 1000 | 2000 | 5000 | null
 
 interface PersistedFilters {
-  /** Explicit multi-select levels, used when `upToMode` is off. */
+  /** Explicit multi-select levels. */
   levels: LevelValue[]
-  /** FR-22: "До уровня X" mode — when on, `upToLevel` (not `levels`) drives the query. */
-  upToMode: boolean
-  upToLevel: LevelValue | null
   /** Single-select POS tab (FR-23); `null` = "Все". */
   pos: PosValue | null
   /** Single-select status filter (FR-24); `null` = "Все". */
@@ -60,8 +57,6 @@ interface FiltersState extends PersistedFilters {
    *  scroll container, so returning from a word-card navigation can restore it. */
   scrollOffset: number
   toggleLevel: (level: LevelValue) => void
-  setUpToMode: (on: boolean) => void
-  setUpToLevel: (level: LevelValue) => void
   setPos: (pos: PosValue | null) => void
   setStatus: (status: WordStatus | null) => void
   setTopN: (topN: TopNOption) => void
@@ -75,8 +70,6 @@ interface FiltersState extends PersistedFilters {
 
 const DEFAULT_FILTERS: PersistedFilters = {
   levels: [],
-  upToMode: false,
-  upToLevel: null,
   pos: null,
   status: null,
   topN: null,
@@ -111,16 +104,6 @@ export const useFiltersStore = create<FiltersState>()(
             : [...state.levels, level],
         })),
 
-      setUpToMode: (on) =>
-        set((state) => ({
-          upToMode: on,
-          // Switching the mode off drops whatever level was picked "up to" — it has no
-          // meaning as a plain multi-select entry, and leaving it set would silently keep
-          // filtering by it if the mode were re-enabled later with a stale value.
-          upToLevel: on ? state.upToLevel : null,
-        })),
-      setUpToLevel: (level) => set({ upToLevel: level }),
-
       setPos: (pos) => set({ pos }),
       setStatus: (status) => set({ status }),
       setTopN: (topN) => set({ topN }),
@@ -135,8 +118,6 @@ export const useFiltersStore = create<FiltersState>()(
       storage: settingsStorage,
       partialize: (state): PersistedFilters => ({
         levels: state.levels,
-        upToMode: state.upToMode,
-        upToLevel: state.upToLevel,
         pos: state.pos,
         status: state.status,
         topN: state.topN,
@@ -152,8 +133,7 @@ export const useFiltersStore = create<FiltersState>()(
  *  rendering anything. */
 export function filtersToQuery(state: PersistedFilters): WordQuery {
   return {
-    levels: state.upToMode ? undefined : state.levels.length > 0 ? state.levels : undefined,
-    upToLevel: state.upToMode && state.upToLevel ? state.upToLevel : undefined,
+    levels: state.levels.length > 0 ? state.levels : undefined,
     pos: state.pos ? [state.pos] : undefined,
     status: state.status ? [state.status] : undefined,
     topN: state.topN ?? null,

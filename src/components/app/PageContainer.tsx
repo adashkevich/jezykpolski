@@ -19,7 +19,13 @@ export function PageContainer({
   className?: string
 }) {
   return (
-    <div className={cn('mx-auto flex w-full max-w-screen-sm flex-col gap-4 px-4 py-4', className)}>
+    <div
+      className={cn(
+        // DESIGN.md "Layout": single 640px column, 16px margins on phones / 24px from 480px up.
+        'mx-auto flex w-full max-w-screen-sm flex-col gap-5 px-4 py-5 min-[480px]:px-6',
+        className,
+      )}
+    >
       {children}
     </div>
   )

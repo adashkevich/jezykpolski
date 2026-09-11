@@ -52,6 +52,18 @@ import { cn } from '@/lib/utils'
 import type { GenderValue, NumberValue } from '@/content/codec.ts'
 import type { Paradigm } from '@/types/content.ts'
 import type { SkillRecord } from '@/types/progress.ts'
+import {
+  CELL_BUTTON_CLASS,
+  CELL_EMPTY_CLASS,
+  CELL_FORM_CLASS,
+  CELL_STATE_CLASS,
+  SEGMENT_ITEM_CLASS,
+  SEGMENT_TRACK_CLASS,
+  TABLE_CLASS,
+  TH_COL_CLASS,
+  TH_ROW_CLASS,
+  TR_CLASS,
+} from './table-styles.ts'
 
 /**
  * Pronouns, not digits (task 20 §4/acceptance: "Лица подписаны местоимениями"; app-design.md
@@ -99,7 +111,7 @@ function FormsWithAnalyticMarkers({ row }: { row: VerbConjugationRow }) {
           {row.analyticForms.includes(form) && (
             <span
               title="Аналитическая форма (będę + инфинитив)"
-              className="ml-1 inline-block rounded bg-muted px-1 align-middle text-[0.65rem] font-medium text-muted-foreground"
+              className="ml-1 inline-block rounded bg-secondary px-1 align-middle text-[0.65rem] font-medium text-muted-foreground"
             >
               аналит.
             </span>
@@ -126,7 +138,7 @@ function VerbFormsCell({
   ariaLabel: string
 }) {
   if (!row || row.forms.length === 0) {
-    return <td className="py-1.5 pr-3 text-muted-foreground">—</td>
+    return <td className={CELL_EMPTY_CLASS}>—</td>
   }
 
   const skillId = encodeSkillId(wordId, dimension)
@@ -139,12 +151,12 @@ function VerbFormsCell({
         type="button"
         onClick={() => onTrain(skillId)}
         aria-label={`${ariaLabel}: ${cellText(row.forms)} — ${stateLabel}. Тренировать.`}
-        className="flex w-full flex-col items-start gap-0.5 px-3 py-1.5 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+        className={CELL_BUTTON_CLASS}
       >
-        <span className="text-foreground">
+        <span className={CELL_FORM_CLASS}>
           <FormsWithAnalyticMarkers row={row} />
         </span>
-        <span aria-hidden="true" className="text-[10px] leading-none text-muted-foreground">
+        <span aria-hidden="true" className={CELL_STATE_CLASS}>
           {stateLabel}
         </span>
       </button>
@@ -195,17 +207,17 @@ function PersonNumberGrid({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[360px] border-collapse text-sm">
+    <div className="-mx-1 overflow-x-auto px-1">
+      <table className={cn(TABLE_CLASS, 'min-w-[300px]')}>
         <thead>
-          <tr className="border-b border-border text-left text-muted-foreground">
-            <th scope="col" className="py-1.5 pr-3 font-medium">
+          <tr>
+            <th scope="col" className={TH_COL_CLASS}>
               Лицо
             </th>
-            <th scope="col" className="py-1.5 pr-3 font-medium">
+            <th scope="col" className={TH_COL_CLASS}>
               Ед. число
             </th>
-            <th scope="col" className="py-1.5 font-medium">
+            <th scope="col" className={TH_COL_CLASS}>
               Мн. число
             </th>
           </tr>
@@ -214,8 +226,8 @@ function PersonNumberGrid({
           {PERSON_DISPLAY_ORDER.filter((p) => byPerson.has(p)).map((person) => {
             const cells = byPerson.get(person)!
             return (
-              <tr key={person} className="border-b border-border/60 last:border-0">
-                <th scope="row" className="py-1.5 pr-3 text-left font-medium text-foreground">
+              <tr key={person} className={TR_CLASS}>
+                <th scope="row" className={cn(TH_ROW_CLASS, 'font-medium text-muted-foreground')}>
                   {personRowLabel(person)}
                 </th>
                 <VerbFormsCell
@@ -272,15 +284,15 @@ function PastTenseTable({
   ) => rows.find((r) => r.person === person && r.number === number && r.gender === gender)
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[560px] border-collapse text-sm">
+    <div className="-mx-1 overflow-x-auto px-1">
+      <table className={cn(TABLE_CLASS, 'min-w-[560px]')}>
         <thead>
-          <tr className="border-b border-border text-left text-muted-foreground">
-            <th scope="col" className="py-1.5 pr-3 font-medium">
+          <tr>
+            <th scope="col" className={TH_COL_CLASS}>
               Лицо
             </th>
             {PAST_COLUMNS.map((col) => (
-              <th key={`${col.number}-${col.gender}`} scope="col" className="py-1.5 pr-3 font-medium">
+              <th key={`${col.number}-${col.gender}`} scope="col" className={TH_COL_CLASS}>
                 {GENDER_LABELS[col.gender].pl}
               </th>
             ))}
@@ -291,8 +303,8 @@ function PastTenseTable({
             const cells = PAST_COLUMNS.map((col) => cell(person, col.number, col.gender))
             if (cells.every((c) => c === undefined)) return null
             return (
-              <tr key={person} className="border-b border-border/60 last:border-0">
-                <th scope="row" className="py-1.5 pr-3 text-left font-medium text-foreground">
+              <tr key={person} className={TR_CLASS}>
+                <th scope="row" className={cn(TH_ROW_CLASS, 'font-medium text-muted-foreground')}>
                   {personRowLabel(person)}
                 </th>
                 {cells.map((c, i) => {
@@ -319,8 +331,12 @@ function PastTenseTable({
   )
 }
 
-const TAB_TRIGGER_CLASS =
-  'min-h-11 shrink-0 rounded-t-md border-b-2 border-transparent px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground'
+// Segmented control (DESIGN.md §2) rather than underlined tabs — radix drives the active
+// state through `data-state`, so the shared active classes are applied via that attribute.
+const TAB_TRIGGER_CLASS = cn(
+  SEGMENT_ITEM_CLASS,
+  'data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-cta',
+)
 
 export function VerbFormsTable({
   wordId,
@@ -375,16 +391,16 @@ export function VerbFormsTable({
     >
       <Tabs.List
         aria-label="Время и наклонение"
-        className="flex gap-1 overflow-x-auto border-b border-border"
+        className={cn(SEGMENT_TRACK_CLASS, '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden')}
       >
         {tabs.map((tab) => (
-          <Tabs.Trigger key={tab.key} value={tab.key} className={cn(TAB_TRIGGER_CLASS)}>
+          <Tabs.Trigger key={tab.key} value={tab.key} className={TAB_TRIGGER_CLASS}>
             {tab.label}
           </Tabs.Trigger>
         ))}
       </Tabs.List>
       {tabs.map((tab) => (
-        <Tabs.Content key={tab.key} value={tab.key} className="flex flex-col gap-3 pt-3">
+        <Tabs.Content key={tab.key} value={tab.key} className="flex flex-col gap-4 pt-3">
           {tab.key === 'past' ? (
             <PastTenseTable rows={tab.rows} wordId={wordId} known={known} onTrain={handleTrain} />
           ) : (
@@ -399,8 +415,7 @@ export function VerbFormsTable({
           )}
           <Button
             type="button"
-            variant="outline"
-            size="sm"
+            variant="secondary"
             onClick={() => navigate(`/practice/verb-table/${encodeURIComponent(wordId)}/${tab.key}`)}
             className="min-h-11 self-start"
           >
