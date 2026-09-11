@@ -23,7 +23,6 @@ import {
   resolveLexicalCandidateWordIds,
   resolvePracticeCandidateWords,
   resolveSessionCandidates,
-  type LexicalWordFilter,
 } from './session-scope.ts'
 
 function entry(
@@ -135,49 +134,34 @@ describe('parseSessionScope', () => {
     })
   })
 
-  // Task 31 (`spec/tasks/31-practice-vocabulary-drills.md` §2, FR-137/FR-138).
+  // Task 31 (`spec/tasks/31-practice-vocabulary-drills.md` §2, FR-137/FR-138). Task 39
+  // (`spec/tasks/39-practice-current-level.md`) dropped `practiceExtra.filter` — there is no
+  // more per-visit lexical filter to round-trip through router state.
   it('narrows { practiceExtra } router state to the practice-extra scope', () => {
-    const filter: LexicalWordFilter = { upToLevel: null, status: [], topN: null }
     expect(
       parseSessionScope({
-        practiceExtra: { variant: 'vocab-choice', wordIds: ['a|NOUN', 'b|VERB'], filter },
+        practiceExtra: { variant: 'vocab-choice', wordIds: ['a|NOUN', 'b|VERB'] },
       }),
     ).toEqual({
       kind: 'practice-extra',
       variant: 'vocab-choice',
       wordIds: ['a|NOUN', 'b|VERB'],
-      filter,
     })
 
     expect(
       parseSessionScope({
-        practiceExtra: { variant: 'vocab-spelling', wordIds: ['c|ADJ'], filter },
+        practiceExtra: { variant: 'vocab-spelling', wordIds: ['c|ADJ'] },
       }),
-    ).toEqual({ kind: 'practice-extra', variant: 'vocab-spelling', wordIds: ['c|ADJ'], filter })
-  })
-
-  // Task 36 (`spec/tasks/36-practice-screen-restructure.md` §1, FR-149) — "Ещё" on
-  // `SessionResultPage`/`MatchingPracticePage` needs the originating lexical filter back to
-  // resample a fresh batch, so `parseSessionScope` must round-trip it unchanged.
-  it('reads practiceExtra.filter through unchanged', () => {
-    const filter: LexicalWordFilter = { upToLevel: 'B1', status: ['new', 'learning'], topN: 2000 }
-    const scope = parseSessionScope({
-      practiceExtra: { variant: 'vocab-spelling', wordIds: ['a|NOUN'], filter },
-    })
-    expect(scope.kind).toBe('practice-extra')
-    if (scope.kind === 'practice-extra') {
-      expect(scope.filter).toEqual(filter)
-    }
+    ).toEqual({ kind: 'practice-extra', variant: 'vocab-spelling', wordIds: ['c|ADJ'] })
   })
 
   it('{ practiceExtra } takes priority over every other key if a caller somehow sent both', () => {
-    const filter: LexicalWordFilter = { upToLevel: null, status: [], topN: null }
     expect(
       parseSessionScope({
-        practiceExtra: { variant: 'vocab-choice', wordIds: ['a|NOUN'], filter },
+        practiceExtra: { variant: 'vocab-choice', wordIds: ['a|NOUN'] },
         wordId: 'b|NOUN',
       }),
-    ).toEqual({ kind: 'practice-extra', variant: 'vocab-choice', wordIds: ['a|NOUN'], filter })
+    ).toEqual({ kind: 'practice-extra', variant: 'vocab-choice', wordIds: ['a|NOUN'] })
   })
 })
 
@@ -512,16 +496,16 @@ describe('resolvePracticeCandidateWords (kind: practice)', () => {
 
 // ---------------------------------------------------------------------------
 // resolveLexicalCandidateWordIds (task 36, `spec/tasks/36-practice-screen-restructure.md` §1,
-// FR-147) — the POS-independent counterpart of `resolvePracticeCandidateWords` above, used by
-// the 3 lexical drills ("Выбор перевода", "Написание по-польски", "Сопоставление").
+// FR-147, narrowed by task 39, `spec/tasks/39-practice-current-level.md`) — the POS-
+// independent counterpart of `resolvePracticeCandidateWords` above, used by the 3 lexical
+// drills ("Выбор перевода", "Написание по-польски", "Сопоставление"). No parameters any more
+// — task 39 removed the manual "Выборка слов" filter; the pool is entirely derived from the
+// same level gate `resolveGlobalScope` uses (`newWordsStartLevel` setting +
+// `computeLevelPoolCounts`), no `pos`/`status`/`topN` narrowing at all.
 // ---------------------------------------------------------------------------
 
-function lexicalFilter(overrides: Partial<LexicalWordFilter> = {}): LexicalWordFilter {
-  return { upToLevel: null, status: [], topN: null, ...overrides }
-}
-
 describe('resolveLexicalCandidateWordIds', () => {
-  it('returns words of every part of speech under the same level/status/frequency filter', async () => {
+  it('returns words of every part of speech at the level gate\'s current level, no pos filter', async () => {
     initIndexStore([
       entry({ lemma: 'kobieta', pos: 'NOUN', level: 'A1', rank: 1 }),
       entry({ lemma: 'robic', pos: 'VERB', level: 'A1', rank: 2 }),
@@ -529,10 +513,12 @@ describe('resolveLexicalCandidateWordIds', () => {
       entry({ lemma: 'szybko', pos: 'ADV', level: 'A1', rank: 4 }),
     ])
 
-    const ids = await resolveLexicalCandidateWordIds(lexicalFilter())
+    const ids = await resolveLexicalCandidateWordIds()
 
     // Task 36's whole point: ADV (unreachable from any Practice forms block) is included
-    // here, same as every other part of speech — no `pos` filter at all.
+    // here, same as every other part of speech — no `pos` filter at all. Task 39: with no
+    // progress at all, the level gate's default `startLevel` (A1) is the current level, and
+    // every entry above is A1, so all four are in the pool.
     expect(new Set(ids)).toEqual(
       new Set([
         encodeWordId('kobieta', 'NOUN'),
@@ -543,33 +529,56 @@ describe('resolveLexicalCandidateWordIds', () => {
     )
   })
 
-  it('applies upToLevel the same way /words does', async () => {
+  it('excludes a level above the current one, same upToLevel semantics /words uses', async () => {
     initIndexStore([
       entry({ lemma: 'kobieta', pos: 'NOUN', level: 'A1', rank: 1 }),
       entry({ lemma: 'dom', pos: 'NOUN', level: 'B2', rank: 2 }),
     ])
 
-    const ids = await resolveLexicalCandidateWordIds(lexicalFilter({ upToLevel: 'A1' }))
+    // Neither word has progress -> A1 (the default startLevel) still has an unstarted word,
+    // so B2 never opens (`unlockedLevels`) and the pool stays "A1 and below".
+    const ids = await resolveLexicalCandidateWordIds()
     expect(ids).toEqual([encodeWordId('kobieta', 'NOUN')])
   })
 
-  it('applies a status filter the same way /words does', async () => {
+  it('the pool includes the next level once the current one has zero unstarted words left, alongside already-started words of the level below (known/mastered are not filtered out)', async () => {
     initIndexStore([
-      entry({ lemma: 'kobieta', pos: 'NOUN', rank: 1 }),
-      entry({ lemma: 'dom', pos: 'NOUN', rank: 2 }),
+      entry({ lemma: 'kobieta', pos: 'NOUN', level: 'A1', rank: 1 }),
+      entry({ lemma: 'dom', pos: 'NOUN', level: 'A2', rank: 2 }),
     ])
-    const domWordId = encodeWordId('dom', 'NOUN')
-    await ensureSkill(encodeSkillId(domWordId, 'vocab:pl-ru'), domWordId, 'vocab', 'vocab:pl-ru')
-    await recomputeWordProgress(domWordId)
+    const kobietaId = encodeWordId('kobieta', 'NOUN')
+    await ensureSkill(encodeSkillId(kobietaId, 'vocab:pl-ru'), kobietaId, 'vocab', 'vocab:pl-ru')
+    await recomputeWordProgress(kobietaId)
 
-    const ids = await resolveLexicalCandidateWordIds(lexicalFilter({ status: ['new'] }))
-    expect(ids).toEqual([encodeWordId('kobieta', 'NOUN')])
+    // A1's only word is now started -> `unlockedLevels` cascades to A2, so
+    // `practicePoolLevel` becomes A2 and the pool is "A2 and below" — kobieta (already
+    // started, level A1) stays in the pool, it just isn't filtered out for having progress.
+    const ids = await resolveLexicalCandidateWordIds()
+    expect(new Set(ids)).toEqual(new Set([kobietaId, encodeWordId('dom', 'NOUN')]))
+  })
+
+  it('reads the newWordsStartLevel setting into the pool boundary, same as the daily session', async () => {
+    await settingsRepo.set('newWordsStartLevel', 'B1')
+    initIndexStore([
+      entry({ lemma: 'kobieta', pos: 'NOUN', level: 'A1', rank: 1 }),
+      entry({ lemma: 'dom', pos: 'NOUN', level: 'B1', rank: 2 }),
+      entry({ lemma: 'skomplikowany', pos: 'ADJ', level: 'C1', rank: 3 }),
+    ])
+
+    // `startLevel: 'B1'` makes B1 (not the default A1) the pool boundary — same `upToLevel`
+    // semantics Practice has always used (a level-based ceiling, not startLevel-exclusion:
+    // reviewing/practicing an already-indexed lower-level word was never gated by
+    // `newWordsStartLevel` — only the daily session's *new-word* queue is, via
+    // `resolveGlobalScope`'s own `levels: unlocked`, untouched by this function). C1 sits
+    // above the boundary and is excluded either way.
+    const ids = await resolveLexicalCandidateWordIds()
+    expect(new Set(ids)).toEqual(new Set([encodeWordId('kobieta', 'NOUN'), encodeWordId('dom', 'NOUN')]))
   })
 
   it('never fetches a paradigm shard (no vi.stubGlobal(fetch) needed even for a word with one)', async () => {
-    initIndexStore([entry({ lemma: 'kobieta', pos: 'NOUN', rank: 1, paradigmShard: 0 })])
+    initIndexStore([entry({ lemma: 'kobieta', pos: 'NOUN', level: 'A1', rank: 1, paradigmShard: 0 })])
     // No `fetch` stub at all — a call to `getParadigm` here would throw/reject.
-    const ids = await resolveLexicalCandidateWordIds(lexicalFilter())
+    const ids = await resolveLexicalCandidateWordIds()
     expect(ids).toEqual([encodeWordId('kobieta', 'NOUN')])
   })
 })

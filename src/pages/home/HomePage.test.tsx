@@ -219,4 +219,51 @@ describe('HomePage', () => {
     expect(screen.getByText(/0 новых слов/)).toBeInTheDocument()
     expect(screen.queryByText(/%/)).not.toBeInTheDocument()
   })
+
+  // Task 38 (`spec/tasks/38-strict-level-progression.md`) — the level-gate line shows only
+  // the ONE level new words are currently drawn from, and switches the instant that level's
+  // last unstarted word is started; it never lists several levels at once.
+  it('level-gate line: shows only the current level\'s remaining count, not every unlocked level', async () => {
+    initIndexStore([
+      entry('kot', 'NOUN', 1), // A1, unstarted
+      entry('pies', 'NOUN', 2), // A1, unstarted
+      { ...entry('dom', 'NOUN', 3), level: 'A2' }, // A2, unstarted — must stay invisible
+    ])
+    await openDatabase()
+
+    renderHomePage()
+
+    await waitFor(() =>
+      expect(screen.getByText('Сейчас изучаем: A1 · осталось 2 слова')).toBeInTheDocument(),
+    )
+    expect(screen.queryByText(/A2/)).not.toBeInTheDocument()
+  })
+
+  it('level-gate line switches to the next level the instant the current one is fully started (no ratchet, no early threshold)', async () => {
+    initIndexStore([
+      entry('kot', 'NOUN', 1), // A1, will be started below
+      { ...entry('dom', 'NOUN', 2), level: 'A2' }, // A2, unstarted throughout
+    ])
+    await openDatabase()
+    await learnWord('kot|NOUN', 10) // A1's only word started -> A1 fully started
+
+    renderHomePage()
+
+    await waitFor(() =>
+      expect(screen.getByText('Сейчас изучаем: A2 · осталось 1 слово')).toBeInTheDocument(),
+    )
+  })
+
+  it('hides the level-gate line once the whole dictionary is started', async () => {
+    initIndexStore([entry('kot', 'NOUN', 1)])
+    await openDatabase()
+    await learnWord('kot|NOUN', 60, Date.now() + 999_999_999)
+
+    renderHomePage()
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Учить новые слова' })).toBeInTheDocument(),
+    )
+    expect(screen.queryByText(/Сейчас изучаем/)).not.toBeInTheDocument()
+  })
 })

@@ -30,6 +30,20 @@
  * pairing never advances it, matching the header's own "wrong pairings never reach `gradePair`
  * at all" rule above (this hook only ever sees the wordId of a pair that was matched
  * correctly).
+ *
+ * Task 39 (`spec/tasks/39-practice-current-level.md`, direct user decision): a graded pairing
+ * now grades BOTH `vocab:pl-ru` (PL→RU, prompt = the Polish tile) and `vocab:ru-pl-choice`
+ * (RU→PL, prompt = the Russian tile) — the grid is equally observable in both directions, so
+ * crediting only one direction undercounted what the exercise actually demonstrates.
+ * `vocab:ru-pl-choice` is materialized immediately (`ensureSkill`) even for a brand-new word
+ * whose stage 2 the daily session's own FSRS-stability gate (FR-153,
+ * `learning/progress/stage.ts`) hasn't opened yet — matching is a second, explicit path into
+ * stage 2, not gated by that threshold. `vocab:pl-ru` MUST be graded first, and the two
+ * `submitAnswer` calls MUST run sequentially, not via `Promise.all`: `submitAnswer` for
+ * `vocab:pl-ru` can itself materialize `vocab:ru-pl-choice` via
+ * `answer-pipeline.ts#maybeUnlockNextStage` (once its FSRS stability clears 7 days) — two
+ * concurrent writers racing `ensureSkill`/`submitAnswer` on that same skill would corrupt it.
+ * `vocab:ru-pl-input` (stage 3, typing) is untouched — the grid never asks for a typed answer.
  */
 import { useEffect, useRef, useState } from 'react'
 import type { Exercise } from '@/learning/exercises/exercise.types.ts'
@@ -147,34 +161,43 @@ export function useMatchingPracticeSession(wordIds: readonly WordId[]): Matching
     if (!shouldGradeMatch(matchIndex, pairsByWordIdRef.current.size)) return
 
     const elapsedMs = Math.max(0, Date.now() - shownAtRef.current)
+    const now = Date.now()
 
-    const skillId = encodeSkillId(wordId, 'vocab:pl-ru')
-    const skill = await ensureSkill(skillId, wordId, 'vocab', 'vocab:pl-ru')
+    // Task 39 — both directions, `vocab:pl-ru` first and awaited before `vocab:ru-pl-choice`
+    // starts (see this file's header: the first call can itself materialize the second skill,
+    // so the two must never race).
+    for (const [dimension, direction, prompt, correct] of [
+      ['vocab:pl-ru', 'pl-ru', pair.pl, pair.ru],
+      ['vocab:ru-pl-choice', 'ru-pl', pair.ru, pair.pl],
+    ] as const) {
+      const skillId = encodeSkillId(wordId, dimension)
+      const skill = await ensureSkill(skillId, wordId, 'vocab', dimension)
 
-    const exercise: Exercise = {
-      type: 'choice',
-      direction: 'pl-ru',
-      prompt: pair.pl,
-      options: [pair.ru],
-      correct: pair.ru,
+      const exercise: Exercise = {
+        type: 'choice',
+        direction,
+        prompt,
+        options: [correct],
+        correct,
+      }
+
+      const result = await submitAnswer({
+        sessionId,
+        mode: 'practice',
+        exercise,
+        skillId,
+        wordId,
+        kind: 'vocab',
+        answerGiven: correct,
+        isFirstAnswerInSession: skill.reps === 0,
+        elapsedMs,
+        now,
+      })
+
+      tallyRef.current.total += 1
+      tallyRef.current.correct += 1 // only correct pairings ever reach this function
+      if (result.isNewSkill) tallyRef.current.newSkillCount += 1
     }
-
-    const result = await submitAnswer({
-      sessionId,
-      mode: 'practice',
-      exercise,
-      skillId,
-      wordId,
-      kind: 'vocab',
-      answerGiven: pair.ru,
-      isFirstAnswerInSession: skill.reps === 0,
-      elapsedMs,
-      now: Date.now(),
-    })
-
-    tallyRef.current.total += 1
-    tallyRef.current.correct += 1 // only correct pairings ever reach this function
-    if (result.isNewSkill) tallyRef.current.newSkillCount += 1
   }
 
   async function finish(): Promise<void> {

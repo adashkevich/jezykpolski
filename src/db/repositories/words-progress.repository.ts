@@ -95,7 +95,8 @@ export async function getWordProgressSummary(): Promise<WordProgressSummary> {
 
 /**
  * `LevelPoolCounts` for `learning/session/level-gate.ts#unlockedLevels` (task 35,
- * `spec/tasks/35-level-gated-new-words.md` §2) — a synchronous fold over the already-decoded
+ * `spec/tasks/35-level-gated-new-words.md` §2, tightened to strict sequential progression by
+ * task 38) — a synchronous fold over the already-decoded
  * content index (`getIndexStore().byLevel`, 7998 in-memory entries) plus an already-fetched
  * `progress` map, never a Dexie query of its own. Kept here (rather than inside
  * `level-gate.ts`) specifically so it CAN read `getIndexStore()`: `learning/**` is a pure
@@ -117,21 +118,15 @@ export function computeLevelPoolCounts(
     LevelValue,
     number
   >
-  const startedByLevel = Object.fromEntries(LEVEL_VALUES.map((level) => [level, false])) as Record<
-    LevelValue,
-    boolean
-  >
 
   for (const entry of getIndexStore().byLevel) {
     const wordId = encodeWordId(entry.lemma, entry.pos)
-    if (progress.has(wordId)) {
-      startedByLevel[entry.level] = true
-    } else {
+    if (!progress.has(wordId)) {
       unstartedByLevel[entry.level] += 1
     }
   }
 
-  return { unstartedByLevel, startedByLevel }
+  return { unstartedByLevel }
 }
 
 /**

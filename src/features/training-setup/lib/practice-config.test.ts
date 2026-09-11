@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import type { PracticeConfig } from '@/learning/session/session.types.ts'
 import {
-  applyIncomingFilter,
   defaultPracticeScreenState,
   migrateLegacyPracticeConfig,
   practiceConfigFor,
   sectionFromFilterPos,
+  type PracticeScreenState,
 } from './practice-config.ts'
 
 describe('defaultPracticeScreenState', () => {
-  it('has a section-less filter and one PracticeFormsConfig per section', () => {
+  it('has one PracticeFormsConfig per section and nothing else (task 39 removed the shared filter)', () => {
     const state = defaultPracticeScreenState()
-    expect(state.filter).toEqual({ upToLevel: null, status: ['new', 'learning'], topN: null })
+    expect(Object.keys(state)).toEqual(['formsBySection'])
     expect(Object.keys(state.formsBySection).sort()).toEqual(['ADJ', 'NOUN', 'VERB'])
     for (const section of ['NOUN', 'VERB', 'ADJ'] as const) {
       expect(state.formsBySection[section].exerciseTypes).toEqual({ choice: true, input: true })
@@ -21,13 +21,13 @@ describe('defaultPracticeScreenState', () => {
 })
 
 describe('practiceConfigFor', () => {
-  it('assembles a valid PracticeConfig for a given section from the split state', () => {
+  it('assembles a valid PracticeConfig for a given section, taking upToLevel from its argument', () => {
     const state = defaultPracticeScreenState()
-    const config = practiceConfigFor(state, 'VERB')
+    const config = practiceConfigFor(state, 'VERB', 'B1')
     expect(config.section).toBe('VERB')
-    expect(config.upToLevel).toBe(state.filter.upToLevel)
-    expect(config.status).toBe(state.filter.status)
-    expect(config.topN).toBe(state.filter.topN)
+    expect(config.upToLevel).toBe('B1')
+    expect(config.status).toEqual([])
+    expect(config.topN).toBeNull()
     expect(config.dimensionSelection).toBe(state.formsBySection.VERB.dimensionSelection)
     expect(config.exerciseTypes).toBe(state.formsBySection.VERB.exerciseTypes)
     expect(config.targetSize).toBe(state.formsBySection.VERB.targetSize)
@@ -35,7 +35,7 @@ describe('practiceConfigFor', () => {
 })
 
 describe('migrateLegacyPracticeConfig', () => {
-  it('seeds the shared filter and only the saved section, leaving the other two default', () => {
+  it('seeds only the saved section from the legacy config, ignoring its level/status/frequency, leaving the other two default', () => {
     const legacy: PracticeConfig = {
       section: 'NOUN',
       upToLevel: 'B1',
@@ -47,7 +47,7 @@ describe('migrateLegacyPracticeConfig', () => {
       targetSize: 30,
     }
     const migrated = migrateLegacyPracticeConfig(legacy)
-    expect(migrated.filter).toEqual({ upToLevel: 'B1', status: ['known'], topN: 1000 })
+    expect(Object.keys(migrated)).toEqual(['formsBySection'])
     expect(migrated.formsBySection.NOUN).toEqual({
       includeTranslation: false,
       dimensionSelection: { case: ['genitive'] },
@@ -72,12 +72,12 @@ describe('sectionFromFilterPos', () => {
   })
 })
 
-describe('applyIncomingFilter', () => {
-  it('overlays only the fields the incoming filter specifies, leaving formsBySection untouched', () => {
-    const state = defaultPracticeScreenState()
-    const next = applyIncomingFilter(state, { upToLevel: 'A2', sort: 'frequency' })
-    expect(next.filter.upToLevel).toBe('A2')
-    expect(next.filter.status).toBe(state.filter.status)
-    expect(next.formsBySection).toBe(state.formsBySection)
+describe('a settings row saved before task 39', () => {
+  it('reads fine even with a leftover `filter` field — formsBySection is unaffected', () => {
+    const legacyRow = {
+      filter: { upToLevel: 'B1', status: ['new'], topN: 1000 },
+      formsBySection: defaultPracticeScreenState().formsBySection,
+    } as unknown as PracticeScreenState
+    expect(legacyRow.formsBySection.NOUN.targetSize).toBe(20)
   })
 })

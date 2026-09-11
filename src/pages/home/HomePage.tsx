@@ -101,17 +101,19 @@ export function HomePage() {
     navigate('/words')
   }
 
-  // Task 35 (`spec/tasks/35-level-gated-new-words.md` §4): the level gate quietly changes
-  // which new words a session introduces, so it must be visible somewhere — otherwise it
-  // reads as a bug ("почему больше не появляются новые слова"). Hidden entirely once the
-  // whole corpus is started (`totalUnstarted === 0`): that's the existing "нет новых слов"
-  // state (`ctaLabel`/`reviewDescription` above already cover it), not a new empty screen.
-  const totalUnstarted = levelGate
-    ? Object.values(levelGate.unstartedByLevel).reduce((sum, n) => sum + n, 0)
-    : 0
+  // Task 35 (`spec/tasks/35-level-gated-new-words.md` §4), tightened to strict sequential
+  // progression by task 38: the level gate quietly changes which new words a session
+  // introduces, so it must be visible somewhere — otherwise it reads as a bug ("почему
+  // больше не появляются новые слова"). Shows the ONE level new words are currently coming
+  // from (`currentLevel`), not the whole `unlocked` prefix — under task 38's strict rule
+  // that prefix is "every fully-started level up to and including the current one", which
+  // would grow into "A1 + A2 + B1" over time and read as if three levels were being studied
+  // at once. Hidden entirely once `currentLevel` is `undefined` (whole open range started):
+  // that's the existing "нет новых слов" state (`ctaLabel`/`reviewDescription` above already
+  // cover it), not a new empty screen.
   const levelGateLine =
-    levelGate && totalUnstarted > 0 && levelGate.unlocked.length > 0
-      ? `Сейчас изучаем: ${levelGate.unlocked.join(' + ')} · осталось ${levelGate.unstartedByLevel[levelGate.unlocked[0]!]} ${pluralize(levelGate.unstartedByLevel[levelGate.unlocked[0]!]!, ['слово', 'слова', 'слов'])}`
+    levelGate && levelGate.currentLevel
+      ? `Сейчас изучаем: ${levelGate.currentLevel} · осталось ${levelGate.unstartedByLevel[levelGate.currentLevel]} ${pluralize(levelGate.unstartedByLevel[levelGate.currentLevel]!, ['слово', 'слова', 'слов'])}`
       : null
 
   let ctaLabel: string

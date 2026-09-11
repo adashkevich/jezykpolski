@@ -1,54 +1,47 @@
 /**
  * `PracticeScreenState` construction/merging helpers for `TrainingSetupScreen`
  * (`spec/tasks/19-practice-mode.md` §4/§5, `spec/tasks/36-practice-screen-restructure.md` §2,
- * FR-114/FR-150).
+ * narrowed further by `spec/tasks/39-practice-current-level.md`, FR-114/FR-150).
  *
  * Task 36 split the old single `PracticeConfig` (one section + one set of dimension/exercise-
- * type/count settings) into `PracticeScreenState`: a single section-less `LexicalWordFilter`
- * shared by the whole screen (feeds the "Выборка слов" preview and all three lexical drills),
- * plus one `PracticeFormsConfig` per `PracticeSection` (feeds that section's own forms block).
- * `practiceConfigFor` re-assembles the two into the `PracticeConfig` shape
- * `resolvePracticeCandidateWords`/`buildPracticeQueue`/`useSessionBootstrap.ts` already
- * consume unchanged — none of those three needed to change for this split.
+ * type/count settings) into `PracticeScreenState`: a shared level/status/frequency filter
+ * ("Выборка слов") plus one `PracticeFormsConfig` per `PracticeSection` (feeds that section's
+ * own forms block). Task 39 removed the shared filter entirely — the word pool for every
+ * block, lexical or forms, is now the level gate's own current level
+ * (`@/learning/session/level-gate.ts#practicePoolLevel`, read live via `useLevelGate`), not a
+ * user-chosen filter — so `PracticeScreenState` is back down to just `formsBySection`.
+ * `practiceConfigFor` re-assembles a section's forms config plus the current gate level into
+ * the `PracticeConfig` shape `resolvePracticeCandidateWords`/`buildPracticeQueue`/
+ * `useSessionBootstrap.ts` already consume, unchanged since task 36.
  */
 import type { WordQuery } from '@/content/query.ts'
-import type { LexicalWordFilter } from '@/features/session-runner/lib/session-scope.ts'
 import type { PracticeConfig, PracticeSection } from '@/learning/session/session.types.ts'
-import type { WordStatus } from '@/types/progress.ts'
 import { TRAINING_SECTIONS } from '../config/training-sections.ts'
 
 /** Legacy key (task 19) — a single `PracticeConfig` for whichever section was last active.
- *  Task 36 replaces it with `PRACTICE_SCREEN_SETTING_KEY` below; kept here, read-only, purely
+ *  Task 36 replaced it with `PRACTICE_SCREEN_SETTING_KEY` below; kept here, read-only, purely
  *  as a one-time migration source (see `defaultPracticeScreenState`'s caller in
  *  `TrainingSetupScreen.tsx`) — nothing writes this key any more. */
 export const PRACTICE_CONFIG_SETTING_KEY = 'lastPracticeConfig'
 
-/** New key (task 36) the whole screen's state — `LexicalWordFilter` + all three sections'
- *  `PracticeFormsConfig` — is persisted under. */
+/** State key (task 36) all three sections' `PracticeFormsConfig` are persisted under. A row
+ *  saved before task 39 also carries a now-unused `filter` field — reading `.formsBySection`
+ *  off it is unaffected, and the field is simply dropped the next time any "Начать" persists
+ *  a fresh `PracticeScreenState` (same tolerate-then-drop shape task 36's own legacy-key
+ *  migration below uses, just without a dedicated migration function). */
 export const PRACTICE_SCREEN_SETTING_KEY = 'practiceScreenState'
 
-/** Sensible defaults for a from-scratch state — no incoming filter, no saved settings row yet
- *  (first-ever visit to `/practice`). Mirrors `spec/app-design.md` §23's own mockup ("Новые +
- *  изучаемые") rather than an unfiltered "Все". */
-const DEFAULT_STATUS: readonly WordStatus[] = ['new', 'learning']
 const DEFAULT_TARGET_SIZE = 20
 
-export const DEFAULT_LEXICAL_FILTER: LexicalWordFilter = {
-  upToLevel: null,
-  status: DEFAULT_STATUS,
-  topN: null,
-}
-
 /** The per-section settings a forms-training block owns (`spec/tasks/36-…md` §2) — every
- *  `PracticeConfig` field except `section` and the lexical filter fields, which now live on
- *  `PracticeScreenState` itself. */
+ *  `PracticeConfig` field except `section` and the level/status/frequency fields, which task
+ *  39 removed from this screen's state entirely (see this file's header). */
 export type PracticeFormsConfig = Pick<
   PracticeConfig,
   'includeTranslation' | 'dimensionSelection' | 'exerciseTypes' | 'targetSize'
 >
 
 export interface PracticeScreenState {
-  readonly filter: LexicalWordFilter
   readonly formsBySection: Readonly<Record<PracticeSection, PracticeFormsConfig>>
 }
 
@@ -68,7 +61,6 @@ export function defaultFormsConfigForSection(section: PracticeSection): Practice
 
 export function defaultPracticeScreenState(): PracticeScreenState {
   return {
-    filter: DEFAULT_LEXICAL_FILTER,
     formsBySection: {
       NOUN: defaultFormsConfigForSection('NOUN'),
       VERB: defaultFormsConfigForSection('VERB'),
@@ -78,22 +70,18 @@ export function defaultPracticeScreenState(): PracticeScreenState {
 }
 
 /**
- * One-time migration (task 36 §2) from the legacy single-section `PracticeConfig` (`settings`
- * key `lastPracticeConfig`) to `PracticeScreenState`: `saved`'s level/status/frequency seed the
- * new shared `filter`, and `saved`'s own dimension/exercise-type/count settings seed
- * `formsBySection[saved.section]` — the other two sections start at their own defaults, same
- * as a from-scratch state. Called at most once per install; `TrainingSetupScreen` never writes
- * `lastPracticeConfig` again afterwards, so this function only ever sees `saved` on the very
- * first `/practice` visit after upgrading.
+ * One-time migration (task 36 §2, narrowed by task 39) from the legacy single-section
+ * `PracticeConfig` (`settings` key `lastPracticeConfig`) to `PracticeScreenState`: `saved`'s
+ * own dimension/exercise-type/count settings seed `formsBySection[saved.section]` — the other
+ * two sections start at their own defaults, same as a from-scratch state. `saved`'s
+ * level/status/frequency fields are ignored (task 39 removed that filter; the pool is now
+ * always the level gate's current level). Called at most once per install; `TrainingSetupScreen`
+ * never writes `lastPracticeConfig` again afterwards, so this function only ever sees `saved`
+ * on the very first `/practice` visit after upgrading.
  */
 export function migrateLegacyPracticeConfig(saved: PracticeConfig): PracticeScreenState {
   const base = defaultPracticeScreenState()
   return {
-    filter: {
-      upToLevel: saved.upToLevel,
-      status: saved.status,
-      topN: saved.topN,
-    },
     formsBySection: {
       ...base.formsBySection,
       [saved.section]: {
@@ -108,14 +96,21 @@ export function migrateLegacyPracticeConfig(saved: PracticeConfig): PracticeScre
 
 /** Assembles the `PracticeConfig` a given section's forms block needs to launch — the shape
  *  `resolvePracticeCandidateWords`/`buildPracticeQueue`/`useSessionBootstrap.ts` already
- *  consume, untouched by task 36. */
-export function practiceConfigFor(state: PracticeScreenState, section: PracticeSection): PracticeConfig {
+ *  consume, untouched since task 36. `upToLevel` comes from the level gate
+ *  (`useLevelGate().practiceLevel`), not from screen state (task 39) — `status`/`topN` are
+ *  always "no filter" (`[]`/`null`), the same values `resolvePracticeCandidateWords` already
+ *  treats as "match everything" (`config.status.length > 0 ? config.status : undefined`). */
+export function practiceConfigFor(
+  state: PracticeScreenState,
+  section: PracticeSection,
+  upToLevel: PracticeConfig['upToLevel'],
+): PracticeConfig {
   const forms = state.formsBySection[section]
   return {
     section,
-    upToLevel: state.filter.upToLevel,
-    status: state.filter.status,
-    topN: state.filter.topN,
+    upToLevel,
+    status: [],
+    topN: null,
     includeTranslation: forms.includeTranslation,
     dimensionSelection: forms.dimensionSelection,
     exerciseTypes: forms.exerciseTypes,
@@ -125,28 +120,13 @@ export function practiceConfigFor(state: PracticeScreenState, section: PracticeS
 
 /** `filter.pos` narrowed to one of the three sections this screen has a forms block for —
  *  `undefined` for no filter, "Все" (no `pos` at all), multiple POS at once, `ADV`, or
- *  anything else. Task 36 repurposes this: an incoming `/words` filter with exactly one
+ *  anything else. Task 36 repurposed this: an incoming `/words` filter with exactly one
  *  section no longer selects a tab (the tabs are gone) — it picks which forms block
- *  `TrainingSetupScreen` opens by default instead. */
+ *  `TrainingSetupScreen` opens by default instead. Task 39 left this behavior as-is — the
+ *  incoming filter's `pos` still picks the default-open block, only its level/status/
+ *  frequency fields stopped being read (there is nowhere left on screen state to put them). */
 export function sectionFromFilterPos(pos: WordQuery['pos'] | undefined): PracticeSection | undefined {
   if (!pos || pos.length !== 1) return undefined
   const candidate = pos[0]
   return candidate === 'NOUN' || candidate === 'VERB' || candidate === 'ADJ' ? candidate : undefined
-}
-
-/**
- * Overlays `filter`'s level/status/frequency onto `state.filter` (task 19 text step 5 /
- * task 36 §2 — same "приоритетнее сохранённой конфигурации" precedence, now against the
- * screen-wide filter instead of one section's `PracticeConfig`). `formsBySection` is left
- * untouched.
- */
-export function applyIncomingFilter(state: PracticeScreenState, filter: WordQuery): PracticeScreenState {
-  return {
-    ...state,
-    filter: {
-      upToLevel: filter.upToLevel ?? state.filter.upToLevel,
-      status: filter.status && filter.status.length > 0 ? [...filter.status] : state.filter.status,
-      topN: filter.topN !== undefined ? filter.topN : state.filter.topN,
-    },
-  }
 }

@@ -38,8 +38,8 @@ export function SessionPage() {
    * reset by the time this fires.
    *
    * Task 36 (`spec/tasks/36-practice-screen-restructure.md` §4) — a `practice-extra` scope
-   * additionally forwards `{ variant, filter }` so `SessionResultPage` can offer "Ещё" (a
-   * fresh batch from the same lexical filter) instead of only "Закончить". The empty-queue
+   * additionally forwards `{ variant }` so `SessionResultPage` can offer "Ещё" (a fresh batch
+   * — task 39, from the level gate's own pool) instead of only "Закончить". The empty-queue
    * case for this scope goes back to `/practice` rather than home — this drill was launched
    * from there, and there is nothing session-related to show, but the user is mid-Practice.
    */
@@ -51,7 +51,7 @@ export function SessionPage() {
     if (scope.kind === 'practice-extra') {
       navigate('/session/result', {
         replace: true,
-        state: { sessionId, practiceExtra: { variant: scope.variant, filter: scope.filter } },
+        state: { sessionId, practiceExtra: { variant: scope.variant } },
       })
       return
     }

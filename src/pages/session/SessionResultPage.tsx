@@ -16,11 +16,13 @@
  *
  * Task 36 (`spec/tasks/36-practice-screen-restructure.md` §4, FR-149) — when this session came
  * from a `{ kind: 'practice-extra' }` scope (`SessionPage.tsx#goToResults` forwards
- * `{ variant, filter }` as `state.practiceExtra`), "Закончить" is replaced by
- * `PracticeDrillActions`'s "Ещё"/"К списку практик": these two drills ("Выбор перевода",
- * "Написание по-польски") are meant to be repeated in a sitting, unlike ordinary Learn/forms
- * sessions. "Разобрать ошибки" still renders above it when there are mistakes — reviewing what
- * was just missed is orthogonal to "run another batch".
+ * `{ variant }` as `state.practiceExtra`), "Закончить" is replaced by `PracticeDrillActions`'s
+ * "Ещё"/"К списку практик": these two drills ("Выбор перевода", "Написание по-польски") are
+ * meant to be repeated in a sitting, unlike ordinary Learn/forms sessions. "Разобрать ошибки"
+ * still renders above it when there are mistakes — reviewing what was just missed is
+ * orthogonal to "run another batch". Task 39 (`spec/tasks/39-practice-current-level.md`)
+ * dropped the `filter` field `practiceExtra` used to carry — "Ещё" now resamples from the
+ * level gate's own pool instead.
  */
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { useState } from 'react'
@@ -40,7 +42,6 @@ import {
 import { useSessionResult } from '@/features/session-results/hooks/useSessionResult.ts'
 import {
   resolveLexicalCandidateWordIds,
-  type LexicalWordFilter,
   type PracticeExtraVariant,
 } from '@/features/session-runner/lib/session-scope.ts'
 import { VOCAB_DRILL_BATCH_SIZE, sampleWordBatch } from '@/learning/practice/lexical-batch.ts'
@@ -101,7 +102,6 @@ function MistakeRow({ entry }: { entry: MistakeEntry }) {
 
 interface PracticeExtraOrigin {
   readonly variant: PracticeExtraVariant
-  readonly filter: LexicalWordFilter
 }
 
 export function SessionResultPage() {
@@ -147,11 +147,11 @@ export function SessionResultPage() {
 
   async function handleAgain(origin: PracticeExtraOrigin) {
     setResampling(true)
-    const ids = await resolveLexicalCandidateWordIds(origin.filter)
+    const ids = await resolveLexicalCandidateWordIds()
     const wordIds = sampleWordBatch(ids, VOCAB_DRILL_BATCH_SIZE, Date.now())
     navigate('/session', {
       replace: true,
-      state: { practiceExtra: { variant: origin.variant, wordIds, filter: origin.filter } },
+      state: { practiceExtra: { variant: origin.variant, wordIds } },
     })
   }
 
