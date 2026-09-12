@@ -57,6 +57,11 @@ export interface SessionState {
    *  right after `startSession`, before the first render. */
   seedFirstAnswers: (entries: ReadonlyMap<SkillId, Rating>) => void
 
+  /** Removes every not-yet-shown queue item (strictly after `currentIndex`) whose skill is in
+   *  `skillIds` — the session "Знаю" button marks a word's skills known, so any later
+   *  question on those same skills in this session would just be asking again. */
+  dropUpcoming: (skillIds: ReadonlySet<SkillId>) => void
+
   advance: () => void
 
   reset: () => void
@@ -106,6 +111,13 @@ export const useSessionStore = create<SessionState>()((set) => ({
 
   seedFirstAnswers: (entries) =>
     set((state) => ({ firstAnswerBySkill: new Map([...state.firstAnswerBySkill, ...entries]) })),
+
+  dropUpcoming: (skillIds) =>
+    set((state) => ({
+      queue: state.queue.filter(
+        (item, index) => index <= state.currentIndex || !skillIds.has(item.skillId as SkillId),
+      ),
+    })),
 
   advance: () => set((state) => ({ currentIndex: state.currentIndex + 1 })),
 

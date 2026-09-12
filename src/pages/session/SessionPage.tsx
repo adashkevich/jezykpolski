@@ -59,7 +59,8 @@ export function SessionPage() {
   }
 
   return (
-    <PageContainer>
+    // Full-height column so `ExerciseFeedback`'s actions can sit at the bottom of the screen.
+    <PageContainer className="flex min-h-full flex-col">
       <PageHeader
         title="Сессия"
         description="Учим и повторяем — очередь собирает алгоритм."

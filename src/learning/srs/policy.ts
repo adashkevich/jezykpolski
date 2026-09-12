@@ -250,6 +250,12 @@ export function createSwipeUnknownState(now: number): SrsState {
   return createInitialState(now)
 }
 
+/** Whether `skill` exists and is already at or above the "known" floor — the case in which
+ *  `resolveSwipeKnownState` leaves it untouched. */
+export function isAtOrAboveSwipeKnownFloor(skill: SkillRecord | undefined): boolean {
+  return skill !== undefined && skill.stability >= SWIPE_KNOWN_INITIAL_STABILITY
+}
+
 /**
  * Monotonic variant of `createSwipeKnownState`: a "Знаю" swipe/button must never regress a
  * skill that already has real review history at or above the "known" floor
@@ -261,7 +267,7 @@ export function createSwipeUnknownState(now: number): SrsState {
  * that's already at least as advanced.
  */
 export function resolveSwipeKnownState(previous: SkillRecord | undefined, now: number): SrsState {
-  if (previous !== undefined && previous.stability >= SWIPE_KNOWN_INITIAL_STABILITY) {
+  if (previous !== undefined && isAtOrAboveSwipeKnownFloor(previous)) {
     const { state, stability, difficulty, due, reps, lapses, lastReviewAt } = previous
     return { state, stability, difficulty, due, reps, lapses, lastReviewAt }
   }

@@ -30,11 +30,12 @@ const ruPlExercise: ExerciseOfType<'input'> = {
 }
 
 describe('ExerciseFeedback', () => {
-  it('correct: "Верно!" with a distinct icon, no "correct answer" line needed', () => {
+  it('correct: no visible panel — "Верно!" is announced to screen readers only', () => {
     const feedback = grade(plRuExercise, 'быть')
     render(<ExerciseFeedback feedback={feedback} correctAnswer="быть" onNext={() => {}} />)
-    expect(screen.getByText('Верно!')).toBeInTheDocument()
-    expect(screen.getByRole('status').querySelector('svg')).toBeInTheDocument()
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent('Верно!')
+    expect(status).toHaveClass('sr-only')
   })
 
   it('incorrect: "Неверно" + the correct answer, distinct from nearMiss', () => {
@@ -88,10 +89,9 @@ describe('ExerciseFeedback', () => {
     expect(screen.getByText('Верно!')).toBeInTheDocument()
   })
 
-  it('the 4 states each use a visually distinct icon shape, not just color (NFR-11)', () => {
+  it('the 3 visible panel states each use a visually distinct icon shape, not just color (NFR-11)', () => {
     const cases: [ReturnType<typeof grade>, Parameters<typeof ExerciseFeedback>[0]['attempt']][] =
       [
-        [grade(plRuExercise, 'быть'), undefined],
         [
           grade(ruPlExercise, 'żółty'),
           { mistakes: 1, hintsUsed: 0, revealed: false, letterCount: 5 },
@@ -136,8 +136,29 @@ describe('ExerciseFeedback', () => {
     expect(onNext).toHaveBeenCalledOnce()
   })
 
-  it('every animation utility is gated behind motion-safe: so prefers-reduced-motion disables it', () => {
+  it('"Знаю" is shown only when onMarkKnown is passed, and clicking it calls it', async () => {
+    const onMarkKnown = vi.fn()
+    const user = userEvent.setup()
     const feedback = grade(plRuExercise, 'быть')
+    const { rerender } = render(
+      <ExerciseFeedback feedback={feedback} correctAnswer="быть" onNext={() => {}} />,
+    )
+    expect(screen.queryByRole('button', { name: 'Знаю' })).not.toBeInTheDocument()
+
+    rerender(
+      <ExerciseFeedback
+        feedback={feedback}
+        correctAnswer="быть"
+        onNext={() => {}}
+        onMarkKnown={onMarkKnown}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Знаю' }))
+    expect(onMarkKnown).toHaveBeenCalledOnce()
+  })
+
+  it('every animation utility is gated behind motion-safe: so prefers-reduced-motion disables it', () => {
+    const feedback = grade(plRuExercise, 'иметь')
     render(<ExerciseFeedback feedback={feedback} correctAnswer="быть" onNext={() => {}} />)
     const panel = screen.getByRole('status')
     const animationLikeTokens = panel.className

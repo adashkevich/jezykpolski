@@ -46,12 +46,17 @@ import { LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button.tsx'
 import { getSkill } from '@/db/repositories/skills.repository.ts'
 import { completeSession, deleteSession } from '@/db/repositories/sessions.repository.ts'
+import {
+  areChoiceStagesKnown,
+  CHOICE_STAGE_DIMENSIONS,
+  markWordChoiceStagesKnown,
+} from '@/db/repositories/swipe.repository.ts'
 import type { Exercise, ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import type { GradeResult } from '@/learning/exercises/grade.ts'
 import type { TypedAttemptOutcome } from '@/learning/exercises/letter-attempt.ts'
 import { AGAIN, HARD } from '@/learning/srs/policy.ts'
 import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
-import type { SkillId } from '@/learning/skills/skill-id.ts'
+import { encodeSkillId, type SkillId } from '@/learning/skills/skill-id.ts'
 import type { SessionMode } from '@/types/progress.ts'
 import { isFirstAnswerInSession, useSessionStore } from '@/stores/session.store.ts'
 import type { SessionRuntime } from '../hooks/useSessionBootstrap.ts'
@@ -145,7 +150,7 @@ export function SessionRunner({ runtime, onFinished }: SessionRunnerProps) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-6">
       <SessionProgressBar
         current={currentIndex}
         total={queue.length}
@@ -223,6 +228,9 @@ function ActiveQuestion({
   // and reset per question same as `feedback`.
   const [typedAttempt, setTypedAttempt] = useState<TypedAttemptOutcome | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  // Whether this question's feedback offers "Знаю" — decided once, right after the answer is
+  // written (see `handleAnswer`).
+  const [markKnownOffered, setMarkKnownOffered] = useState(false)
   // Lazy initializer -> runs exactly once, at this component's mount — see file header.
   const [questionShownAt] = useState(() => Date.now())
 
@@ -311,6 +319,13 @@ function ActiveQuestion({
         }
       }
 
+      // "Знаю" only after a correct choice-stage answer, and only when it would change
+      // something — read after `submitAnswer`, so this answer's own SRS update counts.
+      setMarkKnownOffered(
+        result.gradeResult.correct &&
+          CHOICE_STAGES.has(descriptor.dimension) &&
+          !(await areChoiceStagesKnown(descriptor.wordId)),
+      )
       setTypedAttempt(attempt ?? null)
       setFeedback(result.gradeResult)
     } finally {
@@ -320,6 +335,27 @@ function ActiveQuestion({
 
   function handleNext() {
     useSessionStore.getState().advance()
+  }
+
+  const canMarkKnown = feedback !== null && markKnownOffered
+
+  // "Знаю" after a correct PL→RU / RU→PL-choice answer: the answer itself is already graded
+  // and written by `handleAnswer`; this additionally marks both choice stages known (a
+  // self-report, no extra reviewLog — same reasoning as `swipe.repository.ts`'s header) and
+  // moves on. Later questions on those skills in this session are dropped.
+  async function handleMarkKnown() {
+    if (submitting || !canMarkKnown) return
+    setSubmitting(true)
+    try {
+      await markWordChoiceStagesKnown(descriptor.wordId)
+      const store = useSessionStore.getState()
+      store.dropUpcoming(
+        new Set([...CHOICE_STAGE_DIMENSIONS].map((d) => encodeSkillId(descriptor.wordId, d))),
+      )
+      store.advance()
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -345,11 +381,22 @@ function ActiveQuestion({
           correctAnswer={correctAnswerOf(instance.exercise)}
           attempt={typedAttempt ?? undefined}
           onNext={handleNext}
+          onMarkKnown={
+            canMarkKnown
+              ? () => {
+                  void handleMarkKnown()
+                }
+              : undefined
+          }
         />
       )}
     </>
   )
 }
+
+/** The two vocab stages whose questions offer the "Знаю" button — and exactly the two it marks
+ *  known (`swipe.repository.ts#markWordChoiceStagesKnown`). */
+const CHOICE_STAGES: ReadonlySet<SkillDescriptor['dimension']> = new Set(CHOICE_STAGE_DIMENSIONS)
 
 /** A zeroed-out placeholder `SkillRecord` — only its FSRS-facing fields are read (via
  *  `toSrsState`) when a `self-assess` question happens to render before its own snapshot is

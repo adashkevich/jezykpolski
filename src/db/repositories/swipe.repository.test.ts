@@ -6,7 +6,13 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { db } from '../database.ts'
-import { markWordKnown, markWordUnknown, undoTriage } from './swipe.repository.ts'
+import {
+  areChoiceStagesKnown,
+  markWordChoiceStagesKnown,
+  markWordKnown,
+  markWordUnknown,
+  undoTriage,
+} from './swipe.repository.ts'
 import { getSkill, getSkillsForWord } from './skills.repository.ts'
 import { getWordProgress } from './words-progress.repository.ts'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
@@ -160,6 +166,86 @@ describe('markWordKnown', () => {
 
     const ruPlInput = await getSkill('kobieta|NOUN::vocab:ru-pl-input')
     expect(ruPlInput?.stability).toBe(SWIPE_KNOWN_INITIAL_STABILITY)
+  })
+})
+
+describe('markWordChoiceStagesKnown', () => {
+  it('creates only vocab:pl-ru and vocab:ru-pl-choice in state "review" — never vocab:ru-pl-input', async () => {
+    await markWordChoiceStagesKnown('kobieta|NOUN', NOW)
+
+    const skills = await getSkillsForWord('kobieta|NOUN')
+    expect(skills.map((s) => s.dimension).sort()).toEqual(['vocab:pl-ru', 'vocab:ru-pl-choice'])
+    for (const skill of skills) {
+      expect(skill.state).toBe('review')
+      expect(skill.stability).toBe(SWIPE_KNOWN_INITIAL_STABILITY)
+    }
+  })
+
+  it('leaves an existing vocab:ru-pl-input untouched and never regresses an advanced skill', async () => {
+    const input: SkillRecord = {
+      skillId: 'kobieta|NOUN::vocab:ru-pl-input',
+      wordId: 'kobieta|NOUN',
+      kind: 'vocab',
+      dimension: 'vocab:ru-pl-input',
+      state: 'learning',
+      stability: 2,
+      difficulty: 5,
+      due: NOW - DAY_MS,
+      reps: 1,
+      lapses: 0,
+      correct: 1,
+      incorrect: 0,
+      createdAt: NOW - 3 * DAY_MS,
+      updatedAt: NOW - DAY_MS,
+    }
+    const advancedPlRu: SkillRecord = {
+      ...input,
+      skillId: 'kobieta|NOUN::vocab:pl-ru',
+      dimension: 'vocab:pl-ru',
+      state: 'review',
+      stability: 45,
+      due: NOW + 10 * DAY_MS,
+    }
+    await db.skills.bulkPut([input, advancedPlRu])
+
+    await markWordChoiceStagesKnown('kobieta|NOUN', NOW)
+
+    expect(await getSkill('kobieta|NOUN::vocab:ru-pl-input')).toEqual(input)
+    expect((await getSkill('kobieta|NOUN::vocab:pl-ru'))?.stability).toBe(45)
+    expect((await getSkill('kobieta|NOUN::vocab:ru-pl-choice'))?.stability).toBe(
+      SWIPE_KNOWN_INITIAL_STABILITY,
+    )
+  })
+})
+
+describe('areChoiceStagesKnown', () => {
+  it('is false for a word with no skills yet', async () => {
+    expect(await areChoiceStagesKnown('kobieta|NOUN')).toBe(false)
+  })
+
+  it('is false while only one of the two choice stages is at the known floor', async () => {
+    await db.skills.put({
+      skillId: 'kobieta|NOUN::vocab:pl-ru',
+      wordId: 'kobieta|NOUN',
+      kind: 'vocab',
+      dimension: 'vocab:pl-ru',
+      state: 'review',
+      stability: 45,
+      difficulty: 3,
+      due: NOW + 10 * DAY_MS,
+      reps: 6,
+      lapses: 0,
+      correct: 6,
+      incorrect: 0,
+      createdAt: NOW - 40 * DAY_MS,
+      updatedAt: NOW - 2 * DAY_MS,
+    })
+    expect(await areChoiceStagesKnown('kobieta|NOUN')).toBe(false)
+  })
+
+  it('is true once both choice stages are at or above the floor — the button would be a no-op', async () => {
+    await markWordChoiceStagesKnown('kobieta|NOUN', NOW)
+    expect(await areChoiceStagesKnown('kobieta|NOUN')).toBe(true)
   })
 })
 

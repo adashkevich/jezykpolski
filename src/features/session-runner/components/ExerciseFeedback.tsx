@@ -23,8 +23,16 @@
  * revealed word ("глазок", FR-85) shows the plain "Правильный ответ" line — the slots above
  * already spelled the whole word out, so a diff here would be pure noise.
  */
-import { AlertTriangle, CheckCircle2, Lightbulb, XCircle, type LucideIcon } from 'lucide-react'
+import {
+  AlertTriangle,
+  Check,
+  CheckCircle2,
+  Lightbulb,
+  XCircle,
+  type LucideIcon,
+} from 'lucide-react'
 import { useEffect, useRef } from 'react'
+import { Button } from '@/components/ui/button.tsx'
 import { cn } from '@/lib/utils'
 import type { GradeResult } from '@/learning/exercises/grade.ts'
 import type { TypedAttemptOutcome } from '@/learning/exercises/letter-attempt.ts'
@@ -41,6 +49,9 @@ export interface ExerciseFeedbackProps {
   readonly attempt?: TypedAttemptOutcome
   /** "Далее" was activated (click, or Enter on the auto-focused button). */
   onNext(): void
+  /** When set, a secondary "Знаю" button is shown above "Далее" — the runner passes it only
+   *  after a correct answer on a `vocab:pl-ru` / `vocab:ru-pl-choice` question. */
+  onMarkKnown?(): void
 }
 
 type FeedbackStatus = 'correct' | 'assisted' | 'nearMiss' | 'incorrect'
@@ -92,7 +103,13 @@ function statusOf(feedback: GradeResult, attempt: TypedAttemptOutcome | undefine
   return 'incorrect'
 }
 
-export function ExerciseFeedback({ feedback, correctAnswer, attempt, onNext }: ExerciseFeedbackProps) {
+export function ExerciseFeedback({
+  feedback,
+  correctAnswer,
+  attempt,
+  onNext,
+  onMarkKnown,
+}: ExerciseFeedbackProps) {
   const nextButtonRef = useRef<HTMLButtonElement>(null)
   const status = statusOf(feedback, attempt)
   const meta = STATUS_META[status]
@@ -104,39 +121,68 @@ export function ExerciseFeedback({ feedback, correctAnswer, attempt, onNext }: E
     nextButtonRef.current?.focus()
   }, [feedback])
 
+  // `mt-auto`: `SessionRunner` is a full-height flex column, so the actions sit at the bottom
+  // of the screen, above the tab bar (spec/design/task-choose.png, task-input.png).
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className={cn(
-        'flex flex-col gap-3 rounded-2xl border p-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200',
-        meta.panelClassName,
-      )}
-    >
-      <div className={cn('flex items-center gap-2 text-headline-sm', meta.textClassName)}>
-        <Icon aria-hidden="true" className="size-6 shrink-0" />
-        <span>{meta.label}</span>
-      </div>
-
-      {status === 'assisted' && (
-        <p className="text-body-md text-foreground">Слово вернётся на повторение.</p>
-      )}
-
-      {(status === 'nearMiss' || status === 'incorrect') && (
-        <p className="text-body-md text-foreground">
-          Правильный ответ: <strong className="font-semibold">{correctAnswer}</strong>
+    <div className="mt-auto flex flex-col gap-3">
+      {status === 'correct' ? (
+        // A plain correct answer is already shown in green by the exercise itself (the picked
+        // option / the letter slots) — a second green "Верно!" panel on top of that was
+        // redundant, so it's only announced to screen readers.
+        <p role="status" aria-live="polite" className="sr-only">
+          {meta.label}
         </p>
+      ) : (
+        <div
+          role="status"
+          aria-live="polite"
+          className={cn(
+            'flex flex-col gap-3 rounded-2xl border p-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200',
+            meta.panelClassName,
+          )}
+        >
+          <div className={cn('flex items-center gap-2 text-headline-sm', meta.textClassName)}>
+            <Icon aria-hidden="true" className="size-6 shrink-0" />
+            <span>{meta.label}</span>
+          </div>
+
+          {status === 'assisted' && (
+            <p className="text-body-md text-foreground">Слово вернётся на повторение.</p>
+          )}
+
+          {(status === 'nearMiss' || status === 'incorrect') && (
+            <p className="text-body-md text-foreground">
+              Правильный ответ: <strong className="font-semibold">{correctAnswer}</strong>
+            </p>
+          )}
+        </div>
       )}
 
-      {/* DESIGN.md primary action: full-width, 52px, carmine. */}
-      <button
-        ref={nextButtonRef}
-        type="button"
-        onClick={onNext}
-        className="mt-1 min-h-13 w-full rounded-xl bg-primary px-5 text-body-lg font-semibold text-primary-foreground shadow-cta outline-none transition-all hover:bg-primary-hover focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98] motion-reduce:transition-none"
-      >
-        Далее
-      </button>
+      <div className="flex gap-3">
+        {onMarkKnown && (
+          // DESIGN.md "Secondary Action": subtle wash + hairline border, 52px, same weight
+          // as "Далее" so the two read as a pair.
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onMarkKnown}
+            className="h-13 flex-1 gap-2 border-border bg-muted text-body-lg font-semibold hover:bg-surface-container"
+          >
+            <Check aria-hidden="true" className="size-5" />
+            Знаю
+          </Button>
+        )}
+
+        {/* DESIGN.md primary action: 52px, carmine. */}
+        <button
+          ref={nextButtonRef}
+          type="button"
+          onClick={onNext}
+          className="min-h-13 flex-1 rounded-xl bg-primary px-5 text-body-lg font-semibold text-primary-foreground outline-none transition-all hover:bg-primary-hover focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98] motion-reduce:transition-none"
+        >
+          Далее
+        </button>
+      </div>
     </div>
   )
 }
