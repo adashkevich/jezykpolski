@@ -49,8 +49,9 @@ export interface ExerciseFeedbackProps {
   readonly attempt?: TypedAttemptOutcome
   /** "Далее" was activated (click, or Enter on the auto-focused button). */
   onNext(): void
-  /** When set, a secondary "Знаю" button is shown above "Далее" — the runner passes it only
-   *  after a correct answer on a `vocab:pl-ru` / `vocab:ru-pl-choice` question. */
+  /** When set, a secondary "Знаю" button is shown next to "Далее" — the runner passes it only
+   *  after a correct answer on a vocab question (`vocab:pl-ru`, `vocab:ru-pl-choice` or
+   *  `vocab:ru-pl-input`), and only when it would actually change something. */
   onMarkKnown?(): void
 }
 

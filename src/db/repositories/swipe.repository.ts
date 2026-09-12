@@ -119,21 +119,34 @@ async function applyTriage(
 }
 
 /**
- * Swipe-right / "Знаю" button (task text §2): all three vocab dimensions (`vocab:pl-ru`,
- * `vocab:ru-pl-choice`, `vocab:ru-pl-input` — task 37 widened this from two to three when the
- * middle recognition-of-Polish stage was added) move to FSRS `review` at
- * `SWIPE_KNOWN_INITIAL_STABILITY` — see `policy.ts` for why that yields word status `known`,
- * never `mastered`. Each dimension is resolved independently against its own existing record
- * (`policy.ts#resolveSwipeKnownState`) so a skill that already has real review history at or
- * above that floor is never dragged back down to it.
+ * Moves the given vocab stages to FSRS `review` at `SWIPE_KNOWN_INITIAL_STABILITY` — see
+ * `policy.ts` for why that yields word status `known`, never `mastered`. Each dimension is
+ * resolved independently against its own existing record (`policy.ts#resolveSwipeKnownState`)
+ * so a skill that already has real review history at or above that floor is never dragged
+ * back down to it.
+ *
+ * The *which stages* decision belongs to the caller — the `/words` swipe means the whole
+ * word (`markWordKnown`), a Learn-session question means whatever stages that question's
+ * "Знаю" button is entitled to claim (`SessionRunner.tsx#MARK_KNOWN_STAGES`).
+ */
+export async function markWordStagesKnown(
+  wordId: WordId,
+  dimensions: readonly VocabDimension[],
+  now = Date.now(),
+): Promise<TriageSnapshot> {
+  const resolve = (previous: SkillRecord | undefined) => resolveSwipeKnownState(previous, now)
+  return applyTriage(
+    wordId,
+    dimensions.map((dimension) => ({ dimension, srsState: resolve })),
+  )
+}
+
+/**
+ * Swipe-right / "Знаю" button (task text §2): all three vocab dimensions (task 37 widened
+ * this from two to three when the middle recognition-of-Polish stage was added).
  */
 export async function markWordKnown(wordId: WordId, now = Date.now()): Promise<TriageSnapshot> {
-  const resolve = (previous: SkillRecord | undefined) => resolveSwipeKnownState(previous, now)
-  return applyTriage(wordId, [
-    { dimension: 'vocab:pl-ru', srsState: resolve },
-    { dimension: 'vocab:ru-pl-choice', srsState: resolve },
-    { dimension: 'vocab:ru-pl-input', srsState: resolve },
-  ])
+  return markWordStagesKnown(wordId, VOCAB_STAGE_DIMENSIONS, now)
 }
 
 /**
@@ -142,16 +155,14 @@ export async function markWordKnown(wordId: WordId, now = Date.now()): Promise<T
  * two choice stages. `vocab:ru-pl-input` is deliberately left alone — typing the word still
  * has to be earned the normal way: a later graded `vocab:ru-pl-choice` answer clears
  * `stage.ts#shouldUnlockProduction` and `answer-pipeline.ts#unlockNextVocabStage` opens it.
+ * (The typing question itself does offer "Знаю", but from there it claims all three stages —
+ * see `SessionRunner.tsx#MARK_KNOWN_STAGES`.)
  */
 export async function markWordChoiceStagesKnown(
   wordId: WordId,
   now = Date.now(),
 ): Promise<TriageSnapshot> {
-  const resolve = (previous: SkillRecord | undefined) => resolveSwipeKnownState(previous, now)
-  return applyTriage(
-    wordId,
-    CHOICE_STAGE_DIMENSIONS.map((dimension) => ({ dimension, srsState: resolve })),
-  )
+  return markWordStagesKnown(wordId, CHOICE_STAGE_DIMENSIONS, now)
 }
 
 /** The two vocab stages `markWordChoiceStagesKnown` marks known. */
@@ -160,16 +171,32 @@ export const CHOICE_STAGE_DIMENSIONS = [
   'vocab:ru-pl-choice',
 ] as const satisfies readonly VocabDimension[]
 
+/** Every vocab stage, in learning order — what `markWordKnown` (and the "Знаю" button on a
+ *  `vocab:ru-pl-input` question, the last stage there is) marks known. */
+export const VOCAB_STAGE_DIMENSIONS = [
+  'vocab:pl-ru',
+  'vocab:ru-pl-choice',
+  'vocab:ru-pl-input',
+] as const satisfies readonly VocabDimension[]
+
 /**
- * Whether `markWordChoiceStagesKnown` would be a no-op: both choice stages already exist at or
- * above the known floor, so `resolveSwipeKnownState` would keep each one verbatim. The session
+ * Whether `markWordStagesKnown` would be a no-op for these stages: each one already exists at
+ * or above the known floor, so `resolveSwipeKnownState` would keep it verbatim. The session
  * hides its "Знаю" button in that case instead of offering a button that changes nothing.
  */
-export async function areChoiceStagesKnown(wordId: WordId): Promise<boolean> {
+export async function areStagesKnown(
+  wordId: WordId,
+  dimensions: readonly VocabDimension[],
+): Promise<boolean> {
   const skills = await getSkillsForWord(wordId)
-  return CHOICE_STAGE_DIMENSIONS.every((dimension) =>
+  return dimensions.every((dimension) =>
     isAtOrAboveSwipeKnownFloor(skills.find((s) => s.dimension === dimension)),
   )
+}
+
+/** `areStagesKnown` for exactly the stages `markWordChoiceStagesKnown` writes. */
+export async function areChoiceStagesKnown(wordId: WordId): Promise<boolean> {
+  return areStagesKnown(wordId, CHOICE_STAGE_DIMENSIONS)
 }
 
 /**

@@ -46,7 +46,18 @@ describe('LetterSlotsInput — rendering', () => {
     renderInput({ accepted: ['będziemy robić'] })
     const cell = document.querySelector('[data-cell-state]')!
     expect(cell.className).toMatch(/\bh-11\b/)
-    expect(cell.className).toMatch(/\bmin-w-11\b/)
+    expect(cell.className).toMatch(/\bmin-w-6\b/)
+  })
+
+  it('ten slots and their gaps fit the narrowest supported screen (320px) in one row', () => {
+    renderInput({ accepted: ['powiedzieli'] })
+    const cell = document.querySelector('[data-cell-state]')!
+    const row = cell.parentElement!
+    // 320px − 32 (`PageContainer` px-4) − 2 (card border) − 16 (the row's own px-2).
+    const availableWidth = 320 - 32 - 2 - 16
+    const slotWidth = Number(/\bmin-w-(\d+(?:\.\d+)?)\b/.exec(cell.className)![1]) * 4
+    const gap = Number(/(?:^|\s)gap-(\d+(?:\.\d+)?)\b/.exec(row.className)![1]) * 4
+    expect(10 * slotWidth + 9 * gap).toBeLessThanOrEqual(availableWidth)
   })
 
   it('the hidden field aria-label never names the letter count', () => {

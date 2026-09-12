@@ -8,10 +8,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { db } from '../database.ts'
 import {
   areChoiceStagesKnown,
+  areStagesKnown,
   markWordChoiceStagesKnown,
   markWordKnown,
+  markWordStagesKnown,
   markWordUnknown,
   undoTriage,
+  VOCAB_STAGE_DIMENSIONS,
 } from './swipe.repository.ts'
 import { getSkill, getSkillsForWord } from './skills.repository.ts'
 import { getWordProgress } from './words-progress.repository.ts'
@@ -246,6 +249,36 @@ describe('areChoiceStagesKnown', () => {
   it('is true once both choice stages are at or above the floor — the button would be a no-op', async () => {
     await markWordChoiceStagesKnown('kobieta|NOUN', NOW)
     expect(await areChoiceStagesKnown('kobieta|NOUN')).toBe(true)
+  })
+})
+
+describe('markWordStagesKnown / areStagesKnown — the generic pair the session runner uses', () => {
+  it('a vocab:ru-pl-input question\'s "Знаю" marks all three stages known', async () => {
+    await markWordStagesKnown('kobieta|NOUN', VOCAB_STAGE_DIMENSIONS, NOW)
+
+    const skills = await getSkillsForWord('kobieta|NOUN')
+    expect(skills.map((s) => s.dimension).sort()).toEqual([
+      'vocab:pl-ru',
+      'vocab:ru-pl-choice',
+      'vocab:ru-pl-input',
+    ])
+    for (const skill of skills) {
+      expect(skill.state).toBe('review')
+      expect(skill.stability).toBe(SWIPE_KNOWN_INITIAL_STABILITY)
+    }
+  })
+
+  it('the two choice stages being known is NOT enough to hide the button on a typing question', async () => {
+    await markWordChoiceStagesKnown('kobieta|NOUN', NOW)
+
+    expect(await areChoiceStagesKnown('kobieta|NOUN')).toBe(true)
+    // vocab:ru-pl-input is still below the floor, so "Знаю" there would still change something.
+    expect(await areStagesKnown('kobieta|NOUN', VOCAB_STAGE_DIMENSIONS)).toBe(false)
+  })
+
+  it('is true for all three stages once the typing question\'s "Знаю" has been used', async () => {
+    await markWordStagesKnown('kobieta|NOUN', VOCAB_STAGE_DIMENSIONS, NOW)
+    expect(await areStagesKnown('kobieta|NOUN', VOCAB_STAGE_DIMENSIONS)).toBe(true)
   })
 })
 

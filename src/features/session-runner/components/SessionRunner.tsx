@@ -47,14 +47,16 @@ import { Button } from '@/components/ui/button.tsx'
 import { getSkill } from '@/db/repositories/skills.repository.ts'
 import { completeSession, deleteSession } from '@/db/repositories/sessions.repository.ts'
 import {
-  areChoiceStagesKnown,
+  areStagesKnown,
   CHOICE_STAGE_DIMENSIONS,
-  markWordChoiceStagesKnown,
+  markWordStagesKnown,
+  VOCAB_STAGE_DIMENSIONS,
 } from '@/db/repositories/swipe.repository.ts'
 import type { Exercise, ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import type { GradeResult } from '@/learning/exercises/grade.ts'
 import type { TypedAttemptOutcome } from '@/learning/exercises/letter-attempt.ts'
 import { AGAIN, HARD } from '@/learning/srs/policy.ts'
+import type { VocabDimension } from '@/learning/skills/dimensions.ts'
 import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import { encodeSkillId, type SkillId } from '@/learning/skills/skill-id.ts'
 import type { SessionMode } from '@/types/progress.ts'
@@ -243,6 +245,10 @@ function ActiveQuestion({
   // `handleAnswer` closure below — TS narrowing doesn't cross function-declaration
   // boundaries for a captured variable, only same-scope reads.
   const descriptor: SkillDescriptor = maybeDescriptor
+  // Which stages this question's "Знаю" button would claim — `undefined` means "no button
+  // here at all" (see `MARK_KNOWN_STAGES`). Read in `handleAnswer`/`handleMarkKnown`, so it
+  // has to be a `const` in this scope for the same TS-narrowing reason as `descriptor` above.
+  const markKnownStages = MARK_KNOWN_STAGES.get(descriptor.dimension)
   const srsSnapshot = runtime.skillByInstanceId.get(instance.id)
 
   const registry = useMemo(
@@ -319,12 +325,12 @@ function ActiveQuestion({
         }
       }
 
-      // "Знаю" only after a correct choice-stage answer, and only when it would change
-      // something — read after `submitAnswer`, so this answer's own SRS update counts.
+      // "Знаю" only after a correct vocab answer, and only when it would change something —
+      // read after `submitAnswer`, so this answer's own SRS update counts.
       setMarkKnownOffered(
         result.gradeResult.correct &&
-          CHOICE_STAGES.has(descriptor.dimension) &&
-          !(await areChoiceStagesKnown(descriptor.wordId)),
+          markKnownStages !== undefined &&
+          !(await areStagesKnown(descriptor.wordId, markKnownStages)),
       )
       setTypedAttempt(attempt ?? null)
       setFeedback(result.gradeResult)
@@ -339,18 +345,18 @@ function ActiveQuestion({
 
   const canMarkKnown = feedback !== null && markKnownOffered
 
-  // "Знаю" after a correct PL→RU / RU→PL-choice answer: the answer itself is already graded
-  // and written by `handleAnswer`; this additionally marks both choice stages known (a
-  // self-report, no extra reviewLog — same reasoning as `swipe.repository.ts`'s header) and
-  // moves on. Later questions on those skills in this session are dropped.
+  // "Знаю" after a correct vocab answer: the answer itself is already graded and written by
+  // `handleAnswer`; this additionally marks this question's stages known (a self-report, no
+  // extra reviewLog — same reasoning as `swipe.repository.ts`'s header) and moves on. Later
+  // questions on those skills in this session are dropped.
   async function handleMarkKnown() {
-    if (submitting || !canMarkKnown) return
+    if (submitting || !canMarkKnown || markKnownStages === undefined) return
     setSubmitting(true)
     try {
-      await markWordChoiceStagesKnown(descriptor.wordId)
+      await markWordStagesKnown(descriptor.wordId, markKnownStages)
       const store = useSessionStore.getState()
       store.dropUpcoming(
-        new Set([...CHOICE_STAGE_DIMENSIONS].map((d) => encodeSkillId(descriptor.wordId, d))),
+        new Set(markKnownStages.map((d) => encodeSkillId(descriptor.wordId, d))),
       )
       store.advance()
     } finally {
@@ -394,9 +400,22 @@ function ActiveQuestion({
   )
 }
 
-/** The two vocab stages whose questions offer the "Знаю" button — and exactly the two it marks
- *  known (`swipe.repository.ts#markWordChoiceStagesKnown`). */
-const CHOICE_STAGES: ReadonlySet<SkillDescriptor['dimension']> = new Set(CHOICE_STAGE_DIMENSIONS)
+/**
+ * Which stages a question's "Знаю" button claims, keyed by the question's own dimension — a
+ * dimension absent from this map (every morphological skill) doesn't offer the button at all.
+ *
+ * A choice-stage question claims only the two choice stages: recognizing the word in a list
+ * of options says nothing about being able to spell it, so `vocab:ru-pl-input` still has to
+ * be earned the normal way (`swipe.repository.ts#markWordChoiceStagesKnown`). The typing
+ * stage is the last one, though — "Знаю" there means the whole word is known, so it claims
+ * all three, exactly like the `/words` swipe (`markWordKnown`).
+ */
+const MARK_KNOWN_STAGES: ReadonlyMap<SkillDescriptor['dimension'], readonly VocabDimension[]> =
+  new Map<SkillDescriptor['dimension'], readonly VocabDimension[]>([
+    ['vocab:pl-ru', CHOICE_STAGE_DIMENSIONS],
+    ['vocab:ru-pl-choice', CHOICE_STAGE_DIMENSIONS],
+    ['vocab:ru-pl-input', VOCAB_STAGE_DIMENSIONS],
+  ])
 
 /** A zeroed-out placeholder `SkillRecord` — only its FSRS-facing fields are read (via
  *  `toSrsState`) when a `self-assess` question happens to render before its own snapshot is
