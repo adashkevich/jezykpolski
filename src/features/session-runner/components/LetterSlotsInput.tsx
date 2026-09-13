@@ -193,7 +193,7 @@ export function LetterSlotsInput({
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       <div className="relative rounded-2xl border border-border bg-card shadow-card">
         <input
           ref={inputRef}
@@ -220,7 +220,7 @@ export function LetterSlotsInput({
         <p id={descriptionId} className="sr-only">
           Вводите буквы по порядку — неверная буква заменяется следующим нажатием.
         </p>
-        <div aria-hidden="true" className="overflow-x-auto px-3 py-4">
+        <div aria-hidden="true" className="overflow-x-auto px-3 py-2.5">
           {/* **Изменено задачей 36** (`spec/tasks/36-practice-screen-restructure.md` §5,
               FR-151) — задача 30 §2.3 требовала выравнивания по левому краю ("уже набранные
               буквы не «прыгали» при добавлении слота"); по прямому запросу пользователя ряд
@@ -270,13 +270,13 @@ export function LetterSlotsInput({
             disabled={disabled || attempt.complete}
             onMouseDown={(event) => event.preventDefault()}
             onClick={handleReveal}
-            aria-label="Показать слово"
             aria-describedby={revealWarningId}
-            className={cn(TOOL_BUTTON_CLASS, 'size-11')}
+            className={cn(TOOL_BUTTON_CLASS, 'gap-2 px-4 text-label-lg')}
           >
             <Eye aria-hidden="true" className="size-5" />
+            Показать слово
           </button>
-          <p id={revealWarningId} className="text-body-sm text-muted-foreground">
+          <p id={revealWarningId} className="sr-only">
             Показать слово — задание засчитается как ошибка
           </p>
         </div>

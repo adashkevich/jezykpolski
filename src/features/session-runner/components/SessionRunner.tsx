@@ -150,7 +150,7 @@ export function SessionRunner({ runtime, onFinished }: SessionRunnerProps) {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-4">
       <SessionProgressBar
         current={currentIndex}
         total={queue.length}
@@ -158,13 +158,12 @@ export function SessionRunner({ runtime, onFinished }: SessionRunnerProps) {
           <Button
             type="button"
             variant="ghost"
-            size="sm"
-            className="-mr-2"
+            size="icon-sm"
+            className="-mr-2 shrink-0"
             onClick={() => setExitDialogOpen(true)}
             aria-label="Выйти из сессии"
           >
             <LogOut aria-hidden="true" className="size-5" />
-            Выйти
           </Button>
         }
       />
