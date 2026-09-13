@@ -14,11 +14,20 @@
  * `firstAnswerBySkill` lookup — this module doesn't own that map (it lives in
  * `stores/session.store.ts`, per architecture.md §10), it only obeys the flag.
  *
- * Task 28 (`unlockNextVocabStage` below, FR-80/FR-81), widened to three stages by task 37:
- * this is also where the next vocabulary stage of a word is opened — a graded `vocab:pl-ru`
- * answer that clears its stability bar materializes `vocab:ru-pl-choice`, and a graded
- * `vocab:ru-pl-choice` answer that clears its own bar materializes `vocab:ru-pl-input`,
- * which is what puts "написать слово по-польски" into a later session's queue at all.
+ * Task 28 (`unlockNextVocabStage` below, FR-80/FR-81), widened to three stages by task 37,
+ * and to a streak-based threshold by task 40 (`spec/tasks/40-vocab-streak-progression.md`
+ * §1): this is also where the next vocabulary stage of a word is opened — a graded
+ * `vocab:pl-ru` answer that clears its streak bar materializes `vocab:ru-pl-choice`, and a
+ * graded `vocab:ru-pl-choice` answer that clears its own bar materializes
+ * `vocab:ru-pl-input`, which is what puts "написать слово по-польски" into a later session's
+ * queue at all.
+ *
+ * Task 40 §2 ("один вопрос на слово за сессию") adds a second, independent piece of logic
+ * (`buildVocabCascade` below): a correct answer on a word's vocab skill also credits every
+ * LESS advanced vocab skill of the same word (`lowerVocabDimensions`), and pressing "Показать
+ * слово" on the input stage pulls those same lower skills' `due` back to "now" instead. Both
+ * write through `applyAnswer`'s `cascadeSkills` — same transaction as the answered skill
+ * itself, no `reviewLogs` row, no `dailyStats` bump (the user only answered ONE question).
  */
 import { grade, type GradeResult } from '@/learning/exercises/grade.ts'
 import type { Exercise } from '@/learning/exercises/exercise.types.ts'
@@ -32,8 +41,14 @@ import {
 } from '@/learning/srs/policy.ts'
 import { review } from '@/learning/srs/fsrs-adapter.ts'
 import type { SrsState } from '@/learning/srs/srs.types.ts'
+import type { VocabDimension } from '@/learning/skills/dimensions.ts'
 import type { SkillId, WordId } from '@/learning/skills/skill-id.ts'
-import { shouldUnlockCuedRecall, shouldUnlockProduction } from '@/learning/progress/stage.ts'
+import {
+  lowerVocabDimensions,
+  nextCorrectStreak,
+  shouldUnlockCuedRecall,
+  shouldUnlockProduction,
+} from '@/learning/progress/stage.ts'
 import { encodeSkillId } from '@/learning/skills/skill-id.ts'
 import { applyAnswer } from '@/db/repositories/answer.repository.ts'
 import { ensureSkill, getSkill, getSkillsForWord } from '@/db/repositories/skills.repository.ts'
@@ -63,6 +78,17 @@ export interface SubmitAnswerInput {
    *  `input`/`form-input`. When present, the rating comes from it (mistakes/hints -> Hard,
    *  revealed -> Again) instead of the plain "typed correctly -> Easy" rule below. */
   readonly attempt?: TypedAttemptResult
+  /**
+   * Opts this call out of task 40 §2's "one question per word per session" cascade
+   * (`buildVocabCascade` below). Set by `grade-matching-pair.ts`'s two sequential calls (one
+   * per direction) — that caller already credits both `vocab:pl-ru` and
+   * `vocab:ru-pl-choice` explicitly, itself, on purpose (task 39: the matching grid is
+   * equally observable in both directions, so each earns its own `reviewLogs` row and its
+   * own SRS review). Without this flag the second call's cascade would silently re-credit
+   * the dimension the first call just explicitly answered, double-counting one match into
+   * two `correct` increments on the lower stage.
+   */
+  readonly skipCascade?: boolean
 }
 
 export interface SubmitAnswerResult {
@@ -143,9 +169,10 @@ function selfAssessGradeResult(
 
 /**
  * Task 28 (`spec/tasks/28-two-stage-vocabulary-and-letter-diff.md` §2, FR-80/FR-81), widened
- * to a three-stage chain by task 37 (`spec/tasks/37-three-stage-vocabulary.md` §2) — opens
- * the next vocabulary stage for a word whose current stage just cleared its stability bar:
- * a graded `vocab:pl-ru` answer that reaches `shouldUnlockCuedRecall` materializes
+ * to a three-stage chain by task 37 (`spec/tasks/37-three-stage-vocabulary.md` §2) and to a
+ * streak-based threshold by task 40 (`spec/tasks/40-vocab-streak-progression.md` §1) — opens
+ * the next vocabulary stage for a word whose current stage just cleared its unlock bar: a
+ * graded `vocab:pl-ru` answer that reaches `shouldUnlockCuedRecall` materializes
  * `vocab:ru-pl-choice` (узнавание по-польски), and a graded `vocab:ru-pl-choice` answer that
  * reaches `shouldUnlockProduction` materializes `vocab:ru-pl-input` (написать по-польски).
  * `ensureSkill` is idempotent, so re-answering an already-graduated skill is a cheap no-op
@@ -158,19 +185,25 @@ function selfAssessGradeResult(
  * одну сессию", enforced structurally instead of by a hard-coded delay.
  *
  * `srsApplied === false` (`mode: 'mistakes'`, or a repeat answer within one session —
- * `policy.ts#shouldApplySrs`) means `nextSrsState` was never written, so promoting off it
- * would be promoting off a state that doesn't exist. Practice *does* apply SRS (capped and
- * damped, `policy.ts` rule 2), so a Practice answer that genuinely clears the stability bar
- * opens the next stage exactly like a Learn one — the skill really did earn it.
+ * `policy.ts#shouldApplySrs`) means neither `nextSrsState` nor `correctStreak` moved for this
+ * answer, so promoting off them would be promoting off state that was never written.
+ * Practice *does* apply SRS (capped and damped, `policy.ts` rule 2), so a Practice answer
+ * that genuinely clears the streak bar opens the next stage exactly like a Learn one — the
+ * skill really did earn it.
  */
 async function unlockNextVocabStage(args: {
   readonly skill: SkillRecord
   readonly nextSrsState: SrsState
+  readonly correct: boolean
   readonly srsApplied: boolean
   readonly wordId: WordId
 }): Promise<void> {
   if (!args.srsApplied) return
-  const updated: SkillRecord = { ...args.skill, ...args.nextSrsState }
+  const updated: SkillRecord = {
+    ...args.skill,
+    ...args.nextSrsState,
+    correctStreak: nextCorrectStreak(args.skill.correctStreak, args.correct, args.srsApplied),
+  }
 
   if (args.skill.dimension === 'vocab:pl-ru') {
     if (!shouldUnlockCuedRecall(updated)) return
@@ -192,6 +225,64 @@ async function unlockNextVocabStage(args: {
       'vocab:ru-pl-input',
     )
   }
+}
+
+/**
+ * Task 40 §2 ("один вопрос на слово за сессию") — the vocab skills of `wordId` that are
+ * LESS advanced than the one just answered (`otherWordSkills` may also contain more advanced
+ * or morphological skills; only the strictly-lower vocab ones are touched), updated so the
+ * next queue build never asks about the same word's translation a second time this session.
+ *
+ * Two independent branches, mutually exclusive (a revealed attempt always wins — see below):
+ *
+ *  - **Revealed** (`attempt.revealed`, "Показать слово"): pulls every lower stage's `due`
+ *    back to "now", nothing else — this is a request to see the translation again, not a
+ *    graded review, so SRS fields/streak/`correct` stay untouched. Not gated on `srsApplied`
+ *    at all (unlike the branch below): it's idempotent (`due: now` twice is a no-op the
+ *    second time) and should resurface the lower stages even on a `mistakes`-mode or
+ *    in-session repeat reveal.
+ *  - **Correct, SRS-applied**: every lower stage is credited with the SAME rating the
+ *    answered skill got (`review()` + the same Practice damping), plus its own
+ *    `correct`/`correctStreak` increment — exactly as if the user had separately answered
+ *    that lower question correctly too.
+ *
+ * An incorrect (non-revealed) answer touches nothing here — task 40 §2's explicit rule:
+ * mistakes on the advanced stage must not cost the word its already-earned lower stages, nor
+ * their streaks.
+ */
+function buildVocabCascade(args: {
+  readonly skill: SkillRecord
+  readonly otherWordSkills: readonly SkillRecord[]
+  readonly cappedRating: Rating
+  readonly mode: SessionMode
+  readonly correct: boolean
+  readonly srsApplied: boolean
+  readonly revealed: boolean
+  readonly now: number
+}): SkillRecord[] {
+  if (args.skill.kind !== 'vocab') return []
+  const lowerDims = new Set(lowerVocabDimensions(args.skill.dimension as VocabDimension))
+  if (lowerDims.size === 0) return []
+  const lowerSkills = args.otherWordSkills.filter((s) => lowerDims.has(s.dimension as VocabDimension))
+  if (lowerSkills.length === 0) return []
+
+  if (args.revealed) {
+    return lowerSkills.map((s) => ({ ...s, due: args.now, updatedAt: args.now }))
+  }
+
+  if (!args.srsApplied || !args.correct) return []
+
+  return lowerSkills.map((s) => {
+    const { next } = review(toSrsState(s), args.cappedRating, args.now)
+    const dampedNext = applyPracticeDamping(next, args.mode, args.now)
+    return {
+      ...s,
+      ...dampedNext,
+      correct: s.correct + 1,
+      correctStreak: nextCorrectStreak(s.correctStreak, true, true),
+      updatedAt: args.now,
+    }
+  })
 }
 
 export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnswerResult> {
@@ -234,13 +325,14 @@ export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnsw
   const isNewSkill =
     currentSkill.reps === 0 && currentSkill.correct === 0 && currentSkill.incorrect === 0
 
-  // Task 28, FR-80, widened by task 37: current stage cleared its bar -> открыть следующий.
+  // Task 28, FR-80, widened by task 37/40: current stage cleared its bar -> открыть следующий.
   // Strictly before `getSkillsForWord` below, so the freshly created record is part of the
   // same `computeWordProgress` pass and the word's `stage` (`learning/progress/stage.ts`)
   // can't be one answer stale.
   await unlockNextVocabStage({
     skill: currentSkill,
     nextSrsState: dampedNext,
+    correct: gradeResult.correct,
     srsApplied,
     wordId,
   })
@@ -250,12 +342,33 @@ export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnsw
     ...(srsApplied ? dampedNext : {}),
     correct: currentSkill.correct + (gradeResult.correct ? 1 : 0),
     incorrect: currentSkill.incorrect + (gradeResult.correct ? 0 : 1),
+    correctStreak: nextCorrectStreak(currentSkill.correctStreak, gradeResult.correct, srsApplied),
     updatedAt: now,
   }
 
   const otherSkillsForWord = (await getSkillsForWord(wordId)).filter((s) => s.skillId !== skillId)
+
+  // Task 40 §2 — "one question per word per session": credit (or resurface) the lower vocab
+  // stages of this word so the next queue build doesn't ask about the same word's
+  // translation twice. Computed from `otherSkillsForWord` (already fetched above) so the
+  // aggregate below sees the SAME lower-stage values that get persisted, not the stale ones.
+  const cascadeSkills = input.skipCascade
+    ? []
+    : buildVocabCascade({
+        skill: currentSkill,
+        otherWordSkills: otherSkillsForWord,
+        cappedRating,
+        mode,
+        correct: gradeResult.correct,
+        srsApplied,
+        revealed: input.attempt?.revealed ?? false,
+        now,
+      })
+  const cascadeBySkillId = new Map(cascadeSkills.map((s) => [s.skillId, s]))
+  const skillsForProgress = otherSkillsForWord.map((s) => cascadeBySkillId.get(s.skillId) ?? s)
+
   const nextWordProgress = await computeWordProgress(wordId, [
-    ...otherSkillsForWord,
+    ...skillsForProgress,
     updatedSkillForProgress,
   ])
   if (!nextWordProgress) {
@@ -290,6 +403,7 @@ export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnsw
     reviewLog,
     isNewSkill,
     nextWordProgress,
+    cascadeSkills,
   })
 
   return { gradeResult, rating: cappedRating, correctAnswer, isNewSkill }

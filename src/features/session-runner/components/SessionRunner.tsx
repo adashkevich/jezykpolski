@@ -49,7 +49,7 @@ import { completeSession, deleteSession } from '@/db/repositories/sessions.repos
 import {
   areChoiceStagesKnown,
   CHOICE_STAGE_DIMENSIONS,
-  markWordChoiceStagesKnown,
+  markWordTranslationKnown,
 } from '@/db/repositories/swipe.repository.ts'
 import type { Exercise, ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import type { GradeResult } from '@/learning/exercises/grade.ts'
@@ -65,6 +65,7 @@ import { generateForSkill } from '../lib/build-session-exercises.ts'
 import { createExerciseComponentRegistry } from './exercise-registry.tsx'
 import { ExerciseFeedback } from './ExerciseFeedback.tsx'
 import { ExitSessionDialog } from './ExitSessionDialog.tsx'
+import { SessionMatchingBlock } from './SessionMatchingBlock.tsx'
 import { SessionProgressBar } from './SessionProgressBar.tsx'
 
 export interface SessionRunnerProps {
@@ -169,14 +170,27 @@ export function SessionRunner({ runtime, onFinished }: SessionRunnerProps) {
       />
 
       {currentInstance ? (
-        <ActiveQuestion
-          key={currentInstance.id}
-          instance={currentInstance}
-          runtime={runtime}
-          mode={mode}
-          requeuedSkillsRef={requeuedSkillsRef}
-          newSkillIdsRef={newSkillIdsRef}
-        />
+        // Task 40 §4 — the in-session "Сопоставление" block is a whole multi-pair screen with
+        // no single "the" answer, so it bypasses `ActiveQuestion`/`exercise-registry.tsx`'s
+        // per-type dispatch entirely (same reasoning as the Practice-only `table` type — see
+        // that registry's own header) rather than trying to fit `ExerciseProps<E>`.
+        currentInstance.exercise.type === 'matching' ? (
+          <SessionMatchingBlock
+            key={currentInstance.id}
+            instance={currentInstance}
+            sessionId={runtime.sessionId}
+            newSkillIdsRef={newSkillIdsRef}
+          />
+        ) : (
+          <ActiveQuestion
+            key={currentInstance.id}
+            instance={currentInstance}
+            runtime={runtime}
+            mode={mode}
+            requeuedSkillsRef={requeuedSkillsRef}
+            newSkillIdsRef={newSkillIdsRef}
+          />
+        )
       ) : (
         // Either mid-finish (the effect above is closing the session out) or a genuinely
         // empty queue slipped through — `SessionPage` never renders `SessionRunner` for an
@@ -338,15 +352,17 @@ function ActiveQuestion({
 
   const canMarkKnown = feedback !== null && markKnownOffered
 
-  // "Знаю" after a correct PL→RU / RU→PL-choice answer: the answer itself is already graded
-  // and written by `handleAnswer`; this additionally marks both choice stages known (a
-  // self-report, no extra reviewLog — same reasoning as `swipe.repository.ts`'s header) and
-  // moves on. Later questions on those skills in this session are dropped.
+  // "Знаю" after a correct PL→RU / RU→PL-choice answer (task 40 §3): the answer itself is
+  // already graded and written by `handleAnswer`; this additionally marks both choice stages
+  // known AND opens `vocab:ru-pl-input` (a self-report, no extra reviewLog — same reasoning
+  // as `swipe.repository.ts`'s header) and moves on. `vocab:ru-pl-input` gets `due: now`, so
+  // it can't show up until the NEXT session (the queue is already built) — no input question
+  // is added here. Later choice questions on this word in the current session are dropped.
   async function handleMarkKnown() {
     if (submitting || !canMarkKnown) return
     setSubmitting(true)
     try {
-      await markWordChoiceStagesKnown(descriptor.wordId)
+      await markWordTranslationKnown(descriptor.wordId)
       const store = useSessionStore.getState()
       store.dropUpcoming(
         new Set([...CHOICE_STAGE_DIMENSIONS].map((d) => encodeSkillId(descriptor.wordId, d))),
@@ -393,8 +409,9 @@ function ActiveQuestion({
   )
 }
 
-/** The two vocab stages whose questions offer the "Знаю" button — and exactly the two it marks
- *  known (`swipe.repository.ts#markWordChoiceStagesKnown`). */
+/** The two vocab stages whose questions offer the "Знаю" button — and exactly the two
+ *  `swipe.repository.ts#markWordTranslationKnown` marks known (it opens `vocab:ru-pl-input`
+ *  too, but that stage never has its own question to offer this button on). */
 const CHOICE_STAGES: ReadonlySet<SkillDescriptor['dimension']> = new Set(CHOICE_STAGE_DIMENSIONS)
 
 /** A zeroed-out placeholder `SkillRecord` — only its FSRS-facing fields are read (via

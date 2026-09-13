@@ -8,8 +8,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { db } from '../database.ts'
 import {
   areChoiceStagesKnown,
-  markWordChoiceStagesKnown,
   markWordKnown,
+  markWordTranslationKnown,
   markWordUnknown,
   undoTriage,
 } from './swipe.repository.ts'
@@ -169,19 +169,33 @@ describe('markWordKnown', () => {
   })
 })
 
-describe('markWordChoiceStagesKnown', () => {
-  it('creates only vocab:pl-ru and vocab:ru-pl-choice in state "review" — never vocab:ru-pl-input', async () => {
-    await markWordChoiceStagesKnown('kobieta|NOUN', NOW)
+describe('markWordTranslationKnown (task 40 §3)', () => {
+  it('creates all three vocab dimensions — choice stages in "review", vocab:ru-pl-input merely opened (not "known")', async () => {
+    await markWordTranslationKnown('kobieta|NOUN', NOW)
 
     const skills = await getSkillsForWord('kobieta|NOUN')
-    expect(skills.map((s) => s.dimension).sort()).toEqual(['vocab:pl-ru', 'vocab:ru-pl-choice'])
-    for (const skill of skills) {
+    expect(skills.map((s) => s.dimension).sort()).toEqual([
+      'vocab:pl-ru',
+      'vocab:ru-pl-choice',
+      'vocab:ru-pl-input',
+    ])
+
+    for (const dimension of ['vocab:pl-ru', 'vocab:ru-pl-choice'] as const) {
+      const skill = skills.find((s) => s.dimension === dimension)!
       expect(skill.state).toBe('review')
       expect(skill.stability).toBe(SWIPE_KNOWN_INITIAL_STABILITY)
     }
+
+    // vocab:ru-pl-input is opened (a SkillRecord now exists — the queue can pick it up), but
+    // NOT asserted "known": brand-new, due now, exactly `createSwipeUnknownState`'s shape —
+    // this is the whole point of `resolveSwipeUnlockedState` over `resolveSwipeKnownState`.
+    const input = skills.find((s) => s.dimension === 'vocab:ru-pl-input')!
+    expect(input.state).toBe('new')
+    expect(input.stability).toBe(0)
+    expect(input.due).toBe(NOW)
   })
 
-  it('leaves an existing vocab:ru-pl-input untouched and never regresses an advanced skill', async () => {
+  it('leaves an existing vocab:ru-pl-input untouched, whatever its own progress — never regresses OR advances it', async () => {
     const input: SkillRecord = {
       skillId: 'kobieta|NOUN::vocab:ru-pl-input',
       wordId: 'kobieta|NOUN',
@@ -208,9 +222,12 @@ describe('markWordChoiceStagesKnown', () => {
     }
     await db.skills.bulkPut([input, advancedPlRu])
 
-    await markWordChoiceStagesKnown('kobieta|NOUN', NOW)
+    await markWordTranslationKnown('kobieta|NOUN', NOW)
 
-    expect(await getSkill('kobieta|NOUN::vocab:ru-pl-input')).toEqual(input)
+    const afterInput = await getSkill('kobieta|NOUN::vocab:ru-pl-input')
+    expect(afterInput?.state).toBe(input.state)
+    expect(afterInput?.stability).toBe(input.stability)
+    expect(afterInput?.due).toBe(input.due)
     expect((await getSkill('kobieta|NOUN::vocab:pl-ru'))?.stability).toBe(45)
     expect((await getSkill('kobieta|NOUN::vocab:ru-pl-choice'))?.stability).toBe(
       SWIPE_KNOWN_INITIAL_STABILITY,
@@ -218,7 +235,7 @@ describe('markWordChoiceStagesKnown', () => {
   })
 })
 
-describe('areChoiceStagesKnown', () => {
+describe('areChoiceStagesKnown (task 40 §3 — now also requires vocab:ru-pl-input to exist)', () => {
   it('is false for a word with no skills yet', async () => {
     expect(await areChoiceStagesKnown('kobieta|NOUN')).toBe(false)
   })
@@ -243,8 +260,31 @@ describe('areChoiceStagesKnown', () => {
     expect(await areChoiceStagesKnown('kobieta|NOUN')).toBe(false)
   })
 
-  it('is true once both choice stages are at or above the floor — the button would be a no-op', async () => {
-    await markWordChoiceStagesKnown('kobieta|NOUN', NOW)
+  it('is false when both choice stages are known but vocab:ru-pl-input has not been opened yet', async () => {
+    // Same shape task 37's original markWordChoiceStagesKnown used to leave things in.
+    for (const dimension of ['vocab:pl-ru', 'vocab:ru-pl-choice'] as const) {
+      await db.skills.put({
+        skillId: `kobieta|NOUN::${dimension}`,
+        wordId: 'kobieta|NOUN',
+        kind: 'vocab',
+        dimension,
+        state: 'review',
+        stability: SWIPE_KNOWN_INITIAL_STABILITY,
+        difficulty: 3,
+        due: NOW + 5 * DAY_MS,
+        reps: 1,
+        lapses: 0,
+        correct: 1,
+        incorrect: 0,
+        createdAt: NOW,
+        updatedAt: NOW,
+      })
+    }
+    expect(await areChoiceStagesKnown('kobieta|NOUN')).toBe(false)
+  })
+
+  it('is true once both choice stages are known AND vocab:ru-pl-input exists — the button would be a no-op', async () => {
+    await markWordTranslationKnown('kobieta|NOUN', NOW)
     expect(await areChoiceStagesKnown('kobieta|NOUN')).toBe(true)
   })
 })

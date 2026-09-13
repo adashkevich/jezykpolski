@@ -225,3 +225,105 @@ describe('applyAnswer', () => {
     expect(await db.dailyStats.count()).toBe(0)
   })
 })
+
+describe('applyAnswer — correctStreak (task 40)', () => {
+  it('increments correctStreak on a correct, srsApplied answer', async () => {
+    await db.skills.add({ ...BASE_SKILL, correctStreak: 1 })
+    await applyAnswer(makeInput())
+    expect((await db.skills.get(SKILL_ID))?.correctStreak).toBe(2)
+  })
+
+  it('resets correctStreak to 0 on an incorrect, srsApplied answer', async () => {
+    await db.skills.add({ ...BASE_SKILL, correctStreak: 4 })
+    await applyAnswer(
+      makeInput({
+        reviewLog: {
+          sessionId: 1,
+          skillId: SKILL_ID,
+          wordId: WORD_ID,
+          exerciseType: 'translate',
+          reviewedAt: REVIEWED_AT,
+          rating: 1,
+          correct: false,
+          answerGiven: 'kobita',
+          expected: 'kobieta',
+          elapsedMs: 800,
+          srsApplied: true,
+        },
+      }),
+    )
+    expect((await db.skills.get(SKILL_ID))?.correctStreak).toBe(0)
+  })
+
+  it('leaves correctStreak untouched when srsApplied is false, whatever the outcome', async () => {
+    await db.skills.add({ ...BASE_SKILL, correctStreak: 3 })
+    await applyAnswer(
+      makeInput({
+        reviewLog: {
+          sessionId: 1,
+          skillId: SKILL_ID,
+          wordId: WORD_ID,
+          exerciseType: 'translate',
+          reviewedAt: REVIEWED_AT,
+          rating: 1,
+          correct: false,
+          answerGiven: 'kobita',
+          expected: 'kobieta',
+          elapsedMs: 800,
+          srsApplied: false,
+        },
+      }),
+    )
+    expect((await db.skills.get(SKILL_ID))?.correctStreak).toBe(3)
+  })
+
+  it('a row written before this field existed (undefined) reads as 0, then increments to 1', async () => {
+    const legacySkill: SkillRecord = { ...BASE_SKILL }
+    delete (legacySkill as { correctStreak?: number }).correctStreak
+    await db.skills.add(legacySkill)
+    await applyAnswer(makeInput())
+    expect((await db.skills.get(SKILL_ID))?.correctStreak).toBe(1)
+  })
+})
+
+describe('applyAnswer — cascadeSkills (task 40 §2)', () => {
+  const LOWER_SKILL_ID = 'kobieta|NOUN::vocab:ru-pl-choice' as const
+  const LOWER_SKILL: SkillRecord = {
+    ...BASE_SKILL,
+    skillId: LOWER_SKILL_ID,
+    dimension: 'vocab:ru-pl-choice',
+    state: 'review',
+    stability: 5,
+    due: REVIEWED_AT + 999_000,
+    correct: 3,
+    correctStreak: 1,
+  }
+
+  it('writes cascade skills in the same transaction as the primary skill', async () => {
+    await db.skills.add(BASE_SKILL)
+    const cascaded: SkillRecord = { ...LOWER_SKILL, correct: 4, correctStreak: 2 }
+    await applyAnswer(makeInput({ cascadeSkills: [cascaded] }))
+    expect(await db.skills.get(LOWER_SKILL_ID)).toEqual(cascaded)
+  })
+
+  it('does not create a reviewLogs row or bump dailyStats for a cascaded skill', async () => {
+    await db.skills.add(BASE_SKILL)
+    await applyAnswer(makeInput({ cascadeSkills: [LOWER_SKILL] }))
+    expect(await db.reviewLogs.count()).toBe(1) // only skillId's own log
+    const stats = await db.dailyStats.get(EXPECTED_DATE_KEY)
+    expect(stats?.reviewsCount).toBe(1)
+    expect(stats?.newSkillsStarted).toBe(1)
+  })
+
+  it('an injected failure still rolls back cascade writes along with everything else', async () => {
+    await db.skills.add(BASE_SKILL)
+    const addSpy = vi.spyOn(db.reviewLogs, 'add').mockImplementation(() => {
+      throw new Error('simulated failure mid-transaction')
+    })
+    await expect(applyAnswer(makeInput({ cascadeSkills: [LOWER_SKILL] }))).rejects.toThrow(
+      'simulated failure mid-transaction',
+    )
+    addSpy.mockRestore()
+    expect(await db.skills.get(LOWER_SKILL_ID)).toBeUndefined()
+  })
+})

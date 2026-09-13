@@ -72,6 +72,24 @@ export interface TableCell {
   readonly accepted: readonly string[]
 }
 
+/**
+ * One pairing tile-pair of a `matching` exercise — task 27's original shape
+ * (`{ pl: string; ru: string }`) widened by task 40 (`spec/tasks/40-vocab-streak-progression.md`
+ * §4) to carry `wordId` too. Originally declared only in
+ * `features/session-runner/hooks/useMatchingPracticeSession.ts` (the standalone
+ * `/practice/matching` screen's own local shape, `Exercise['matching']` itself carried the
+ * unused `{ pl, ru }` pair) — moved here once a SECOND caller needed it:
+ * `useSessionBootstrap.ts`'s in-session matching block (task 40 §4) builds a real
+ * `ExerciseInstance` of type `matching`, and grading a pair needs `wordId` to build a
+ * `SkillId`, which the original `{ pl, ru }`-only shape couldn't carry. The hook re-exports
+ * this type under its old name so its own existing imports don't need to change.
+ */
+export interface MatchingPairSource {
+  readonly wordId: WordId
+  readonly pl: string
+  readonly ru: string
+}
+
 export type Exercise =
   | { type: 'choice'; direction: Direction; prompt: string; options: string[]; correct: string }
   | { type: 'input'; direction: Direction; prompt: string; accepted: string[] }
@@ -94,7 +112,7 @@ export type Exercise =
       correct: string
     }
   | { type: 'table'; lemma: string; cells: TableCell[] }
-  | { type: 'matching'; pairs: Array<{ pl: string; ru: string }> }
+  | { type: 'matching'; pairs: readonly MatchingPairSource[] }
   /**
    * Task 27 (`spec/tasks/27-context-and-error-analysis.md` §2, FR-63): "выбери форму,
    * которая нужна в этом предложении" — a `form-choice` sibling whose options are the same

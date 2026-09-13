@@ -273,3 +273,25 @@ export function resolveSwipeKnownState(previous: SkillRecord | undefined, now: n
   }
   return createSwipeKnownState(now)
 }
+
+/**
+ * The `SrsState` the session's "Знаю" button (`swipe.repository.ts#markWordTranslationKnown`,
+ * task 40 §3) writes to `vocab:ru-pl-input` specifically — deliberately NOT
+ * `createSwipeKnownState`/`resolveSwipeKnownState`: those assert "this skill is known"
+ * (`stability: SWIPE_KNOWN_INITIAL_STABILITY`, `state: 'review'`), which is exactly the wrong
+ * claim for a skill the user has never once typed — `stage.ts#hasGraduatedProduction`
+ * requires a genuine `state === 'review'` earned by an actual graded `input` answer, not a
+ * self-report. What "Знаю" on a CHOICE question means for the INPUT stage is narrower: open
+ * it (materialize it if it doesn't exist yet) so it starts appearing in future sessions,
+ * without asserting anything about whether it's already mastered. If the record already
+ * exists, this leaves it untouched (its own real review history, if any, is more informative
+ * than anything this button could infer) — same monotonic spirit as
+ * `resolveSwipeKnownState`, just "leave alone" instead of "raise toward a floor".
+ */
+export function resolveSwipeUnlockedState(previous: SkillRecord | undefined, now: number): SrsState {
+  if (previous !== undefined) {
+    const { state, stability, difficulty, due, reps, lapses, lastReviewAt } = previous
+    return { state, stability, difficulty, due, reps, lapses, lastReviewAt }
+  }
+  return createSwipeUnknownState(now)
+}

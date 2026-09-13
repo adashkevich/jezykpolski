@@ -28,6 +28,7 @@
  */
 import { db } from '../database.ts'
 import { toLocalDateKey } from '@/lib/dates.ts'
+import { nextCorrectStreak } from '@/learning/progress/stage.ts'
 import type { SkillId, WordId } from '@/learning/skills/skill-id.ts'
 import type {
   ReviewLogRecord,
@@ -67,6 +68,19 @@ export interface AnswerInput {
   /** The word's full next `wordProgress` row (see file header for why this is precomputed
    *  rather than derived in here). Always defined: `wordId` has at least this one skill. */
   readonly nextWordProgress: WordProgressRecord
+
+  /**
+   * Task 40 (`spec/tasks/40-vocab-streak-progression.md` §2) "one question per word per
+   * session": other vocab skills of the SAME word that a correct answer on `skillId` also
+   * credits (the lower stages `answer-pipeline.ts#submitAnswer` already resolved and graded
+   * in memory), or — for a revealed letter-by-letter attempt — the lower stages whose `due`
+   * is being pulled back to "now" so the translation questions resurface. Written verbatim in
+   * the same transaction as `skillId` itself; never produces a `reviewLogs` row or a
+   * `dailyStats` bump of its own — the user did not answer these, `skillId`'s own log already
+   * accounts for the one answer that was actually given (same reasoning as
+   * `swipe.repository.ts`'s known/unknown triage, which writes `skills` without a log too).
+   */
+  readonly cascadeSkills?: readonly SkillRecord[]
 }
 
 /**
@@ -90,9 +104,14 @@ export async function applyAnswer(input: AnswerInput): Promise<void> {
       ...(input.reviewLog.srsApplied ? input.nextSrsState : {}),
       correct: skill.correct + (correct ? 1 : 0),
       incorrect: skill.incorrect + (correct ? 0 : 1),
+      correctStreak: nextCorrectStreak(skill.correctStreak, correct, input.reviewLog.srsApplied),
       updatedAt: input.reviewLog.reviewedAt,
     }
     await db.skills.put(updatedSkill)
+
+    if (input.cascadeSkills && input.cascadeSkills.length > 0) {
+      await db.skills.bulkPut(input.cascadeSkills)
+    }
 
     await db.reviewLogs.add(input.reviewLog)
 
