@@ -35,7 +35,10 @@ import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button.tsx'
 import { cn } from '@/lib/utils'
 import type { GradeResult } from '@/learning/exercises/grade.ts'
-import type { TypedAttemptOutcome } from '@/learning/exercises/letter-attempt.ts'
+import {
+  isFlawlessAttempt,
+  type TypedAttemptOutcome,
+} from '@/learning/exercises/letter-attempt.ts'
 
 export interface ExerciseFeedbackProps {
   readonly feedback: GradeResult
@@ -51,7 +54,9 @@ export interface ExerciseFeedbackProps {
   onNext(): void
   /** When set, a secondary "Знаю" button is shown next to "Далее" — the runner passes it only
    *  after a correct answer on a vocab question (`vocab:pl-ru`, `vocab:ru-pl-choice` or
-   *  `vocab:ru-pl-input`), and only when it would actually change something. */
+   *  `vocab:ru-pl-input`), only when the answer was flawless (never on the `assisted` status
+   *  below, whose panel promises the opposite), and only when it would actually change
+   *  something. */
   onMarkKnown?(): void
 }
 
@@ -97,7 +102,7 @@ const STATUS_META: Readonly<Record<FeedbackStatus, StatusMeta>> = {
 
 function statusOf(feedback: GradeResult, attempt: TypedAttemptOutcome | undefined): FeedbackStatus {
   if (feedback.correct) {
-    const assisted = attempt !== undefined && (attempt.mistakes > 0 || attempt.hintsUsed > 0)
+    const assisted = attempt !== undefined && !isFlawlessAttempt(attempt)
     return assisted ? 'assisted' : 'correct'
   }
   if (feedback.nearMiss) return 'nearMiss'

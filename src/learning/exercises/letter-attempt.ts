@@ -271,3 +271,21 @@ export function outcomeOf(state: LetterAttempt): TypedAttemptOutcome {
     letterCount,
   }
 }
+
+/**
+ * Безупречная попытка: слово набрано целиком, буква за буквой, без единой ошибки, без
+ * подсказок и без «глазка». Ровно тот случай, в котором `policy.ts#mapResultToRating`
+ * ставит `Easy` — все остальные исходы там капаются до `Hard`/`Again`.
+ *
+ * Два потребителя, и им важно решать это одинаково: `ExerciseFeedback.tsx` отличает «Верно!»
+ * от «Верно, но с подсказкой», а `SessionRunner.tsx` по этому же признаку решает, предлагать
+ * ли кнопку «Знаю» — после ответа с ошибкой или подсказкой она бы прямо противоречила
+ * обещанию «Слово вернётся на повторение» в той же панели.
+ *
+ * `revealed` здесь избыточен на практике (раскрытое «глазком» слово уходит в `grade()`
+ * обрезанным префиксом и получает `correct: false`, см. `submittedAnswer`), но оставлен
+ * явно — предикат должен быть верен сам по себе, а не только в контексте вызывающего.
+ */
+export function isFlawlessAttempt(outcome: TypedAttemptOutcome): boolean {
+  return outcome.mistakes === 0 && outcome.hintsUsed === 0 && !outcome.revealed
+}

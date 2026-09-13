@@ -8,6 +8,7 @@ import {
   computeVisibleCount,
   createLetterAttempt,
   eraseLetter,
+  isFlawlessAttempt,
   outcomeOf,
   revealAll,
   revealCurrentLetter,
@@ -253,6 +254,38 @@ describe('outcomeOf', () => {
     expect(outcome.mistakes).toBe(1)
     expect(outcome.hintsUsed).toBe(1)
     expect(outcome.revealed).toBe(false)
+  })
+})
+
+describe('isFlawlessAttempt — признак, по которому предлагается кнопка «Знаю»', () => {
+  it('чистый набор без ошибок и подсказок — безупречен', () => {
+    const attempt = typeLetters(createLetterAttempt(['kotek']), 'kotek')
+    expect(attempt.complete).toBe(true)
+    expect(isFlawlessAttempt(outcomeOf(attempt))).toBe(true)
+  })
+
+  it('одна неверная буква — уже не безупречен, даже если слово потом набрано целиком', () => {
+    let attempt = typeLetters(createLetterAttempt(['kotek']), 'ko')
+    attempt = typeLetter(attempt, 'x')
+    attempt = typeLetters(attempt, 'tek')
+    expect(attempt.complete).toBe(true)
+    expect(outcomeOf(attempt).mistakes).toBeGreaterThan(0)
+    expect(isFlawlessAttempt(outcomeOf(attempt))).toBe(false)
+  })
+
+  it('одна подсказка — уже не безупречен', () => {
+    let attempt = revealCurrentLetter(createLetterAttempt(['kotek']))
+    attempt = typeLetters(attempt, 'otek')
+    expect(attempt.complete).toBe(true)
+    expect(isFlawlessAttempt(outcomeOf(attempt))).toBe(false)
+  })
+
+  it('раскрытое «глазком» слово — не безупречно даже при нулевых ошибках и подсказках', () => {
+    const attempt = revealAll(createLetterAttempt(['kotek']))
+    const outcome = outcomeOf(attempt)
+    expect(outcome.mistakes).toBe(0)
+    expect(outcome.hintsUsed).toBe(0)
+    expect(isFlawlessAttempt(outcome)).toBe(false)
   })
 })
 

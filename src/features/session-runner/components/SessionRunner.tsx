@@ -54,7 +54,10 @@ import {
 } from '@/db/repositories/swipe.repository.ts'
 import type { Exercise, ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import type { GradeResult } from '@/learning/exercises/grade.ts'
-import type { TypedAttemptOutcome } from '@/learning/exercises/letter-attempt.ts'
+import {
+  isFlawlessAttempt,
+  type TypedAttemptOutcome,
+} from '@/learning/exercises/letter-attempt.ts'
 import { AGAIN, HARD } from '@/learning/srs/policy.ts'
 import type { VocabDimension } from '@/learning/skills/dimensions.ts'
 import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
@@ -325,10 +328,17 @@ function ActiveQuestion({
         }
       }
 
-      // "Знаю" only after a correct vocab answer, and only when it would change something —
-      // read after `submitAnswer`, so this answer's own SRS update counts.
+      // "Знаю" only after a *flawless* correct vocab answer, and only when it would change
+      // something — read after `submitAnswer`, so this answer's own SRS update counts.
+      //
+      // `isFlawlessAttempt` is what rules out a typed answer that needed a hint or cost a
+      // mistake: `grade()` still calls those `correct: true`, but the rating was capped at
+      // `Hard` and the feedback panel says "Слово вернётся на повторение" — offering to mark
+      // the word known right next to that promise would contradict it. A `choice`-family
+      // answer carries no `attempt` at all and is flawless by construction.
       setMarkKnownOffered(
         result.gradeResult.correct &&
+          (attempt === undefined || isFlawlessAttempt(attempt)) &&
           markKnownStages !== undefined &&
           !(await areStagesKnown(descriptor.wordId, markKnownStages)),
       )
