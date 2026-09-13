@@ -92,6 +92,7 @@ import { queryWords, type WordQuery } from '@/content/query.ts'
 import { getIndexStore } from '@/content/index-store.ts'
 import { getParadigm } from '@/content/paradigms.ts'
 import { enumerateSkills, kindOfDimension } from '@/learning/skills/enumerate.ts'
+import { MATCHING_PAIR_COUNT, sampleWordBatch } from '@/learning/practice/lexical-batch.ts'
 import {
   decodeSkillId,
   encodeWordId,
@@ -485,4 +486,43 @@ export async function resolveLexicalCandidateWordIds(): Promise<WordId[]> {
   const upToLevel = practicePoolLevel(computeLevelPoolCounts(progress), startLevel)
   const matchingWords = queryWords({ upToLevel, sort: 'frequency' }, progress)
   return [...new Set(matchingWords.map((word) => encodeWordId(word.lemma, word.pos)))]
+}
+
+/**
+ * Task 40 §4 (`spec/tasks/40-vocab-streak-progression.md`) — the word pool for the daily
+ * session's own "Сопоставление" block (`useSessionBootstrap.ts`): a batch of
+ * `MATCHING_PAIR_COUNT` words the block grids OUTSIDE the session's own due/new queue.
+ * `excludeWordIds` is that queue's own word set — a word never gets both an ordinary
+ * translation question AND a matching tile in the same session (the direct user decision
+ * behind this task: "блок из слов вне очереди").
+ *
+ * Same level ceiling as the standalone lexical drills
+ * ({@link resolveLexicalCandidateWordIds}'s own `practicePoolLevel` reasoning), but narrowed
+ * to `status: ['learning']` — unlike that function: a `'new'` word has no translation
+ * progress to reinforce yet, and a `'known'`/`'mastered'` one gets comparatively little from
+ * a low-friction tap-to-match grid, which is squarely aimed at words still being learned.
+ *
+ * Returns an empty array — never a padded/partial batch — when fewer than
+ * `MATCHING_PAIR_COUNT` candidates remain after excluding the queue's own words;
+ * `useSessionBootstrap.ts` skips the block entirely rather than build a uselessly-easy 2- or
+ * 3-tile grid.
+ */
+export async function resolveSessionMatchingWordIds(
+  excludeWordIds: ReadonlySet<WordId>,
+  seed: number,
+): Promise<WordId[]> {
+  const [progress, startLevel] = await Promise.all([
+    getAllWordProgress(),
+    settingsRepo.get(NEW_WORDS_START_LEVEL_SETTING_KEY, NEW_WORDS_START_LEVEL_DEFAULT),
+  ])
+  const upToLevel = practicePoolLevel(computeLevelPoolCounts(progress), startLevel)
+  const matchingWords = queryWords(
+    { upToLevel, status: ['learning'], sort: 'frequency' },
+    progress,
+  )
+  const candidateIds = [
+    ...new Set(matchingWords.map((word) => encodeWordId(word.lemma, word.pos))),
+  ].filter((wordId) => !excludeWordIds.has(wordId))
+  if (candidateIds.length < MATCHING_PAIR_COUNT) return []
+  return sampleWordBatch(candidateIds, MATCHING_PAIR_COUNT, seed)
 }

@@ -46,21 +46,18 @@
  * `vocab:ru-pl-input` (stage 3, typing) is untouched — the grid never asks for a typed answer.
  */
 import { useEffect, useRef, useState } from 'react'
-import type { Exercise } from '@/learning/exercises/exercise.types.ts'
-import { ensureSkill } from '@/db/repositories/skills.repository.ts'
-import { encodeSkillId, type WordId } from '@/learning/skills/skill-id.ts'
+import type { Exercise, MatchingPairSource } from '@/learning/exercises/exercise.types.ts'
+import type { WordId } from '@/learning/skills/skill-id.ts'
 import { completeSession, createSession, deleteSession } from '@/db/repositories/sessions.repository.ts'
 import { shouldGradeMatch } from '@/learning/practice/lexical-batch.ts'
-import { submitAnswer } from '../lib/answer-pipeline.ts'
+import { gradeMatchingPair } from '../lib/grade-matching-pair.ts'
 import { SessionContentCache } from '../lib/session-content-context.ts'
 
 export type MatchingExerciseData = Extract<Exercise, { type: 'matching' }>
 
-export interface MatchingPairSource {
-  readonly wordId: WordId
-  readonly pl: string
-  readonly ru: string
-}
+// Moved to `learning/exercises/exercise.types.ts` (task 40 §4) — re-exported here so this
+// hook's own existing imports (and `MatchingExercise.tsx`'s) don't need to change.
+export type { MatchingPairSource } from '@/learning/exercises/exercise.types.ts'
 
 export type MatchingPracticeStatus =
   | { readonly phase: 'loading' }
@@ -163,46 +160,10 @@ export function useMatchingPracticeSession(wordIds: readonly WordId[]): Matching
     const elapsedMs = Math.max(0, Date.now() - shownAtRef.current)
     const now = Date.now()
 
-    // Task 39 — both directions, `vocab:pl-ru` first and awaited before `vocab:ru-pl-choice`
-    // starts (see this file's header: the first call can itself materialize the second skill,
-    // so the two must never race).
-    for (const [dimension, direction, prompt, correct] of [
-      ['vocab:pl-ru', 'pl-ru', pair.pl, pair.ru],
-      ['vocab:ru-pl-choice', 'ru-pl', pair.ru, pair.pl],
-    ] as const) {
-      const skillId = encodeSkillId(wordId, dimension)
-      const skill = await ensureSkill(skillId, wordId, 'vocab', dimension)
-
-      const exercise: Exercise = {
-        type: 'choice',
-        direction,
-        prompt,
-        options: [correct],
-        correct,
-      }
-
-      const result = await submitAnswer({
-        sessionId,
-        mode: 'practice',
-        exercise,
-        skillId,
-        wordId,
-        kind: 'vocab',
-        answerGiven: correct,
-        isFirstAnswerInSession: skill.reps === 0,
-        elapsedMs,
-        now,
-        // This loop already credits both directions explicitly (task 39, this file's own
-        // header) — task 40's cascade would otherwise re-credit `vocab:pl-ru` a second time
-        // once the `vocab:ru-pl-choice` call below runs (`answer-pipeline.ts`'s own doc
-        // comment on `skipCascade`).
-        skipCascade: true,
-      })
-
-      tallyRef.current.total += 1
-      tallyRef.current.correct += 1 // only correct pairings ever reach this function
-      if (result.isNewSkill) tallyRef.current.newSkillCount += 1
-    }
+    const result = await gradeMatchingPair({ sessionId, mode: 'practice', pair, elapsedMs, now })
+    tallyRef.current.total += result.total
+    tallyRef.current.correct += result.correct
+    tallyRef.current.newSkillCount += result.newSkillCount
   }
 
   async function finish(): Promise<void> {

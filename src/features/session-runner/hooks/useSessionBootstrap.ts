@@ -11,6 +11,16 @@
  * a Learn queue is small (`targetSize`, default 20) — resolving 20 words' content and
  * `ensureSkill`-ing whichever are new costs at most 20 shard fetches, already deduplicated
  * by `content/loader.ts`'s per-shard cache, well within one screen's loading budget.
+ *
+ * Task 40 §4 (`spec/tasks/40-vocab-streak-progression.md`) inserts one more, synthetic queue
+ * item here for the plain Learn-like scopes (`global`/`word`/`filter`/`skill` — never
+ * `practice`/`practice-extra`, each already its own pipeline above, nor `mistake`, whose whole
+ * point is an unpadded list of just-missed skills): the "Сопоставление" grid, sampled from
+ * words OUTSIDE this session's own queue (`../lib/session-scope.ts#resolveSessionMatchingWordIds`)
+ * so a word is never asked about twice in one session. It has no `SkillDescriptor` in
+ * `descriptors` — it isn't a single-skill question at all, `SessionRunner.tsx` dispatches its
+ * `exercise.type === 'matching'` to a dedicated `SessionMatchingBlock` instead of the ordinary
+ * per-question path.
  */
 import { useEffect, useRef, useState } from 'react'
 import {
@@ -25,7 +35,7 @@ import type { SkillId } from '@/learning/skills/skill-id.ts'
 import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import { buildLearnQueue } from '@/learning/session/build-learn-queue.ts'
 import { buildPracticeQueue } from '@/learning/session/build-practice-queue.ts'
-import type { ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
+import type { ExerciseInstance, MatchingPairSource } from '@/learning/exercises/exercise.types.ts'
 import type { ExerciseCategory } from '@/learning/exercises/picker.ts'
 import {
   NOUN_HINT_MODE_DEFAULT,
@@ -51,6 +61,7 @@ import {
 import {
   resolvePracticeCandidateWords,
   resolveSessionCandidates,
+  resolveSessionMatchingWordIds,
   type PracticeExtraVariant,
   type SessionScope,
 } from '../lib/session-scope.ts'
@@ -289,6 +300,44 @@ export function useSessionBootstrap(scope: SessionScope) {
       instances.push(instance)
     }
     if (!aliveRef.current) return
+
+    // Task 40 §4 (`spec/tasks/40-vocab-streak-progression.md`) — the daily session's own
+    // "Сопоставление" block, sampled from words OUTSIDE this queue (never `practice`/
+    // `practice-extra`, which already have their own dedicated queue-building pipelines
+    // above, nor `mistake`, whose whole point is a fixed, unpadded list of just-missed
+    // skills; nor a session with an explicit `forceCategory` restriction — "Тип задания" ==
+    // "только выбор"/"только ввод" is the user asking for one specific exercise shape, and a
+    // matching grid is neither). `runtime.descriptors` gets no entry for its synthetic
+    // `skillId` — the block never goes through `ActiveQuestion`'s per-skill dispatch at all
+    // (`SessionRunner.tsx` renders `SessionMatchingBlock` for it instead, see that
+    // component's own header).
+    if (
+      scope.kind !== 'practice' &&
+      scope.kind !== 'practice-extra' &&
+      scope.kind !== 'mistake' &&
+      forceCategory === undefined
+    ) {
+      const queueWordIds = new Set(materialized.map((m) => m.descriptor.wordId))
+      const matchingWordIds = await resolveSessionMatchingWordIds(queueWordIds, now)
+      if (!aliveRef.current) return
+      if (matchingWordIds.length > 0) {
+        await Promise.all(matchingWordIds.map((wordId) => cache.preload(wordId)))
+        if (!aliveRef.current) return
+        const ctx = cache.toContentContext()
+        const pairs: MatchingPairSource[] = matchingWordIds.map((wordId) => ({
+          wordId,
+          pl: ctx.getWordEntry(wordId).lemma,
+          ru: ctx.getPrimaryTranslation(wordId),
+        }))
+        const matchingInstance: ExerciseInstance = {
+          id: `matching::${sessionId}`,
+          skillId: `matching::${sessionId}`,
+          exercise: { type: 'matching', pairs },
+        }
+        // After a couple of ordinary questions, not as the very first screen of the session.
+        instances.splice(Math.min(2, instances.length), 0, matchingInstance)
+      }
+    }
 
     useSessionStore.getState().startSession({ sessionId, mode: args.mode, queue: instances })
     if (args.prefillFirstAnswers.size > 0) {

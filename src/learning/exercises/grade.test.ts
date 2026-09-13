@@ -291,7 +291,10 @@ describe('grade — table / matching are refused (composite, no single accepted 
   })
 
   it('throws for "matching"', () => {
-    const exercise: Exercise = { type: 'matching', pairs: [{ pl: 'dom', ru: 'дом' }] }
+    const exercise: Exercise = {
+      type: 'matching',
+      pairs: [{ wordId: 'dom|NOUN', pl: 'dom', ru: 'дом' }],
+    }
     expect(() => grade(exercise, 'dom')).toThrow()
   })
 })

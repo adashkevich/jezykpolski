@@ -65,6 +65,7 @@ import { generateForSkill } from '../lib/build-session-exercises.ts'
 import { createExerciseComponentRegistry } from './exercise-registry.tsx'
 import { ExerciseFeedback } from './ExerciseFeedback.tsx'
 import { ExitSessionDialog } from './ExitSessionDialog.tsx'
+import { SessionMatchingBlock } from './SessionMatchingBlock.tsx'
 import { SessionProgressBar } from './SessionProgressBar.tsx'
 
 export interface SessionRunnerProps {
@@ -170,14 +171,27 @@ export function SessionRunner({ runtime, onFinished }: SessionRunnerProps) {
       />
 
       {currentInstance ? (
-        <ActiveQuestion
-          key={currentInstance.id}
-          instance={currentInstance}
-          runtime={runtime}
-          mode={mode}
-          requeuedSkillsRef={requeuedSkillsRef}
-          newSkillIdsRef={newSkillIdsRef}
-        />
+        // Task 40 §4 — the in-session "Сопоставление" block is a whole multi-pair screen with
+        // no single "the" answer, so it bypasses `ActiveQuestion`/`exercise-registry.tsx`'s
+        // per-type dispatch entirely (same reasoning as the Practice-only `table` type — see
+        // that registry's own header) rather than trying to fit `ExerciseProps<E>`.
+        currentInstance.exercise.type === 'matching' ? (
+          <SessionMatchingBlock
+            key={currentInstance.id}
+            instance={currentInstance}
+            sessionId={runtime.sessionId}
+            newSkillIdsRef={newSkillIdsRef}
+          />
+        ) : (
+          <ActiveQuestion
+            key={currentInstance.id}
+            instance={currentInstance}
+            runtime={runtime}
+            mode={mode}
+            requeuedSkillsRef={requeuedSkillsRef}
+            newSkillIdsRef={newSkillIdsRef}
+          />
+        )
       ) : (
         // Either mid-finish (the effect above is closing the session out) or a genuinely
         // empty queue slipped through — `SessionPage` never renders `SessionRunner` for an

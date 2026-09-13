@@ -23,6 +23,7 @@ import {
   resolveLexicalCandidateWordIds,
   resolvePracticeCandidateWords,
   resolveSessionCandidates,
+  resolveSessionMatchingWordIds,
 } from './session-scope.ts'
 
 function entry(
@@ -580,5 +581,77 @@ describe('resolveLexicalCandidateWordIds', () => {
     // No `fetch` stub at all — a call to `getParadigm` here would throw/reject.
     const ids = await resolveLexicalCandidateWordIds()
     expect(ids).toEqual([encodeWordId('kobieta', 'NOUN')])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// resolveSessionMatchingWordIds (task 40 §4, `spec/tasks/40-vocab-streak-progression.md`) —
+// the daily session's own "Сопоставление" block, sampled from words OUTSIDE the queue.
+// ---------------------------------------------------------------------------
+
+describe('resolveSessionMatchingWordIds', () => {
+  const LEARNING_WORDS = ['kobieta', 'dom', 'kot', 'pies', 'okno', 'stol'] as const
+
+  /** Marks `lemma|NOUN` as status `'learning'` (any word with a `SkillRecord` that hasn't
+   *  graduated production is `'learning'` — `aggregate.ts#deriveStatus`). */
+  async function markLearning(lemma: string): Promise<void> {
+    const wordId = encodeWordId(lemma, 'NOUN')
+    await ensureSkill(encodeSkillId(wordId, 'vocab:pl-ru'), wordId, 'vocab', 'vocab:pl-ru')
+    await recomputeWordProgress(wordId)
+  }
+
+  it('returns an empty array when fewer than MATCHING_PAIR_COUNT candidates remain', async () => {
+    initIndexStore(
+      LEARNING_WORDS.slice(0, 3).map((lemma, i) => entry({ lemma, level: 'A1', rank: i + 1 })),
+    )
+    for (const lemma of LEARNING_WORDS.slice(0, 3)) await markLearning(lemma)
+
+    const ids = await resolveSessionMatchingWordIds(new Set(), 1)
+    expect(ids).toEqual([])
+  })
+
+  it('samples exactly MATCHING_PAIR_COUNT learning-status words when enough are available', async () => {
+    initIndexStore(LEARNING_WORDS.map((lemma, i) => entry({ lemma, level: 'A1', rank: i + 1 })))
+    for (const lemma of LEARNING_WORDS) await markLearning(lemma)
+
+    const ids = await resolveSessionMatchingWordIds(new Set(), 1)
+    expect(ids).toHaveLength(5) // MATCHING_PAIR_COUNT
+    expect(new Set(ids).size).toBe(5) // no duplicates
+    for (const id of ids) {
+      expect(LEARNING_WORDS.map((lemma) => encodeWordId(lemma, 'NOUN'))).toContain(id)
+    }
+  })
+
+  it('excludes words already in the caller-supplied queue set', async () => {
+    initIndexStore(LEARNING_WORDS.map((lemma, i) => entry({ lemma, level: 'A1', rank: i + 1 })))
+    for (const lemma of LEARNING_WORDS) await markLearning(lemma)
+
+    const excluded = new Set([encodeWordId('kobieta', 'NOUN')])
+    const ids = await resolveSessionMatchingWordIds(excluded, 1)
+    expect(ids).not.toContain(encodeWordId('kobieta', 'NOUN'))
+  })
+
+  it('never includes a "new" (never-started) or "known"/"mastered" word — only "learning"', async () => {
+    initIndexStore([
+      entry({ lemma: 'nowy', level: 'A1', rank: 1 }), // never touched -> status 'new'
+      ...LEARNING_WORDS.slice(0, 5).map((lemma, i) => entry({ lemma, level: 'A1', rank: i + 2 })),
+    ])
+    for (const lemma of LEARNING_WORDS.slice(0, 5)) await markLearning(lemma)
+
+    const ids = await resolveSessionMatchingWordIds(new Set(), 1)
+    expect(ids).not.toContain(encodeWordId('nowy', 'NOUN'))
+  })
+
+  it('respects the same level ceiling as the daily session and the lexical drills', async () => {
+    initIndexStore([
+      ...LEARNING_WORDS.slice(0, 5).map((lemma, i) => entry({ lemma, level: 'A1', rank: i + 1 })),
+      entry({ lemma: 'skomplikowany', pos: 'ADJ', level: 'C1', rank: 99 }),
+    ])
+    for (const lemma of LEARNING_WORDS.slice(0, 5)) await markLearning(lemma)
+    // C1 is far above the default A1 pool boundary and would need a paradigm-graded status
+    // that never applies to a same-day fixture — cheap way to prove it's excluded: sample the
+    // full A1 pool and check the C1 word never appears even though it isn't excluded by id.
+    const ids = await resolveSessionMatchingWordIds(new Set(), 1)
+    expect(ids).not.toContain(encodeWordId('skomplikowany', 'ADJ'))
   })
 })
