@@ -16,6 +16,8 @@ import { getWordProgress } from '@/db/repositories/words-progress.repository.ts'
 import { getLogsForSession } from '@/db/repositories/reviews.repository.ts'
 import {
   CUED_RECALL_UNLOCK_STABILITY_DAYS,
+  CUED_RECALL_UNLOCK_STREAK,
+  PRODUCTION_UNLOCK_STREAK,
   RECOGNITION_UNLOCK_STABILITY_DAYS,
 } from '@/learning/progress/stage.ts'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
@@ -715,5 +717,314 @@ describe('submitAnswer — открытие следующих этапов во
 
     const progress = await getWordProgress(WORD_ID)
     expect(progress!.status).toBe('learning')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Task 40 §1 (`spec/tasks/40-vocab-streak-progression.md`): streak-based unlock, independent
+// of FSRS stability — two/three CONSECUTIVE correct answers, in separate sessions, close
+// enough in time that `elapsed_days` rounds to 0 and stability genuinely never crosses the
+// old task-37 bars. Proves the streak alone — not a lucky stability crossing — drives the
+// unlock.
+// ---------------------------------------------------------------------------
+
+describe('submitAnswer — серия верных ответов подряд открывает этап без роста стабильности (task 40)', () => {
+  const CUED_RECALL_SKILL_ID = 'kobieta|NOUN::vocab:ru-pl-choice'
+  const PRODUCTION_SKILL_ID = 'kobieta|NOUN::vocab:ru-pl-input'
+
+  async function answerSkill(
+    skillId: string,
+    overrides: Partial<Parameters<typeof submitAnswer>[0]> = {},
+  ) {
+    return submitAnswer({
+      sessionId: 1,
+      mode: 'learn',
+      exercise: CHOICE_EXERCISE,
+      skillId,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: 'женщина',
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now: 1_000_000,
+      ...overrides,
+    })
+  }
+
+  it(`${CUED_RECALL_UNLOCK_STREAK} верных ответа подряд, минуты друг за другом, открывают этап 2 — стабильность остаётся низкой`, async () => {
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+
+    await answerSkill(SKILL_ID, { sessionId: 1, now: 1_000_000 })
+    await answerSkill(SKILL_ID, { sessionId: 2, now: 1_000_500 })
+
+    const after = (await getSkill(SKILL_ID))!
+    expect(after.correctStreak).toBe(CUED_RECALL_UNLOCK_STREAK)
+    expect(after.stability).toBeLessThan(RECOGNITION_UNLOCK_STABILITY_DAYS)
+
+    expect(await getSkill(CUED_RECALL_SKILL_ID)).toBeDefined()
+  })
+
+  it('ошибка между верными ответами сбрасывает серию — нужно накопить её заново', async () => {
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+
+    await answerSkill(SKILL_ID, { sessionId: 1, now: 1_000_000 }) // верно, streak=1
+    await answerSkill(SKILL_ID, { sessionId: 2, now: 1_000_500, answerGiven: 'мужчина' }) // неверно, streak=0
+    expect((await getSkill(SKILL_ID))!.correctStreak).toBe(0)
+    expect(await getSkill(CUED_RECALL_SKILL_ID)).toBeUndefined()
+
+    // Один верный ответ после сброса — этого мало, нужно два подряд заново.
+    await answerSkill(SKILL_ID, { sessionId: 3, now: 1_001_000 })
+    expect((await getSkill(SKILL_ID))!.correctStreak).toBe(1)
+    expect(await getSkill(CUED_RECALL_SKILL_ID)).toBeUndefined()
+
+    await answerSkill(SKILL_ID, { sessionId: 4, now: 1_001_500 })
+    expect((await getSkill(SKILL_ID))!.correctStreak).toBe(2)
+    expect(await getSkill(CUED_RECALL_SKILL_ID)).toBeDefined()
+  })
+
+  it(`${PRODUCTION_UNLOCK_STREAK} верных ответа подряд на этапе 2 открывают ввод — стабильность остаётся низкой`, async () => {
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+    await answerSkill(SKILL_ID, { sessionId: 1, now: 1_000_000 })
+    await answerSkill(SKILL_ID, { sessionId: 2, now: 1_000_500 })
+    expect(await getSkill(CUED_RECALL_SKILL_ID)).toBeDefined()
+
+    await answerSkill(CUED_RECALL_SKILL_ID, { sessionId: 3, now: 1_001_000 })
+    await answerSkill(CUED_RECALL_SKILL_ID, { sessionId: 4, now: 1_001_500 })
+    expect(await getSkill(PRODUCTION_SKILL_ID)).toBeUndefined() // 2 из 3 — ещё рано
+
+    await answerSkill(CUED_RECALL_SKILL_ID, { sessionId: 5, now: 1_002_000 })
+    const cued = (await getSkill(CUED_RECALL_SKILL_ID))!
+    expect(cued.correctStreak).toBe(PRODUCTION_UNLOCK_STREAK)
+    expect(cued.stability).toBeLessThan(CUED_RECALL_UNLOCK_STABILITY_DAYS)
+    expect(await getSkill(PRODUCTION_SKILL_ID)).toBeDefined()
+  })
+
+  it('mode: mistakes не двигает серию — этап не открывается даже после нескольких "верных" ответов', async () => {
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+    await answerSkill(SKILL_ID, { mode: 'mistakes', sessionId: 1, now: 1_000_000 })
+    await answerSkill(SKILL_ID, { mode: 'mistakes', sessionId: 2, now: 1_000_500 })
+    expect((await getSkill(SKILL_ID))!.correctStreak).toBe(0)
+    expect(await getSkill(CUED_RECALL_SKILL_ID)).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Task 40 §2 ("один вопрос на слово за сессию"): a correct answer on the more advanced vocab
+// stage also credits every less advanced one; an incorrect answer leaves them untouched; a
+// revealed letter-by-letter attempt pulls their `due` back to "now" instead.
+// ---------------------------------------------------------------------------
+
+describe('submitAnswer — каскад на младшие этапы вокабуляра (task 40 §2)', () => {
+  const CUED_RECALL_SKILL_ID = 'kobieta|NOUN::vocab:ru-pl-choice'
+  const PRODUCTION_SKILL_ID = 'kobieta|NOUN::vocab:ru-pl-input'
+
+  it('верный ответ на этап 2 засчитывается и на этап 1 — растёт correct/correctStreak, сдвигается due', async () => {
+    const lower = await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+    await ensureSkill(CUED_RECALL_SKILL_ID, WORD_ID, 'vocab', 'vocab:ru-pl-choice')
+
+    await submitAnswer({
+      sessionId: 1,
+      mode: 'learn',
+      exercise: CHOICE_EXERCISE,
+      skillId: CUED_RECALL_SKILL_ID,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: 'женщина',
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now: 1_000_000,
+    })
+
+    const afterLower = (await getSkill(SKILL_ID))!
+    expect(afterLower.correct).toBe(lower.correct + 1)
+    expect(afterLower.correctStreak).toBe(1)
+    expect(afterLower.due).not.toBe(lower.due)
+    // Никакого reviewLog/dailyStats-приращения от каскада: только сам этап 2 был "отвечен".
+    const logs = await getLogsForSession(1)
+    expect(logs).toHaveLength(1)
+    expect(logs[0]!.skillId).toBe(CUED_RECALL_SKILL_ID)
+  })
+
+  it('неверный ответ на этап 2 не трогает этап 1 вовсе', async () => {
+    const lower = await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+    await ensureSkill(CUED_RECALL_SKILL_ID, WORD_ID, 'vocab', 'vocab:ru-pl-choice')
+
+    await submitAnswer({
+      sessionId: 1,
+      mode: 'learn',
+      exercise: CHOICE_EXERCISE,
+      skillId: CUED_RECALL_SKILL_ID,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: 'мужчина', // неверно
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now: 1_000_000,
+    })
+
+    expect(await getSkill(SKILL_ID)).toEqual(lower)
+  })
+
+  it('верный ответ на этап 3 (ввод) засчитывается на оба младших этапа', async () => {
+    const lowerPlRu = await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+    const lowerChoice = await ensureSkill(
+      CUED_RECALL_SKILL_ID,
+      WORD_ID,
+      'vocab',
+      'vocab:ru-pl-choice',
+    )
+    await ensureSkill(PRODUCTION_SKILL_ID, WORD_ID, 'vocab', 'vocab:ru-pl-input')
+
+    await submitAnswer({
+      sessionId: 1,
+      mode: 'learn',
+      exercise: INPUT_EXERCISE,
+      skillId: PRODUCTION_SKILL_ID,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: 'женщина',
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now: 1_000_000,
+    })
+
+    expect((await getSkill(SKILL_ID))!.correct).toBe(lowerPlRu.correct + 1)
+    expect((await getSkill(CUED_RECALL_SKILL_ID))!.correct).toBe(lowerChoice.correct + 1)
+  })
+
+  it('каскад не создаёт этап, которого ещё нет — только уже открытые младшие навыки', async () => {
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+    // vocab:ru-pl-choice ещё не открыт (не ensureSkill'd) — как будто отвечен неверно, и
+    // случайно проскочил через свайп-триаж. В реальности такое не должно случаться (этап 3
+    // не может существовать без этапа 2), но проверяем, что каскад не падает и не создаёт
+    // отсутствующие записи.
+    await ensureSkill(PRODUCTION_SKILL_ID, WORD_ID, 'vocab', 'vocab:ru-pl-input')
+
+    await submitAnswer({
+      sessionId: 1,
+      mode: 'learn',
+      exercise: INPUT_EXERCISE,
+      skillId: PRODUCTION_SKILL_ID,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: 'женщина',
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now: 1_000_000,
+    })
+
+    expect(await getSkill(CUED_RECALL_SKILL_ID)).toBeUndefined()
+  })
+
+  it('"Показать слово" (revealed) на вводе возвращает due обоих младших этапов в "сейчас", не трогая их correct/streak', async () => {
+    const lowerPlRu = await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+    const lowerChoice = await ensureSkill(
+      CUED_RECALL_SKILL_ID,
+      WORD_ID,
+      'vocab',
+      'vocab:ru-pl-choice',
+    )
+    // Оба младших этапа "далеко в будущем" — типичное состояние для уже пройденного слова.
+    const farFuture = 1_000_000 + 999 * 24 * 60 * 60 * 1000
+    await ensureSkill(PRODUCTION_SKILL_ID, WORD_ID, 'vocab', 'vocab:ru-pl-input')
+    const db = await import('@/db/database.ts')
+    await db.db.skills.update(SKILL_ID, { due: farFuture })
+    await db.db.skills.update(CUED_RECALL_SKILL_ID, { due: farFuture })
+
+    const now = 2_000_000
+    await submitAnswer({
+      sessionId: 1,
+      mode: 'learn',
+      exercise: INPUT_EXERCISE,
+      skillId: PRODUCTION_SKILL_ID,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: 'жен', // confirmed prefix only, same shape as the real revealed case
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now,
+      attempt: { mistakes: 0, hintsUsed: 0, revealed: true, letterCount: 7 },
+    })
+
+    const afterPlRu = (await getSkill(SKILL_ID))!
+    const afterChoice = (await getSkill(CUED_RECALL_SKILL_ID))!
+    expect(afterPlRu.due).toBe(now)
+    expect(afterChoice.due).toBe(now)
+    // Ничего кроме due не поменялось.
+    expect(afterPlRu.correct).toBe(lowerPlRu.correct)
+    expect(afterPlRu.correctStreak ?? 0).toBe(lowerPlRu.correctStreak ?? 0)
+    expect(afterChoice.correct).toBe(lowerChoice.correct)
+    expect(afterChoice.correctStreak ?? 0).toBe(lowerChoice.correctStreak ?? 0)
+  })
+
+  it('каскад в mode: mistakes не срабатывает (srsApplied всегда false там)', async () => {
+    const lower = await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+    await ensureSkill(CUED_RECALL_SKILL_ID, WORD_ID, 'vocab', 'vocab:ru-pl-choice')
+
+    await submitAnswer({
+      sessionId: 1,
+      mode: 'mistakes',
+      exercise: CHOICE_EXERCISE,
+      skillId: CUED_RECALL_SKILL_ID,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: 'женщина',
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now: 1_000_000,
+    })
+
+    expect(await getSkill(SKILL_ID)).toEqual(lower)
+  })
+
+  it('skipCascade подавляет каскад целиком — для явного двойного кредита (matching, task 39)', async () => {
+    const lower = await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+    await ensureSkill(CUED_RECALL_SKILL_ID, WORD_ID, 'vocab', 'vocab:ru-pl-choice')
+
+    await submitAnswer({
+      sessionId: 1,
+      mode: 'practice',
+      exercise: CHOICE_EXERCISE,
+      skillId: CUED_RECALL_SKILL_ID,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: 'женщина',
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now: 1_000_000,
+      skipCascade: true,
+    })
+
+    expect(await getSkill(SKILL_ID)).toEqual(lower)
+  })
+
+  it('не-вocab навык (морфология) не запускает каскад', async () => {
+    // Морфологический навык не участвует в vocab-каскаде вовсе — `buildVocabCascade` рано
+    // возвращает `[]` по `skill.kind !== 'vocab'`, без падения на приведении dimension.
+    const morphSkillId = 'kobieta|NOUN::noun:sg:genitive'
+    await ensureSkill(morphSkillId, WORD_ID, 'noun', 'noun:sg:genitive')
+    const formExercise: Exercise = {
+      type: 'form-input',
+      lemma: 'kobieta',
+      hint: 'женщина',
+      promptMode: 'lemma',
+      slot: 'noun:sg:genitive',
+      accepted: ['kobiety'],
+    }
+
+    await expect(
+      submitAnswer({
+        sessionId: 1,
+        mode: 'learn',
+        exercise: formExercise,
+        skillId: morphSkillId,
+        wordId: WORD_ID,
+        kind: 'noun',
+        answerGiven: 'kobiety',
+        isFirstAnswerInSession: true,
+        elapsedMs: 1000,
+        now: 1_000_000,
+      }),
+    ).resolves.toBeDefined()
   })
 })

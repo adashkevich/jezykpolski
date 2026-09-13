@@ -1,6 +1,6 @@
 /**
  * `buildLearnQueue` (`spec/tasks/13-session-runner.md` §1, `spec/architecture.md` §7/§10,
- * requirements FR-80/FR-81/FR-82/FR-110/FR-133).
+ * requirements FR-80/FR-81/FR-82/FR-110/FR-133, `spec/tasks/40-vocab-streak-progression.md` §2).
  *
  * Pure function: `SkillRecord[]` + `WordIndexEntry[]` (already fetched by the caller — this
  * module never touches `db/**` or `content/**`) -> an ordered `QueuePlan`. No `ensureSkill`
@@ -15,6 +15,12 @@
  * "Overdue reviews earlier than new words" is satisfied structurally: every `'due'` item is
  * placed before interleaving even starts touching `'new'` items (see `interleaveNewWords`
  * below) — the first item of a non-empty due list is always the queue's first item.
+ *
+ * Task 40 §2 ("один вопрос на слово за сессию") adds `collapseVocabStages` before any of the
+ * above: a word can have 2-3 of its vocab stages due at once (each lives on its own FSRS
+ * schedule), and asking about the same word's translation more than once a session is exactly
+ * what that task removes — only the earliest-due vocab stage of each word survives into this
+ * build, the rest stay due for a later one.
  *
  * Task 35 (`spec/tasks/35-level-gated-new-words.md` §2): this function used to sort
  * `candidateNewWords` by ascending `rank` itself. That sort is gone — `resolveGlobalScope`
@@ -37,6 +43,8 @@
 import type { SkillRecord } from '@/types/progress.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import { encodeWordId } from '@/learning/skills/skill-id.ts'
+import type { VocabDimension } from '@/learning/skills/dimensions.ts'
+import { vocabStageRank } from '@/learning/progress/stage.ts'
 import type { LearnQueueItem, QueuePlan } from './session.types.ts'
 
 export interface BuildLearnQueueInput {
@@ -62,6 +70,51 @@ export interface BuildLearnQueueInput {
 
 function isLearningOrRelearning(skill: SkillRecord): boolean {
   return skill.state === 'learning' || skill.state === 'relearning'
+}
+
+/**
+ * Task 40 §2 ("один вопрос на слово за сессию", `spec/tasks/40-vocab-streak-progression.md`):
+ * when a word has more than one DUE vocab skill at once (its stages live on independent FSRS
+ * schedules, so this happens routinely once a word has 2-3 open stages), keep only one —
+ * every other vocab dimension of that word is dropped from THIS build, never lost: it stays
+ * due and is picked up again once it becomes the earliest-due one (`answer-pipeline.ts`'s
+ * cascade — §2.2/§2.3 of the task — is what keeps the lower stages' `due` moving in step with
+ * the one actually answered, so they don't all pile up "overdue" forever).
+ *
+ * Non-vocab (morphological) skills are untouched, even for a word that also has a vocab
+ * skill due — collapsing is specifically about the three translation stages competing to ask
+ * "do you know this word's translation" more than once a session, not about a word's forms.
+ *
+ * Tie-break: earliest `due` wins; if two stages share the exact same `due`, the more advanced
+ * stage wins (`vocabStageRank`) — an arbitrary but deterministic choice for an edge case real
+ * schedules rarely produce (`due` is `Date.now()`-derived).
+ */
+export function collapseVocabStages(dueSkills: readonly SkillRecord[]): SkillRecord[] {
+  const vocabByWord = new Map<string, SkillRecord[]>()
+  const result: SkillRecord[] = []
+
+  for (const skill of dueSkills) {
+    if (skill.kind !== 'vocab') {
+      result.push(skill)
+      continue
+    }
+    const bucket = vocabByWord.get(skill.wordId)
+    if (bucket) bucket.push(skill)
+    else vocabByWord.set(skill.wordId, [skill])
+  }
+
+  for (const bucket of vocabByWord.values()) {
+    result.push(
+      bucket.reduce((best, candidate) => {
+        if (candidate.due !== best.due) return candidate.due < best.due ? candidate : best
+        const bestRank = vocabStageRank(best.dimension as VocabDimension)
+        const candidateRank = vocabStageRank(candidate.dimension as VocabDimension)
+        return candidateRank > bestRank ? candidate : best
+      }),
+    )
+  }
+
+  return result
 }
 
 /** Tier 1 (overdue `review`/`new`-state skills, oldest `due` first) followed by tier 2
@@ -124,7 +177,7 @@ export function buildLearnQueue(input: BuildLearnQueueInput): QueuePlan {
   const targetSize = Math.max(0, input.targetSize)
   const newWordsBudget = Math.max(0, input.newWordsBudget)
 
-  const orderedDue = orderDueSkills(input.dueSkills)
+  const orderedDue = orderDueSkills(collapseVocabStages(input.dueSkills))
   const reviewItems: LearnQueueItem[] = orderedDue
     .slice(0, targetSize)
     .map((skill) => ({ source: 'due', skill }))

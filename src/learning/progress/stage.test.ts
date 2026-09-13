@@ -1,12 +1,17 @@
 /**
  * `stage.ts` (`spec/tasks/28-two-stage-vocabulary-and-letter-diff.md` §2,
- * `spec/tasks/37-three-stage-vocabulary.md` §1-2, FR-80/FR-81/FR-83).
+ * `spec/tasks/37-three-stage-vocabulary.md` §1-2, `spec/tasks/40-vocab-streak-progression.md`,
+ * FR-80/FR-81/FR-83).
  */
 import { describe, expect, it } from 'vitest'
 import type { SkillRecord } from '@/types/progress.ts'
 import {
   CUED_RECALL_UNLOCK_STABILITY_DAYS,
+  CUED_RECALL_UNLOCK_STREAK,
   hasGraduatedProduction,
+  lowerVocabDimensions,
+  nextCorrectStreak,
+  PRODUCTION_UNLOCK_STREAK,
   RECOGNITION_UNLOCK_STABILITY_DAYS,
   shouldUnlockCuedRecall,
   shouldUnlockProduction,
@@ -36,24 +41,51 @@ function record(
   }
 }
 
+describe('nextCorrectStreak', () => {
+  it('верный ответ увеличивает серию на 1', () => {
+    expect(nextCorrectStreak(1, true, true)).toBe(2)
+  })
+
+  it('неверный ответ обнуляет серию', () => {
+    expect(nextCorrectStreak(5, false, true)).toBe(0)
+  })
+
+  it('без предыдущей серии стартует с 0/1', () => {
+    expect(nextCorrectStreak(undefined, true, true)).toBe(1)
+    expect(nextCorrectStreak(undefined, false, true)).toBe(0)
+  })
+
+  it('srsApplied=false оставляет серию как была, независимо от исхода', () => {
+    expect(nextCorrectStreak(2, true, false)).toBe(2)
+    expect(nextCorrectStreak(2, false, false)).toBe(2)
+    expect(nextCorrectStreak(undefined, true, false)).toBe(0)
+  })
+})
+
 describe('shouldUnlockCuedRecall', () => {
-  it('открывает этап 2 ровно тогда, когда стабильность узнавания достигла порога', () => {
+  it('открывает этап 2 при серии верных ответов подряд, достигшей порога', () => {
     expect(
-      shouldUnlockCuedRecall(record('vocab:pl-ru', { stability: RECOGNITION_UNLOCK_STABILITY_DAYS })),
+      shouldUnlockCuedRecall(record('vocab:pl-ru', { correctStreak: CUED_RECALL_UNLOCK_STREAK })),
     ).toBe(true)
     expect(
-      shouldUnlockCuedRecall(
-        record('vocab:pl-ru', { stability: RECOGNITION_UNLOCK_STABILITY_DAYS + 5 }),
-      ),
+      shouldUnlockCuedRecall(record('vocab:pl-ru', { correctStreak: CUED_RECALL_UNLOCK_STREAK + 5 })),
     ).toBe(true)
   })
 
-  it('не открывает этап 2, пока стабильность ниже порога', () => {
+  it('не открывает этап 2, пока серия ниже порога и стабильность ниже порога', () => {
     expect(
       shouldUnlockCuedRecall(
-        record('vocab:pl-ru', { stability: RECOGNITION_UNLOCK_STABILITY_DAYS - 0.1 }),
+        record('vocab:pl-ru', { correctStreak: CUED_RECALL_UNLOCK_STREAK - 1, stability: 0 }),
       ),
     ).toBe(false)
+  })
+
+  it('запасная ветка: свайп-известное слово (stability на floor, correctStreak: 0) тоже открывает этап 2', () => {
+    expect(
+      shouldUnlockCuedRecall(
+        record('vocab:pl-ru', { correctStreak: 0, stability: RECOGNITION_UNLOCK_STABILITY_DAYS }),
+      ),
+    ).toBe(true)
   })
 
   it('нет записи узнавания — нечего выпускать', () => {
@@ -62,20 +94,29 @@ describe('shouldUnlockCuedRecall', () => {
 })
 
 describe('shouldUnlockProduction', () => {
-  it('открывает этап 3 ровно тогда, когда стабильность этапа 2 достигла порога', () => {
+  it('открывает этап 3 при трёх верных ответах подряд на этапе 2', () => {
     expect(
-      shouldUnlockProduction(
-        record('vocab:ru-pl-choice', { stability: CUED_RECALL_UNLOCK_STABILITY_DAYS }),
-      ),
+      shouldUnlockProduction(record('vocab:ru-pl-choice', { correctStreak: PRODUCTION_UNLOCK_STREAK })),
     ).toBe(true)
   })
 
-  it('не открывает этап 3, пока стабильность ниже порога', () => {
+  it('двух верных ответов подряд недостаточно', () => {
     expect(
       shouldUnlockProduction(
-        record('vocab:ru-pl-choice', { stability: CUED_RECALL_UNLOCK_STABILITY_DAYS - 0.1 }),
+        record('vocab:ru-pl-choice', { correctStreak: PRODUCTION_UNLOCK_STREAK - 1, stability: 0 }),
       ),
     ).toBe(false)
+  })
+
+  it('запасная ветка: свайп-известное слово открывает этап 3 без серии', () => {
+    expect(
+      shouldUnlockProduction(
+        record('vocab:ru-pl-choice', {
+          correctStreak: 0,
+          stability: CUED_RECALL_UNLOCK_STABILITY_DAYS,
+        }),
+      ),
+    ).toBe(true)
   })
 
   it('нет записи этапа 2 — нечего выпускать', () => {
@@ -99,6 +140,20 @@ describe('hasGraduatedProduction', () => {
     expect(hasGraduatedProduction([record('vocab:pl-ru'), record('vocab:ru-pl-choice')])).toBe(
       false,
     )
+  })
+})
+
+describe('lowerVocabDimensions', () => {
+  it('vocab:pl-ru has nothing below it', () => {
+    expect(lowerVocabDimensions('vocab:pl-ru')).toEqual([])
+  })
+
+  it('vocab:ru-pl-choice has only vocab:pl-ru below it', () => {
+    expect(lowerVocabDimensions('vocab:ru-pl-choice')).toEqual(['vocab:pl-ru'])
+  })
+
+  it('vocab:ru-pl-input has both choice stages below it, in ascending order', () => {
+    expect(lowerVocabDimensions('vocab:ru-pl-input')).toEqual(['vocab:pl-ru', 'vocab:ru-pl-choice'])
   })
 })
 

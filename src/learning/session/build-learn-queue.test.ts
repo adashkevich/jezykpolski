@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { SkillRecord } from '@/types/progress.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
-import { buildLearnQueue } from './build-learn-queue.ts'
+import { buildLearnQueue, collapseVocabStages } from './build-learn-queue.ts'
 
 function skill(
   overrides: Partial<SkillRecord> & Pick<SkillRecord, 'skillId' | 'due'>,
@@ -188,5 +188,104 @@ describe('buildLearnQueue', () => {
     // The 20 kept are the 20 most overdue (smallest `due`), not an arbitrary slice.
     const dues = plan.items.map((item) => (item.source === 'due' ? item.skill.due : -1))
     expect(dues).toEqual(Array.from({ length: 20 }, (_, i) => i))
+  })
+})
+
+// ---------------------------------------------------------------------------
+// collapseVocabStages (task 40 §2, "один вопрос на слово за сессию").
+// ---------------------------------------------------------------------------
+
+describe('collapseVocabStages', () => {
+  it('keeps only the earliest-due vocab stage of a word with several due at once', () => {
+    const plRu = skill({ skillId: 'a|NOUN::vocab:pl-ru', dimension: 'vocab:pl-ru', due: 200 })
+    const ruPlChoice = skill({
+      skillId: 'a|NOUN::vocab:ru-pl-choice',
+      dimension: 'vocab:ru-pl-choice',
+      due: 100,
+    })
+    expect(collapseVocabStages([plRu, ruPlChoice])).toEqual([ruPlChoice])
+  })
+
+  it('at equal due, the more advanced stage wins', () => {
+    const plRu = skill({ skillId: 'a|NOUN::vocab:pl-ru', dimension: 'vocab:pl-ru', due: 100 })
+    const ruPlChoice = skill({
+      skillId: 'a|NOUN::vocab:ru-pl-choice',
+      dimension: 'vocab:ru-pl-choice',
+      due: 100,
+    })
+    expect(collapseVocabStages([plRu, ruPlChoice])).toEqual([ruPlChoice])
+  })
+
+  it('collapses all three stages of one word down to one', () => {
+    const plRu = skill({ skillId: 'a|NOUN::vocab:pl-ru', dimension: 'vocab:pl-ru', due: 300 })
+    const ruPlChoice = skill({
+      skillId: 'a|NOUN::vocab:ru-pl-choice',
+      dimension: 'vocab:ru-pl-choice',
+      due: 200,
+    })
+    const ruPlInput = skill({
+      skillId: 'a|NOUN::vocab:ru-pl-input',
+      dimension: 'vocab:ru-pl-input',
+      due: 100,
+    })
+    expect(collapseVocabStages([plRu, ruPlChoice, ruPlInput])).toEqual([ruPlInput])
+  })
+
+  it('never collapses across different words', () => {
+    const a = skill({ skillId: 'a|NOUN::vocab:pl-ru', due: 100 })
+    const b = skill({ skillId: 'b|NOUN::vocab:pl-ru', due: 200 })
+    const result = collapseVocabStages([a, b])
+    expect(result).toHaveLength(2)
+    expect(result).toEqual(expect.arrayContaining([a, b]))
+  })
+
+  it('leaves morphological skills of the same word untouched, even alongside a due vocab skill', () => {
+    const vocab = skill({ skillId: 'a|NOUN::vocab:pl-ru', due: 100 })
+    const genitive = skill({
+      skillId: 'a|NOUN::noun:sg:genitive',
+      wordId: 'a|NOUN',
+      kind: 'noun',
+      dimension: 'noun:sg:genitive',
+      due: 150,
+    })
+    const dative = skill({
+      skillId: 'a|NOUN::noun:sg:dative',
+      wordId: 'a|NOUN',
+      kind: 'noun',
+      dimension: 'noun:sg:dative',
+      due: 175,
+    })
+    const result = collapseVocabStages([vocab, genitive, dative])
+    expect(result).toHaveLength(3)
+    expect(result).toEqual(expect.arrayContaining([vocab, genitive, dative]))
+  })
+
+  it('is a no-op when every word has at most one due vocab stage', () => {
+    const a = skill({ skillId: 'a|NOUN::vocab:pl-ru', due: 100 })
+    const b = skill({ skillId: 'b|NOUN::vocab:ru-pl-choice', dimension: 'vocab:ru-pl-choice', due: 200 })
+    expect(collapseVocabStages([a, b])).toEqual([a, b])
+  })
+})
+
+describe('buildLearnQueue — one question per word per session (task 40 §2)', () => {
+  it('a word with two vocab stages due at once only ever contributes one queue item', () => {
+    const plRu = skill({ skillId: 'a|NOUN::vocab:pl-ru', dimension: 'vocab:pl-ru', due: 200 })
+    const ruPlChoice = skill({
+      skillId: 'a|NOUN::vocab:ru-pl-choice',
+      dimension: 'vocab:ru-pl-choice',
+      due: 100,
+    })
+    const otherWord = skill({ skillId: 'b|NOUN::vocab:pl-ru', due: 150 })
+
+    const plan = buildLearnQueue({
+      now: 1000,
+      dueSkills: [plRu, ruPlChoice, otherWord],
+      newWordsBudget: 0,
+      candidateNewWords: [],
+      targetSize: 20,
+    })
+
+    const skillIds = plan.items.map((i) => (i.source === 'due' ? i.skill.skillId : i.wordId))
+    expect(skillIds).toEqual(['a|NOUN::vocab:ru-pl-choice', 'b|NOUN::vocab:pl-ru'])
   })
 })

@@ -47,6 +47,13 @@ export interface SkillRecord {
   // Applied statistics, independent of the FSRS state.
   correct: number
   incorrect: number
+  /** Consecutive correct answers ending at the most recent graded attempt — any incorrect
+   *  answer resets it to 0 (`progress/stage.ts#nextCorrectStreak`, task 40). Optional so
+   *  existing rows written before this field existed decode fine (`undefined`, read as `0`
+   *  everywhere) without a Dexie schema bump — unlike `correct`/`incorrect`, it is never
+   *  indexed. Only vocab dimensions ever consume it (stage-unlock thresholds), but it's
+   *  tracked for every skill uniformly, same as `correct`/`incorrect` themselves. */
+  correctStreak?: number
   createdAt: number
   updatedAt: number
 }

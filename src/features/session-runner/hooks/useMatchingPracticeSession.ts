@@ -192,6 +192,11 @@ export function useMatchingPracticeSession(wordIds: readonly WordId[]): Matching
         isFirstAnswerInSession: skill.reps === 0,
         elapsedMs,
         now,
+        // This loop already credits both directions explicitly (task 39, this file's own
+        // header) — task 40's cascade would otherwise re-credit `vocab:pl-ru` a second time
+        // once the `vocab:ru-pl-choice` call below runs (`answer-pipeline.ts`'s own doc
+        // comment on `skipCascade`).
+        skipCascade: true,
       })
 
       tallyRef.current.total += 1

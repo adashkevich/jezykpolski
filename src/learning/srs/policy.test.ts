@@ -16,6 +16,7 @@ import {
   mapResultToRating,
   PRACTICE_INTERVAL_FACTOR,
   resolveSwipeKnownState,
+  resolveSwipeUnlockedState,
   shouldApplySrs,
   SWIPE_KNOWN_DUE_DAYS,
   SWIPE_KNOWN_INITIAL_STABILITY,
@@ -270,5 +271,55 @@ describe('resolveSwipeKnownState', () => {
       lapses: previous.lapses,
       lastReviewAt: previous.lastReviewAt,
     })
+  })
+})
+
+describe('resolveSwipeUnlockedState (task 40 §3 — "Знаю" opens vocab:ru-pl-input)', () => {
+  function skillWithStability(stability: number): SkillRecord {
+    return {
+      skillId: 'kobieta|NOUN::vocab:ru-pl-input',
+      wordId: 'kobieta|NOUN',
+      kind: 'vocab',
+      dimension: 'vocab:ru-pl-input',
+      state: 'learning',
+      stability,
+      difficulty: 4,
+      due: NOW + 10 * 24 * 60 * 60 * 1000,
+      reps: 2,
+      lapses: 0,
+      correct: 1,
+      incorrect: 1,
+      createdAt: NOW - 30 * 24 * 60 * 60 * 1000,
+      updatedAt: NOW - 24 * 60 * 60 * 1000,
+      lastReviewAt: NOW - 24 * 60 * 60 * 1000,
+    }
+  }
+
+  it('with no previous skill, behaves exactly like createSwipeUnknownState — brand-new, due now, not "known"', () => {
+    const resolved = resolveSwipeUnlockedState(undefined, NOW)
+    expect(resolved).toEqual(createSwipeUnknownState(NOW))
+    expect(resolved.state).toBe('new')
+    expect(resolved.stability).toBe(0)
+  })
+
+  it('with an existing record — however immature — leaves it byte-for-byte unchanged, never raises it', () => {
+    const previous = skillWithStability(1)
+    const resolved = resolveSwipeUnlockedState(previous, NOW)
+    expect(resolved).toEqual({
+      state: previous.state,
+      stability: previous.stability,
+      difficulty: previous.difficulty,
+      due: previous.due,
+      reps: previous.reps,
+      lapses: previous.lapses,
+      lastReviewAt: previous.lastReviewAt,
+    })
+  })
+
+  it('with an already-mature existing record, still leaves it untouched — this is not resolveSwipeKnownState', () => {
+    const previous = skillWithStability(SWIPE_KNOWN_INITIAL_STABILITY + 20)
+    const resolved = resolveSwipeUnlockedState(previous, NOW)
+    expect(resolved.stability).toBe(previous.stability)
+    expect(resolved.state).toBe(previous.state)
   })
 })
