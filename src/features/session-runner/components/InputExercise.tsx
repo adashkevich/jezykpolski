@@ -36,7 +36,7 @@ export function InputExercise({
   const inputLanguage: 'pl' | 'ru' = exercise.direction === 'pl-ru' ? 'ru' : 'pl'
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <h2 className="text-headline-lg font-extrabold break-words text-foreground">
         {exercise.prompt}
       </h2>
