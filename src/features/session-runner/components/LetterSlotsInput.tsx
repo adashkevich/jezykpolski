@@ -284,9 +284,6 @@ export function LetterSlotsInput({
 
       {showPolishKeys && !answered && (
         <div className="flex flex-col gap-2">
-          <p aria-hidden="true" className="text-body-sm text-muted-foreground">
-            Польские символы
-          </p>
           <div
             role="group"
             aria-label="Быстрый ввод польских диакритических знаков"

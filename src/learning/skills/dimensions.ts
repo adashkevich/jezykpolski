@@ -109,6 +109,19 @@ export const CASE_LABELS: Readonly<Record<CaseValue, DimensionLabel>> = {
   vocative: { pl: 'Wołacz', ru: 'Звательный' },
 }
 
+/** The question each case answers, shown next to the case label in the declension list
+ *  (`spec/design/word-noun.png`) — not used anywhere else, so plain Polish text is enough
+ *  (no `DimensionLabel` bilingual pair). */
+export const CASE_QUESTIONS: Readonly<Record<CaseValue, string>> = {
+  nominative: 'Kto? Co?',
+  genitive: 'Kogo? Czego?',
+  dative: 'Komu? Czemu?',
+  accusative: 'Kogo? Co?',
+  instrumental: 'Z kim? Z czym?',
+  locative: 'O kim? O czym?',
+  vocative: 'O!',
+}
+
 export const NUMBER_LABELS: Readonly<Record<NumberValue, DimensionLabel>> = {
   singular: { pl: 'Liczba pojedyncza', ru: 'Единственное число' },
   plural: { pl: 'Liczba mnoga', ru: 'Множественное число' },

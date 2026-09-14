@@ -47,6 +47,9 @@ export interface WordProgressSummary {
   learnedByPos: Partial<Record<PosValue, number>>
   /** Same "выучено" bucket, broken down by content level A1..C2 (missing key ≡ 0). */
   learnedByLevel: Partial<Record<LevelValue, number>>
+  /** `status === 'learning'`, broken down by content level A1..C2 (missing key ≡ 0) — same
+   *  shape as `learnedByLevel`, for the "По уровням" block's "учу" count. */
+  learningByLevel: Partial<Record<LevelValue, number>>
 }
 
 /**
@@ -85,11 +88,18 @@ export async function getWordProgressSummary(): Promise<WordProgressSummary> {
     if (level) learnedByLevel[level] = (learnedByLevel[level] ?? 0) + 1
   }
 
+  const learningByLevel: Partial<Record<LevelValue, number>> = {}
+  for (const id of learningIds as WordId[]) {
+    const level = getIndexStore().byId.get(id)?.level
+    if (level) learningByLevel[level] = (learningByLevel[level] ?? 0) + 1
+  }
+
   return {
     learningTotal: learningIds.length,
     learnedTotal: knownIds.length + masteredIds.length,
     learnedByPos,
     learnedByLevel,
+    learningByLevel,
   }
 }
 

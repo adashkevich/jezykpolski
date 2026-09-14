@@ -33,9 +33,7 @@ export function SensesList({
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-label-md font-semibold tracking-[0.06em] text-muted-foreground uppercase">
-        Значения
-      </h2>
+      <h2 className="sr-only">Значения</h2>
       <ol className="flex flex-col gap-3">
         {senses.map((sense, index) => (
           <li key={index} className="grid grid-cols-[1.25rem_1fr] gap-x-1.5">
@@ -46,16 +44,9 @@ export function SensesList({
               {index + 1}.
             </span>
             <div className="flex min-w-0 flex-col gap-0.5">
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <span className="text-headline-sm font-medium text-foreground">
-                  {sense.ru.join(', ')}
-                </span>
-                {sense.primary && (
-                  <span className="rounded-full bg-primary-soft px-2 py-0.5 text-label-sm text-primary-strong">
-                    основное
-                  </span>
-                )}
-              </div>
+              <span className="text-headline-sm font-medium text-foreground">
+                {sense.ru.join(', ')}
+              </span>
               {sense.en && <p className="text-body-sm text-muted-foreground">{sense.en}</p>}
             </div>
           </li>

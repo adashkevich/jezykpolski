@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { db } from '../database.ts'
 import {
   areChoiceStagesKnown,
+  forgetWordVocab,
   markWordKnown,
   markWordTranslationKnown,
   markWordUnknown,
@@ -344,6 +345,77 @@ describe('markWordUnknown', () => {
   })
 })
 
+describe('forgetWordVocab', () => {
+  it('deletes all three vocab skills, leaving non-vocab skills untouched', async () => {
+    await markWordKnown('kobieta|NOUN', NOW)
+    const morphSkill: SkillRecord = {
+      skillId: 'kobieta|NOUN::noun:sg:instrumental',
+      wordId: 'kobieta|NOUN',
+      kind: 'noun',
+      dimension: 'noun:sg:instrumental',
+      state: 'review',
+      stability: 30,
+      difficulty: 3,
+      due: NOW,
+      reps: 1,
+      lapses: 0,
+      correct: 1,
+      incorrect: 0,
+      createdAt: NOW,
+      updatedAt: NOW,
+    }
+    await db.skills.put(morphSkill)
+
+    await forgetWordVocab('kobieta|NOUN')
+
+    const skills = await getSkillsForWord('kobieta|NOUN')
+    expect(skills).toHaveLength(1)
+    expect(skills[0]!.kind).toBe('noun')
+  })
+
+  it('recomputes wordProgress rather than deleting it when non-vocab skills remain', async () => {
+    await markWordKnown('kobieta|NOUN', NOW)
+    const morphSkill: SkillRecord = {
+      skillId: 'kobieta|NOUN::noun:sg:instrumental',
+      wordId: 'kobieta|NOUN',
+      kind: 'noun',
+      dimension: 'noun:sg:instrumental',
+      state: 'review',
+      stability: 30,
+      difficulty: 3,
+      due: NOW,
+      reps: 1,
+      lapses: 0,
+      correct: 1,
+      incorrect: 0,
+      createdAt: NOW,
+      updatedAt: NOW,
+    }
+    await db.skills.put(morphSkill)
+
+    await forgetWordVocab('kobieta|NOUN')
+
+    const progress = await getWordProgress('kobieta|NOUN')
+    expect(progress).toBeDefined()
+    expect(progress?.vocabMaturity).toBe(0)
+  })
+
+  it('deletes the wordProgress row when no skill remains at all', async () => {
+    await markWordKnown('kobieta|NOUN', NOW)
+    expect(await getWordProgress('kobieta|NOUN')).toBeDefined()
+
+    await forgetWordVocab('kobieta|NOUN')
+
+    expect(await getSkillsForWord('kobieta|NOUN')).toHaveLength(0)
+    expect(await getWordProgress('kobieta|NOUN')).toBeUndefined()
+  })
+
+  it('is a no-op snapshot when the word has no vocab skills yet', async () => {
+    const snapshot = await forgetWordVocab('kobieta|NOUN')
+    expect(snapshot.previousSkills.size).toBe(0)
+  })
+})
+
 describe('undoTriage', () => {
   it('fully reverts markWordKnown on a brand-new word — deletes the skills and the wordProgress row', async () => {
     expect(await getWordProgress('kobieta|NOUN')).toBeUndefined()
@@ -395,5 +467,18 @@ describe('undoTriage', () => {
 
     expect(await getSkillsForWord('kobieta|NOUN')).toHaveLength(0)
     expect(await getWordProgress('kobieta|NOUN')).toBeUndefined()
+  })
+
+  it('fully reverts forgetWordVocab — a delete, not a put, is restored just as well', async () => {
+    await markWordKnown('kobieta|NOUN', NOW)
+    const snapshot = await forgetWordVocab('kobieta|NOUN')
+    expect(await getSkillsForWord('kobieta|NOUN')).toHaveLength(0)
+
+    await undoTriage(snapshot)
+
+    const skills = await getSkillsForWord('kobieta|NOUN')
+    expect(skills).toHaveLength(3)
+    expect(skills.every((s) => s.state === 'review')).toBe(true)
+    expect(await getWordProgress('kobieta|NOUN')).toBeDefined()
   })
 })

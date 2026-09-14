@@ -26,6 +26,14 @@ function entry(lemma: string, pos: PosValue, rank: number, paradigmShard = -1): 
   return { lemma, pos, rank, level: 'A1', primaryRu: 'x', sensesShard: 0, paradigmShard }
 }
 
+/** Matches an element whose full (deep) text content is exactly `text` — the "По уровням"
+ *  row numbers are split across several colored `<span>`s (учу/знаю), so the built-in string
+ *  matcher (which only looks at a node's own direct text-node children) can never find them;
+ *  this checks `element.textContent` directly instead. */
+function exactTextContent(text: string) {
+  return (_content: string, element: Element | null) => element?.textContent === text
+}
+
 function vocabSkill(
   wordId: string,
   dim: 'vocab:pl-ru' | 'vocab:ru-pl-choice' | 'vocab:ru-pl-input',
@@ -105,10 +113,15 @@ describe('StatsPage', () => {
 
     renderStatsPage()
 
-    await waitFor(() => expect(screen.getByText('2')).toBeInTheDocument()) // "Известно слов"
-    expect(screen.getByText('1')).toBeInTheDocument() // "Изучается"
-    // "По уровням": A1 has 2 known out of 4 NOUN+VERB words in the index -> 50%.
+    // Scoped to `.text-display-lg` (the headline numbers) — the "По уровням" row below
+    // reuses these same bare digits (1 learning / 2 known) for this single-level fixture.
+    await waitFor(() =>
+      expect(screen.getByText('2', { selector: '.text-display-lg' })).toBeInTheDocument(),
+    ) // "Известно слов"
+    expect(screen.getByText('1', { selector: '.text-display-lg' })).toBeInTheDocument() // "Изучается"
+    // "По уровням": A1 has 1 learning / 2 known out of 4 NOUN+VERB words in the index.
     expect(screen.getByText('A1')).toBeInTheDocument()
+    expect(screen.getByText(exactTextContent('1 / 2 / 4'))).toBeInTheDocument()
     // "По частям речи": NOUN 1/3, VERB 1/1 — rows are labeled in Russian now (design restyle).
     expect(screen.getByText('Существительные')).toBeInTheDocument()
     expect(screen.getByText('Глаголы')).toBeInTheDocument()

@@ -129,20 +129,49 @@ describe('levelProgress', () => {
       indexEntry({ lemma: 'g', pos: 'NOUN', level: 'B1' }),
     ])
     const summary: WordProgressSummary = {
-      learningTotal: 0,
+      learningTotal: 1,
       learnedTotal: 3,
       learnedByPos: {},
       learnedByLevel: { A1: 1, A2: 1 }, // 1/4 and 1/2
+      learningByLevel: { A1: 1 }, // 1/4, alongside A1's known count
     }
 
     const rows = levelProgress(summary)
 
     expect(rows.map((r) => r.key)).toEqual(['A1', 'A2', 'B1', 'B2', 'C1', 'C2'])
-    expect(rows.find((r) => r.key === 'A1')).toEqual({ key: 'A1', known: 1, total: 4, percent: 0.25 })
-    expect(rows.find((r) => r.key === 'A2')).toEqual({ key: 'A2', known: 1, total: 2, percent: 0.5 })
-    expect(rows.find((r) => r.key === 'B1')).toEqual({ key: 'B1', known: 0, total: 1, percent: 0 })
+    expect(rows.find((r) => r.key === 'A1')).toEqual({
+      key: 'A1',
+      known: 1,
+      learning: 1,
+      total: 4,
+      percent: 0.25,
+      learningPercent: 0.25,
+    })
+    expect(rows.find((r) => r.key === 'A2')).toEqual({
+      key: 'A2',
+      known: 1,
+      learning: 0,
+      total: 2,
+      percent: 0.5,
+      learningPercent: 0,
+    })
+    expect(rows.find((r) => r.key === 'B1')).toEqual({
+      key: 'B1',
+      known: 0,
+      learning: 0,
+      total: 1,
+      percent: 0,
+      learningPercent: 0,
+    })
     // C1 has zero words in the corpus at all here -> 0/0 -> percent 0, not a crash.
-    expect(rows.find((r) => r.key === 'C1')).toEqual({ key: 'C1', known: 0, total: 0, percent: 0 })
+    expect(rows.find((r) => r.key === 'C1')).toEqual({
+      key: 'C1',
+      known: 0,
+      learning: 0,
+      total: 0,
+      percent: 0,
+      learningPercent: 0,
+    })
   })
 })
 
@@ -161,6 +190,7 @@ describe('posProgress', () => {
       learnedTotal: 3,
       learnedByPos: { NOUN: 1, VERB: 2 },
       learnedByLevel: {},
+      learningByLevel: {},
     }
 
     const rows = posProgress(summary)

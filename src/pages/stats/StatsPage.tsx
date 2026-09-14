@@ -26,19 +26,16 @@
  * showing seven 0% case bars would misrepresent "not started" as "failing everything".
  */
 import { useState, type ReactNode } from 'react'
-import { History, Lock } from 'lucide-react'
+import { History } from 'lucide-react'
 import { EmptyState } from '@/components/app/EmptyState.tsx'
 import { PageContainer } from '@/components/app/PageContainer.tsx'
 import { PageHeader } from '@/components/app/PageHeader.tsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.tsx'
-import type { LevelValue, PosValue } from '@/content/codec.ts'
-import {
-  levelProgress,
-  posProgress,
-  type BucketProgress,
-} from '@/db/repositories/stats.repository.ts'
+import type { PosValue } from '@/content/codec.ts'
+import { posProgress } from '@/db/repositories/stats.repository.ts'
 import { StatProgressBar } from '@/features/stats/components/StatProgressBar.tsx'
 import { ConfusionCard } from '@/features/stats/components/ConfusionCard.tsx'
+import { LevelProgressCard } from '@/features/stats/components/LevelProgressCard.tsx'
 import { useConfusionMatrix } from '@/hooks/useConfusionMatrix.ts'
 import { useLevelGate } from '@/hooks/useLevelGate.ts'
 import { useMorphologyProgress } from '@/hooks/useMorphologyProgress.ts'
@@ -174,14 +171,6 @@ function SectionCard({ title, aside, children }: {
   )
 }
 
-/** "B1 – C2" for a contiguous run of still-locked levels, or a single "B1". Task 38's gate is
- *  strictly sequential, so the locked set is always a suffix of `LEVEL_VALUES`. */
-function levelRange(rows: readonly BucketProgress<LevelValue>[]): string {
-  const first = rows[0]!.key
-  const last = rows[rows.length - 1]!.key
-  return first === last ? first : `${first} – ${last}`
-}
-
 export function StatsPage() {
   // Captured once on mount, not read fresh in the render body — same reasoning as
   // `HomePage.tsx`'s `today`/`useDueCount.ts`'s `mountedAt` (`react-hooks/purity`).
@@ -195,16 +184,6 @@ export function StatsPage() {
 
   const loading = summary === undefined
   const hasAnyProgress = (summary?.learningTotal ?? 0) + (summary?.learnedTotal ?? 0) > 0
-
-  // Task 35 (`spec/tasks/35-level-gated-new-words.md` §4): levels the daily session's
-  // new-word gate hasn't opened yet are collapsed into one "откроются позже" row. No new
-  // query/bucket — `useLevelGate` reuses `computeLevelPoolCounts`/`unlockedLevels` from the
-  // same `wordProgress` read `useWordProgressSummary` already triggers. `levelGate ===
-  // undefined` (still loading) shows every level as open rather than flashing all of them
-  // as locked for one frame.
-  const levels = summary ? levelProgress(summary) : []
-  const openLevels = levels.filter((row) => !levelGate || levelGate.unlocked.includes(row.key))
-  const lockedLevels = levels.filter((row) => levelGate && !levelGate.unlocked.includes(row.key))
 
   return (
     <PageContainer>
@@ -269,28 +248,7 @@ export function StatsPage() {
             ))}
           </SectionCard>
 
-          <SectionCard title="По уровням" aside="CEFR">
-            {openLevels.map((row) => (
-              <BucketRow
-                key={row.key}
-                label={row.key}
-                known={row.known}
-                total={row.total}
-                percent={row.percent}
-              />
-            ))}
-            {lockedLevels.length > 0 && (
-              <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-low px-4 py-3">
-                <span className="text-headline-sm text-muted-foreground">
-                  {levelRange(lockedLevels)}
-                </span>
-                <span className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
-                  <Lock aria-hidden="true" className="size-4" />
-                  {lockedLevels.length === 1 ? 'Откроется позже' : 'Откроются позже'}
-                </span>
-              </div>
-            )}
-          </SectionCard>
+          <LevelProgressCard summary={summary} levelGate={levelGate} />
 
           {confusionMatrix && confusionMatrix.length > 0 && (
             <ConfusionCard pair={confusionMatrix[0]!} />

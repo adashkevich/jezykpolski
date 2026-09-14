@@ -1,9 +1,13 @@
 /**
- * `NounFormsTable` clickability (task 17, `spec/tasks/17-nouns-section.md` §4): every cell
- * with real forms is a button that shows this word's own skill state and, on click, navigates
- * to `/session` with `{ targetSkillIds: [skillId] }` — deliberately not `{ skillIds }`, which
+ * `NounFormsTable` clickability (task 17, `spec/tasks/17-nouns-section.md` §4): every row with
+ * real forms is a button that shows this word's own skill state and, on click, navigates to
+ * `/session` with `{ targetSkillIds: [skillId] }` — deliberately not `{ skillIds }`, which
  * `session-scope.ts` maps to the mistakes mode this click must NOT trigger (see that file's
  * header and `session-scope.test.ts`'s own coverage of `resolveSkillScope`).
+ *
+ * The table was restyled to `spec/design/word-noun.png`'s single-column declension list with a
+ * "Ед. число / Мн. число" segmented switch instead of two side-by-side columns — both numbers
+ * are no longer in the DOM at once, so plural-only assertions click the switch first.
  *
  * Fixtures are real forms copied from the built `public/content/paradigms/**` shards (same
  * technique `WordDetailPage.test.tsx`/`content/paradigms.test.ts` already use), covering the
@@ -112,14 +116,14 @@ function renderTable(
 
 afterEach(() => cleanup())
 
-describe('kobieta — clickable cells, default "новое" state, correct skillId on navigation', () => {
-  it('a cell with a real form is a button, labeled "новое" when no SkillRecord exists yet', () => {
+describe('kobieta — clickable rows (defaults to "Ед. число"), no state caption until mastered, correct skillId on navigation', () => {
+  it('a row with a real form is a button, with no state caption when no SkillRecord exists yet', () => {
     renderTable(KOBIETA_ID, kobietaParadigm)
-    const button = screen.getByRole('button', { name: /Narzędnik.*liczba pojedyncza.*kobietą.*новое/i })
+    const button = screen.getByRole('button', { name: /^Narzędnik.*liczba pojedyncza.*kobietą\. Тренировать\.$/i })
     expect(button).toBeInTheDocument()
   })
 
-  it('clicking a cell navigates to /session with exactly that one skillId under targetSkillIds', async () => {
+  it('clicking a row navigates to /session with exactly that one skillId under targetSkillIds', async () => {
     const user = userEvent.setup()
     renderTable(KOBIETA_ID, kobietaParadigm)
 
@@ -137,18 +141,18 @@ describe('kobieta — clickable cells, default "новое" state, correct skill
   it('Wołacz (vocative) stays visible and clickable — task §6: excluded from default training, not from the table', () => {
     renderTable(KOBIETA_ID, kobietaParadigm)
     expect(screen.getByText('Wołacz')).toBeInTheDocument()
-    // Singular vocative form is "kobieto" — its cell is a real button, not disabled/greyed text.
+    // Singular vocative form is "kobieto" — its row is a real button, not disabled/greyed text.
     expect(screen.getByRole('button', { name: /Wołacz.*liczba pojedyncza/i })).toBeInTheDocument()
   })
 
-  it('an already-materialized skill shows its FSRS-derived percentage, not "новое"', () => {
+  it('a partially-materialized (not yet mastered) skill still shows no state caption', () => {
     const skill: SkillRecord = {
       skillId: encodeSkillId(KOBIETA_ID, 'noun:sg:instrumental'),
       wordId: KOBIETA_ID,
       kind: 'noun',
       dimension: 'noun:sg:instrumental',
       state: 'review',
-      stability: 30, // TARGET_STABILITY_DAYS is 60 -> 50%
+      stability: 30, // TARGET_STABILITY_DAYS is 60 -> 50%, below MASTERED_THRESHOLD (0.9)
       difficulty: 3,
       due: 0,
       reps: 1,
@@ -159,18 +163,46 @@ describe('kobieta — clickable cells, default "новое" state, correct skill
       updatedAt: 0,
     }
     renderTable(KOBIETA_ID, kobietaParadigm, [skill])
-    expect(screen.getByRole('button', { name: /Narzędnik.*50%/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /^Narzędnik.*liczba pojedyncza.*kobietą\. Тренировать\.$/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('a mastered skill shows a "✓" caption', () => {
+    const skill: SkillRecord = {
+      skillId: encodeSkillId(KOBIETA_ID, 'noun:sg:instrumental'),
+      wordId: KOBIETA_ID,
+      kind: 'noun',
+      dimension: 'noun:sg:instrumental',
+      state: 'review',
+      stability: 60, // TARGET_STABILITY_DAYS is 60 -> 100%, above MASTERED_THRESHOLD (0.9)
+      difficulty: 3,
+      due: 0,
+      reps: 1,
+      lapses: 0,
+      correct: 1,
+      incorrect: 0,
+      createdAt: 0,
+      updatedAt: 0,
+    }
+    renderTable(KOBIETA_ID, kobietaParadigm, [skill])
+    expect(screen.getByRole('button', { name: /Narzędnik.*✓/i })).toBeInTheDocument()
   })
 })
 
 describe('aborcja — a slot with two real spellings shows both, and is clickable as ONE skill', () => {
-  it('the plural genitive cell shows "aborcyj / aborcji" and clicking it sends one skillId', async () => {
+  it('the plural genitive row shows "aborcyj / aborcji" and clicking it sends one skillId', async () => {
     const user = userEvent.setup()
     renderTable(ABORCJA_ID, aborcjaParadigm)
 
-    expect(screen.getByText('aborcyj / aborcji')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Мн. число' }))
 
-    await user.click(screen.getByText('aborcyj / aborcji'))
+    const row = screen.getByRole('button', {
+      name: /Dopełniacz.*liczba mnoga.*aborcyj \/ aborcji/i,
+    })
+    expect(row).toBeInTheDocument()
+
+    await user.click(row)
     const state = JSON.parse(screen.getByTestId('session-state').textContent ?? '{}') as {
       targetSkillIds?: string[]
     }
@@ -178,42 +210,44 @@ describe('aborcja — a slot with two real spellings shows both, and is clickabl
   })
 })
 
-describe('drzwi — pluralia tantum: empty singular slots render as "—" text, never a button', () => {
-  it('every singular cell is a plain dash, not clickable — no noun:sg:* dimension exists for this word', () => {
+describe('drzwi — pluralia tantum: defaults to "Мн. число", singular has no forms at all', () => {
+  it('defaults to the plural tab and every row is a real button — 7 cases, all clickable', () => {
     renderTable(DRZWI_ID, drzwiParadigm)
-    const table = screen.getByRole('table')
-    const rows = table.querySelectorAll('tbody tr')
-    expect(rows).toHaveLength(7)
+    expect(screen.getByRole('button', { name: 'Мн. число' })).toHaveAttribute('aria-pressed', 'true')
 
+    const rows = screen.getAllByRole('listitem')
+    expect(rows).toHaveLength(7)
     for (const row of rows) {
-      const singularCell = row.children[1]!
-      expect(singularCell.textContent).toBe('—')
-      expect(singularCell.querySelector('button')).toBeNull()
+      expect(row.querySelector('button')).not.toBeNull()
     }
   })
 
-  it('the plural column is fully clickable — every case has a real plural form', () => {
+  it('switching to "Ед. число" shows every case as an empty dash, never a button', async () => {
+    const user = userEvent.setup()
     renderTable(DRZWI_ID, drzwiParadigm)
-    const table = screen.getByRole('table')
-    const rows = table.querySelectorAll('tbody tr')
+
+    await user.click(screen.getByRole('button', { name: 'Ед. число' }))
+
+    const rows = screen.getAllByRole('listitem')
+    expect(rows).toHaveLength(7)
     for (const row of rows) {
-      const pluralCell = row.children[2]!
-      expect(pluralCell.querySelector('button')).not.toBeNull()
+      expect(row.textContent).toContain('—')
+      expect(row.querySelector('button')).toBeNull()
     }
   })
 })
 
-describe('horizontal scroll wrapper (acceptance: scrolls on 320px, page never does)', () => {
-  it('the table sits inside an overflow-x-auto wrapper with a min-width', () => {
+describe('form wrapping (acceptance: no page-level horizontal scroll at 320px)', () => {
+  it('a long form wraps instead of forcing overflow', () => {
     renderTable(KOBIETA_ID, kobietaParadigm)
-    const table = screen.getByRole('table')
-    expect(table.className).toContain('min-w-')
-    expect(table.parentElement?.className).toContain('overflow-x-auto')
+    const button = screen.getByRole('button', { name: /Narzędnik.*liczba pojedyncza/i })
+    const formSpan = button.querySelector('.break-words')
+    expect(formSpan).not.toBeNull()
   })
 })
 
 describe('"Тренировать таблицей" button (task 18, FR-62)', () => {
-  it('navigates to /practice/table/:wordId — a separate route from the per-cell Learn scope', async () => {
+  it('navigates to /practice/table/:wordId — a separate route from the per-row Learn scope', async () => {
     const user = userEvent.setup()
     renderTable(KOBIETA_ID, kobietaParadigm)
 
@@ -222,7 +256,7 @@ describe('"Тренировать таблицей" button (task 18, FR-62)', ()
     // React Router decodes the param automatically — the raw URL segment was the
     // %-encoded form, matching `useParams` matches `parseWordParam`'s own expectation.
     expect(screen.getByTestId('table-practice-word-id').textContent).toBe(KOBIETA_ID)
-    // Never /session — a cell click uses that route (targetSkillIds), this button doesn't.
+    // Never /session — a row click uses that route (targetSkillIds), this button doesn't.
     expect(screen.queryByTestId('session-state')).not.toBeInTheDocument()
   })
 })

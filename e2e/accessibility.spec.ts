@@ -36,7 +36,10 @@ test.describe('accessibility (axe) — light theme, real screens', () => {
   test('word detail (/words/:wordId)', async ({ page }) => {
     await page.goto('/words')
     await page.getByRole('searchbox').fill('kobieta')
-    await page.getByRole('link', { name: /kobieta/ }).first().click()
+    await page
+      .getByRole('link', { name: /kobieta/ })
+      .first()
+      .click()
     await expect(page).toHaveURL(/\/words\/kobieta/)
     await expect(page.getByRole('heading', { name: 'kobieta', level: 1 })).toBeVisible()
     await expectNoAxeViolations(page, '/words/:wordId')
@@ -65,7 +68,11 @@ test.describe('accessibility (axe) — light theme, real screens', () => {
 
     // Answer once more so the feedback banner (`role="status"`/`aria-live="polite"`,
     // NFR-11's non-color correct/incorrect distinction) is on screen for the scan too.
-    await page.getByRole('radiogroup', { name: 'Варианты ответа' }).getByRole('radio').first().click()
+    await page
+      .getByRole('radiogroup', { name: 'Варианты ответа' })
+      .getByRole('radio')
+      .first()
+      .click()
     await expect(page.getByRole('status').filter({ hasText: /Верно!|Неверно|Почти/ })).toBeVisible()
     // `ExerciseFeedback.tsx`'s entrance animation (`motion-safe:fade-in`, 200ms) is still
     // mid-transition immediately after the banner becomes visible — its text renders at
@@ -106,8 +113,12 @@ test.describe('accessibility (axe) — light theme, real screens', () => {
   test('table practice (/practice/table/:wordId)', async ({ page }) => {
     await page.goto('/words')
     await page.getByRole('searchbox').fill('kobieta')
-    await page.getByRole('link', { name: /kobieta/ }).first().click()
-    await page.getByRole('button', { name: 'Формы слова' }).click()
+    await page
+      .getByRole('link', { name: /kobieta/ })
+      .first()
+      .click()
+    // "Формы и склонение" is always expanded (no disclosure button) — the block is already
+    // open by the time the word-detail page has loaded.
     await page.getByRole('button', { name: 'Тренировать таблицей' }).click()
     await expect(page).toHaveURL(/\/practice\/table\//)
     await expect(page.getByRole('heading', { name: 'Таблица склонения' })).toBeVisible()
@@ -118,8 +129,8 @@ test.describe('accessibility (axe) — light theme, real screens', () => {
     await page.goto('/words')
     await page.getByRole('searchbox').fill('robić')
     await page.getByRole('link', { name: /robić/ }).first().click()
-    await page.getByRole('button', { name: 'Формы слова' }).click()
-    await page.getByRole('button', { name: 'Тренировать таблицей' }).click()
+    // "Формы и спряжение" is always expanded (no disclosure button), same as NOUN above.
+    await page.getByRole('button', { name: 'Тренировать таблицей' }).first().click()
     await expect(page).toHaveURL(/\/practice\/verb-table\//)
     await expect(page.getByRole('heading', { name: /Таблица спряжения/ })).toBeVisible()
     await expectNoAxeViolations(page, '/practice/verb-table/:wordId/:tense')

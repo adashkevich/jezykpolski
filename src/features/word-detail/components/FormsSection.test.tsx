@@ -8,7 +8,7 @@
  * exercise the two `status === 'error'` branches this task adds, gated on `navigator.onLine`.
  */
 import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { FormsSection } from './FormsSection.tsx'
 import type { LazyParadigm } from '../hooks/useLazyParadigm.ts'
@@ -27,13 +27,13 @@ function errorLazyParadigm(message: string): LazyParadigm {
   }
 }
 
+// NOUN's "Формы и склонение" is always expanded — no disclosure to click open.
 function renderOpen(lazyParadigm: LazyParadigm) {
   render(
     <MemoryRouter>
       <FormsSection pos="NOUN" wordId="kobieta|NOUN" lazyParadigm={lazyParadigm} skills={undefined} />
     </MemoryRouter>,
   )
-  fireEvent.click(screen.getByRole('button', { name: /Формы слова/ }))
 }
 
 describe('FormsSection — error branch', () => {

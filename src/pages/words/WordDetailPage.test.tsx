@@ -7,14 +7,16 @@
  * shard each was copied from), the same technique `content/paradigms.test.ts` and
  * `WordsListPage.test.tsx` already use.
  *
- * Four words cover the acceptance list's four content shapes:
+ * Five words cover the acceptance list's content shapes:
  *  - `kobieta|NOUN` — full 7-case x 2-number declension.
  *  - `robić|VERB` — present/future(analytic)/imperative/past(gendered).
  *  - `dobry|ADJ` — case x gender grid with an sg/pl toggle, plus degrees of comparison.
+ *  - `chłodno|ADV` — degrees of comparison only, always expanded like the other three POS
+ *    (no "Формы" progress bar or dimension breakdown either, same as NOUN/VERB/ADJ).
  *  - `powinien|VERB` — one of the 14 real paradigm-less words (`paradigmShard: -1`).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { WordDetailPage } from './WordDetailPage.tsx'
@@ -175,9 +177,17 @@ const DOBRY_RAW_FORMS: EncodedForm[] = [
   ['dobre', 1, 7, 5, 1, 0, 0, 0, 0, 0],
 ]
 
+// `public/content/paradigms/001.json`'s `chłodno|ADV` entry — degrees of comparison only.
+const CHLODNO_RAW_FORMS: EncodedForm[] = [
+  ['chłodno', 0, 0, 0, 1, 0, 0, 0, 0, 0],
+  ['chłodniej', 0, 0, 0, 2, 0, 0, 0, 0, 0],
+  ['najchłodniej', 0, 0, 0, 3, 0, 0, 0, 0, 0],
+]
+
 const KOBIETA_ID = encodeWordId('kobieta', 'NOUN')
 const ROBIC_ID = encodeWordId('robić', 'VERB')
 const DOBRY_ID = encodeWordId('dobry', 'ADJ')
+const CHLODNO_ID = encodeWordId('chłodno', 'ADV')
 const POWINIEN_ID = encodeWordId('powinien', 'VERB')
 
 const FIXTURE_ENTRIES: readonly WordIndexEntry[] = [
@@ -209,6 +219,15 @@ const FIXTURE_ENTRIES: readonly WordIndexEntry[] = [
     paradigmShard: 3,
   },
   {
+    lemma: 'chłodno',
+    pos: 'ADV',
+    rank: 120,
+    level: 'B1',
+    primaryRu: 'холодно',
+    sensesShard: 0,
+    paradigmShard: 4,
+  },
+  {
     lemma: 'powinien',
     pos: 'VERB',
     rank: 75,
@@ -226,6 +245,7 @@ const SENSES_SHARD = {
   ],
   'robić|VERB': [{ ru: ['делать'], primary: true }],
   'dobry|ADJ': [{ ru: ['хороший'], primary: true }],
+  'chłodno|ADV': [{ ru: ['холодно'], primary: true }],
   'powinien|VERB': [{ ru: ['должен'], primary: true }],
 }
 
@@ -235,6 +255,7 @@ function makeFetchMock() {
     'paradigms/001.json': { 'kobieta|NOUN': { forms: KOBIETA_RAW_FORMS, dominantGender: 1 } },
     'paradigms/002.json': { 'robić|VERB': { forms: ROBIC_RAW_FORMS } },
     'paradigms/003.json': { 'dobry|ADJ': { forms: DOBRY_RAW_FORMS } },
+    'paradigms/004.json': { 'chłodno|ADV': { forms: CHLODNO_RAW_FORMS } },
   }
   return vi.fn(async (url: unknown) => {
     const href = String(url)
@@ -268,10 +289,16 @@ function SessionStateProbe() {
   return <pre data-testid="session-state">{JSON.stringify(location.state)}</pre>
 }
 
+// Every POS's forms block is always expanded now (paradigm loads on mount, no disclosure
+// button) — this just waits out the loading state; kept as a no-op-click helper in case a
+// future POS reintroduces a collapsible block.
 async function expandForms() {
-  const user = userEvent.setup()
-  await user.click(screen.getByRole('button', { name: /формы слова/i }))
-  await waitFor(() => expect(screen.getAllByRole('table').length).toBeGreaterThan(0))
+  const button = screen.queryByRole('button', { name: /формы слова/i })
+  if (button) {
+    const user = userEvent.setup()
+    await user.click(button)
+  }
+  await waitFor(() => expect(screen.queryByText('Загрузка форм…')).not.toBeInTheDocument())
 }
 
 beforeEach(async () => {
@@ -305,46 +332,73 @@ describe('header, senses (FR-40/FR-41)', () => {
     // "женщина" appears twice — once as the header's primary translation, once as sense #1.
     expect(screen.getAllByText('женщина').length).toBe(2)
     expect(screen.getByText('жена')).toBeInTheDocument()
-    expect(screen.getByText('основное')).toBeInTheDocument()
     expect(screen.getByText('woman')).toBeInTheDocument()
   })
 })
 
-describe('acceptance 1 & 9 — forms block collapsed by default, paradigm loads only on expand', () => {
-  it('renders no table and issues no paradigm fetch before the user expands the block', async () => {
-    renderWordDetail(KOBIETA_ID)
-    await waitFor(() => expect(screen.getByText('Значения')).toBeInTheDocument())
-    expect(screen.queryByRole('table')).not.toBeInTheDocument()
-    expect(fetchedUrlsContaining('paradigms/001.json')).toBe(0)
+describe('ADV — "Формы слова" is always expanded, no disclosure control', () => {
+  it('renders the degree-of-comparison rows immediately and fetches the paradigm without any click', async () => {
+    renderWordDetail(CHLODNO_ID)
+    await waitFor(() => expect(screen.getByText('chłodniej')).toBeInTheDocument())
+    expect(fetchedUrlsContaining('paradigms/004.json')).toBe(1)
+    expect(screen.queryByRole('button', { name: /формы/i })).not.toBeInTheDocument()
   })
+})
 
-  it('expanding "Формы слова" fetches the paradigm exactly once and then renders tables', async () => {
+describe('NOUN — "Формы и склонение" is always expanded, no disclosure control', () => {
+  it('renders the declension list immediately and fetches the paradigm without any click', async () => {
     renderWordDetail(KOBIETA_ID)
-    await waitFor(() => expect(screen.getByText('Значения')).toBeInTheDocument())
-    await expandForms()
+    await waitFor(() => expect(screen.getAllByRole('listitem').length).toBeGreaterThan(0))
     expect(fetchedUrlsContaining('paradigms/001.json')).toBe(1)
-    expect(screen.getAllByRole('table').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: /формы/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('VERB — "Формы и спряжение" is always expanded, no disclosure control', () => {
+  it('renders the conjugation tabs immediately and fetches the paradigm without any click', async () => {
+    renderWordDetail(ROBIC_ID)
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'Настоящее' })).toBeInTheDocument())
+    expect(fetchedUrlsContaining('paradigms/002.json')).toBe(1)
+    expect(screen.queryByRole('button', { name: /формы/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('ADJ — "Формы и склонение" is always expanded, no disclosure control (task 22)', () => {
+  it('renders the case x gender grid immediately and fetches the paradigm without any click', async () => {
+    renderWordDetail(DOBRY_ID)
+    await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument())
+    expect(fetchedUrlsContaining('paradigms/003.json')).toBe(1)
+    expect(screen.queryByRole('button', { name: /формы/i })).not.toBeInTheDocument()
   })
 })
 
 describe('acceptance 2 — kobieta declension: 7 cases x 2 numbers, correct forms', () => {
-  it('renders every case row with its real singular/plural forms', async () => {
+  it('renders every case row with its real singular/plural forms, switching between number tabs', async () => {
+    const user = userEvent.setup()
     renderWordDetail(KOBIETA_ID)
     await expandForms()
-    const table = screen.getByRole('table')
-    const rows = table.querySelectorAll('tbody tr')
+
+    // Scoped to the declension block's own container — the page also has an unrelated
+    // `<ol>` of senses, which `getAllByRole('listitem')` would otherwise pick up too.
+    const numberGroup = screen.getByRole('group', { name: 'Число' })
+    const declensionBlock = within(numberGroup.parentElement!)
+    const rows = declensionBlock.getAllByRole('listitem')
     expect(rows).toHaveLength(7)
-    expect(table.textContent).toContain('kobieta')
-    expect(table.textContent).toContain('kobiety')
-    expect(table.textContent).toContain('kobiecie')
-    expect(table.textContent).toContain('kobietę')
-    expect(table.textContent).toContain('kobietą')
-    expect(table.textContent).toContain('kobiecie')
-    expect(table.textContent).toContain('kobieto')
-    expect(table.textContent).toContain('kobiet')
-    expect(table.textContent).toContain('kobietom')
-    expect(table.textContent).toContain('kobietami')
-    expect(table.textContent).toContain('kobietach')
+    const listText = () => rows.map((row) => row.textContent).join(' ')
+
+    // Singular is the default tab.
+    expect(listText()).toContain('kobieta')
+    expect(listText()).toContain('kobiecie')
+    expect(listText()).toContain('kobietę')
+    expect(listText()).toContain('kobietą')
+    expect(listText()).toContain('kobieto')
+
+    await user.click(screen.getByRole('button', { name: 'Мн. число' }))
+    expect(listText()).toContain('kobiety')
+    expect(listText()).toContain('kobiet')
+    expect(listText()).toContain('kobietom')
+    expect(listText()).toContain('kobietami')
+    expect(listText()).toContain('kobietach')
   })
 })
 
@@ -365,56 +419,69 @@ describe('task 17 §4 — declension table cells are clickable, navigate with th
   })
 })
 
-describe('acceptance 3 & 5 — robić conjugation: present/past/future/imperative tabs, analytic marked', () => {
-  it('shows all four tabs and marks the analytic future', async () => {
+describe('acceptance 3 & 5 — robić conjugation: present/future/past tabs, imperative always shown below, analytic marked', () => {
+  it('shows three tense tabs, an always-visible imperative block, and marks the analytic future', async () => {
     renderWordDetail(ROBIC_ID)
     await expandForms()
     const user = userEvent.setup()
 
-    expect(screen.getByRole('tab', { name: 'Настоящее время' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Будущее время' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Повелительное наклонение' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Прошедшее время' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Настоящее' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Будущее' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Прошедшее' })).toBeInTheDocument()
+    // Imperative is not a tab — it's a second, always-visible list underneath.
+    expect(screen.queryByRole('tab', { name: /Повелительное/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Повелительное наклонение' })).toBeInTheDocument()
 
     // Present is the default active tab.
-    expect(screen.getByText('robię')).toBeInTheDocument() // present, 1sg
+    expect(screen.getByRole('tabpanel', { name: 'Настоящее' }).textContent).toContain('robię') // present, 1sg
 
-    await user.click(screen.getByRole('tab', { name: 'Будущее время' }))
-    expect(screen.getByText(/będę robić/)).toBeInTheDocument() // future, 1sg — analytic
+    await user.click(screen.getByRole('tab', { name: 'Будущее' }))
+    expect(screen.getByRole('tabpanel', { name: 'Будущее' }).textContent).toContain('będę robić') // future, 1sg — analytic
     expect(screen.getAllByText('аналит.').length).toBeGreaterThan(0)
   })
 })
 
 describe('acceptance 4 — past tense shows the gendered variants', () => {
-  it('robiłem (masc.) and robiłam (fem.) both appear, on the same row', async () => {
+  it('robiłem (masc.) and robiłam (fem.) both appear, as separate gender rows in the same "ja" block', async () => {
     renderWordDetail(ROBIC_ID)
     await expandForms()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('tab', { name: 'Прошедшее время' }))
-    const pastTable = screen.getByRole('tabpanel', { name: 'Прошедшее время' }).querySelector('table')!
-    expect(pastTable.textContent).toContain('robiłem')
-    expect(pastTable.textContent).toContain('robiłam')
+    await user.click(screen.getByRole('tab', { name: 'Прошедшее' }))
+    const pastPanel = screen.getByRole('tabpanel', { name: 'Прошедшее' })
+    expect(pastPanel.textContent).toContain('robiłem')
+    expect(pastPanel.textContent).toContain('robiłam')
+
+    // Badge + form rows (task's own ask), not a wide case x gender grid — masculine and
+    // feminine are two separate buttons, both under the "ja" block.
+    const masc = within(pastPanel).getByRole('button', { name: /Czas przeszły, ja, męski:/i })
+    expect(masc.textContent).toContain('robiłem')
+    const fem = within(pastPanel).getByRole('button', { name: /Czas przeszły, ja, żeński:/i })
+    expect(fem.textContent).toContain('robiłam')
   })
 })
 
 describe('task 20 — pronouns instead of digits', () => {
-  it('labels rows with pronouns (ja/my, ty/wy, on·ona·ono/oni·one)', async () => {
+  it('labels rows with pronouns (ja, ty, on·ona·ono, my, wy, oni·one)', async () => {
     renderWordDetail(ROBIC_ID)
     await expandForms()
-    expect(screen.getByText('ja / my')).toBeInTheDocument()
-    expect(screen.getByText('ty / wy')).toBeInTheDocument()
-    expect(screen.getByText('on · ona · ono / oni · one')).toBeInTheDocument()
+    const tabpanel = screen.getByRole('tabpanel', { name: 'Настоящее' })
+    expect(within(tabpanel).getByRole('rowheader', { name: 'ja' })).toBeInTheDocument()
+    expect(within(tabpanel).getByRole('rowheader', { name: 'ty' })).toBeInTheDocument()
+    expect(within(tabpanel).getByRole('rowheader', { name: 'on · ona · ono' })).toBeInTheDocument()
+    expect(within(tabpanel).getByRole('rowheader', { name: 'my' })).toBeInTheDocument()
+    expect(within(tabpanel).getByRole('rowheader', { name: 'wy' })).toBeInTheDocument()
+    expect(within(tabpanel).getByRole('rowheader', { name: 'oni · one' })).toBeInTheDocument()
     expect(screen.queryByText('1 л.')).not.toBeInTheDocument()
   })
 })
 
 describe('task 20 — conjugation table cells are clickable too (same mechanism as task 17)', () => {
-  it('clicking the present-tense ja/singular cell sends exactly that skillId as targetSkillIds', async () => {
+  it('clicking the present-tense ja cell sends exactly that skillId as targetSkillIds', async () => {
     const user = userEvent.setup()
     renderWordDetail(ROBIC_ID)
     await expandForms()
 
-    await user.click(screen.getByRole('button', { name: /Настоящее время, ja, liczba pojedyncza/i }))
+    await user.click(screen.getByRole('button', { name: /Настоящее, ja/i }))
 
     const state = JSON.parse(screen.getByTestId('session-state').textContent ?? '{}') as {
       targetSkillIds?: string[]
@@ -444,26 +511,27 @@ describe('acceptance 5 — dobry: sg/pl toggle and degrees of comparison', () =>
 })
 
 describe('acceptance 6 — a paradigm-less word opens without errors and has no forms block', () => {
-  it('powinien (paradigmShard: -1) renders the header/senses/progress but no "Формы слова"', async () => {
+  it('powinien (paradigmShard: -1) renders the header/senses/progress but no forms section', async () => {
     renderWordDetail(POWINIEN_ID)
     await waitFor(() => expect(screen.getByText('Значения')).toBeInTheDocument())
     expect(screen.getByRole('heading', { name: 'powinien' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /формы слова/i })).not.toBeInTheDocument()
-    expect(screen.getByText('Прогресс')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /формы (слова|и склонение)/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText('Интервальное повторение')).toBeInTheDocument()
     // No "Формы" bar either — nothing to track for a word with no morphology at all.
     expect(screen.queryByText('Формы')).not.toBeInTheDocument()
   })
 })
 
-describe('acceptance 7 — the two progress bars match the persisted wordProgress (== aggregateWord)', () => {
-  it('shows vocabMaturity/morphMaturity as the "Слово"/"Формы" percentages', async () => {
+describe('acceptance 7 — the "Запоминание карточки" bar matches the persisted wordProgress (== aggregateWord)', () => {
+  it('shows vocabMaturity as the "Запоминание карточки" percentage', async () => {
     // vocab:pl-ru stability 30 -> maturity 0.5 (TARGET_STABILITY_DAYS = 60); the other two
-    // vocab skills (vocab:ru-pl-choice/vocab:ru-pl-input, task 37) and every morphology
-    // skill stay unmaterialized (maturity 0), so vocabMaturity averages to 0.5/3 ≈ 0.167 and
-    // morphMaturity to 0.
+    // vocab skills (vocab:ru-pl-choice/vocab:ru-pl-input, task 37) stay unmaterialized
+    // (maturity 0), so vocabMaturity averages to 0.5/3 ≈ 0.167.
     const skill: SkillRecord = {
-      skillId: `${KOBIETA_ID}::vocab:pl-ru`,
-      wordId: KOBIETA_ID,
+      skillId: `${CHLODNO_ID}::vocab:pl-ru`,
+      wordId: CHLODNO_ID,
       kind: 'vocab',
       dimension: 'vocab:pl-ru',
       state: 'review',
@@ -478,80 +546,65 @@ describe('acceptance 7 — the two progress bars match the persisted wordProgres
       updatedAt: 0,
     }
     await upsertSkill(skill)
-    await recomputeWordProgress(KOBIETA_ID)
+    await recomputeWordProgress(CHLODNO_ID)
 
-    renderWordDetail(KOBIETA_ID)
-    await waitFor(() => expect(screen.getByText('Прогресс')).toBeInTheDocument())
-    await waitFor(() => expect(screen.getByLabelText('Слово: 17%')).toBeInTheDocument())
-    expect(screen.getByLabelText('Формы: 0%')).toBeInTheDocument()
+    renderWordDetail(CHLODNO_ID)
+    await waitFor(() => expect(screen.getByText('Интервальное повторение')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByLabelText('Запоминание карточки: 17%')).toBeInTheDocument(),
+    )
   })
 })
 
-describe('acceptance 8 — "Сбросить прогресс" deletes the word\'s skills and updates the UI', () => {
-  it('asks for confirmation, then deletes skills and zeroes the progress bars', async () => {
-    const skill: SkillRecord = {
-      skillId: `${KOBIETA_ID}::vocab:pl-ru`,
-      wordId: KOBIETA_ID,
-      kind: 'vocab',
-      dimension: 'vocab:pl-ru',
-      state: 'review',
-      stability: 60,
-      difficulty: 3,
-      due: 0,
-      reps: 1,
-      lapses: 0,
-      correct: 1,
-      incorrect: 0,
-      createdAt: 0,
-      updatedAt: 0,
-    }
-    await upsertSkill(skill)
-    await recomputeWordProgress(KOBIETA_ID)
-
-    const user = userEvent.setup()
+describe('NOUN — no "Формы" bar, no "Детализация по измерениям" breakdown', () => {
+  it('shows only "Запоминание карточки", with no morphology bar or dimension-breakdown control', async () => {
     renderWordDetail(KOBIETA_ID)
-    // stability 60 -> maturity 1.0 for vocab:pl-ru alone; averaged with the other two
-    // unmaterialized vocab dimensions (task 37) -> 1/3 ≈ 33%.
-    await waitFor(() => expect(screen.getByLabelText('Слово: 33%')).toBeInTheDocument())
-
-    await user.click(screen.getByRole('button', { name: 'Сбросить прогресс' }))
-    expect(screen.getByText(/Сбросить прогресс «kobieta»/)).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Сбросить' }))
-
-    await waitFor(async () => expect(await getSkillsForWord(KOBIETA_ID)).toHaveLength(0))
-    await waitFor(() => expect(screen.getByLabelText('Слово: 0%')).toBeInTheDocument())
-  })
-
-  it('cancelling the confirmation leaves the skill untouched', async () => {
-    const skill: SkillRecord = {
-      skillId: `${KOBIETA_ID}::vocab:pl-ru`,
-      wordId: KOBIETA_ID,
-      kind: 'vocab',
-      dimension: 'vocab:pl-ru',
-      state: 'review',
-      stability: 60,
-      difficulty: 3,
-      due: 0,
-      reps: 1,
-      lapses: 0,
-      correct: 1,
-      incorrect: 0,
-      createdAt: 0,
-      updatedAt: 0,
-    }
-    await upsertSkill(skill)
-
-    const user = userEvent.setup()
-    renderWordDetail(KOBIETA_ID)
-    await user.click(screen.getByRole('button', { name: 'Сбросить прогресс' }))
-    await user.click(screen.getByRole('button', { name: 'Отмена' }))
-
-    expect(await getSkillsForWord(KOBIETA_ID)).toHaveLength(1)
+    await waitFor(() => expect(screen.getByText('Интервальное повторение')).toBeInTheDocument())
+    expect(screen.getByLabelText(/Запоминание карточки/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Формы/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Детализация по измерениям' }),
+    ).not.toBeInTheDocument()
   })
 })
 
-describe('"Знаю" / "Не знаю" / "Учить" (FR-48, task 16 FR-29)', () => {
+describe('VERB — no "Формы" bar, no "Детализация по измерениям" breakdown', () => {
+  it('shows only "Запоминание карточки", with no morphology bar or dimension-breakdown control', async () => {
+    renderWordDetail(ROBIC_ID)
+    await waitFor(() => expect(screen.getByText('Интервальное повторение')).toBeInTheDocument())
+    expect(screen.getByLabelText(/Запоминание карточки/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Формы/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Детализация по измерениям' }),
+    ).not.toBeInTheDocument()
+  })
+})
+
+describe('ADJ — no "Формы" bar, no "Детализация по измерениям" breakdown (task 22)', () => {
+  it('shows only "Запоминание карточки", with no morphology bar or dimension-breakdown control', async () => {
+    renderWordDetail(DOBRY_ID)
+    await waitFor(() => expect(screen.getByText('Интервальное повторение')).toBeInTheDocument())
+    expect(screen.getByLabelText(/Запоминание карточки/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Формы/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Детализация по измерениям' }),
+    ).not.toBeInTheDocument()
+  })
+})
+
+describe('ADV — no "Формы" bar, no "Детализация по измерениям" breakdown', () => {
+  it('shows only "Запоминание карточки", with no morphology bar or dimension-breakdown control', async () => {
+    renderWordDetail(CHLODNO_ID)
+    await waitFor(() => expect(screen.getByText('Интервальное повторение')).toBeInTheDocument())
+    expect(screen.getByLabelText(/Запоминание карточки/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Формы/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Детализация по измерениям' }),
+    ).not.toBeInTheDocument()
+  })
+})
+
+describe('"Знаю" / "Не учить" (spec/design/word-noun.png, task 16 FR-29)', () => {
   it('"Знаю" moves all three vocab dimensions to state "review" and shows an undo toast', async () => {
     const user = userEvent.setup()
     renderWordDetail(KOBIETA_ID)
@@ -568,20 +621,6 @@ describe('"Знаю" / "Не знаю" / "Учить" (FR-48, task 16 FR-29)', (
     expect(screen.getByRole('button', { name: /отменить/i })).toBeInTheDocument()
   })
 
-  it('"Не знаю" resets only vocab:pl-ru to state "new", due now', async () => {
-    const user = userEvent.setup()
-    renderWordDetail(KOBIETA_ID)
-
-    await user.click(screen.getByRole('button', { name: 'Не знаю' }))
-
-    await waitFor(async () => {
-      const skills = await getSkillsForWord(KOBIETA_ID)
-      expect(skills).toHaveLength(1)
-      expect(skills[0]!.dimension).toBe('vocab:pl-ru')
-      expect(skills[0]!.state).toBe('new')
-    })
-  })
-
   it('the toast\'s "Отменить" fully reverts a "Знаю" write in Dexie', async () => {
     const user = userEvent.setup()
     renderWordDetail(KOBIETA_ID)
@@ -594,13 +633,81 @@ describe('"Знаю" / "Не знаю" / "Учить" (FR-48, task 16 FR-29)', (
     await waitFor(async () => expect(await getSkillsForWord(KOBIETA_ID)).toHaveLength(0))
   })
 
-  it('"Учить" navigates to /session carrying only this word as router state', async () => {
+  it('"Не учить" deletes the word\'s vocab skills, leaving morphology skills untouched', async () => {
+    const morphSkill: SkillRecord = {
+      skillId: `${KOBIETA_ID}::noun:sg:instrumental`,
+      wordId: KOBIETA_ID,
+      kind: 'noun',
+      dimension: 'noun:sg:instrumental',
+      state: 'review',
+      stability: 30,
+      difficulty: 3,
+      due: 0,
+      reps: 1,
+      lapses: 0,
+      correct: 1,
+      incorrect: 0,
+      createdAt: 0,
+      updatedAt: 0,
+    }
+    await upsertSkill(morphSkill)
+    await upsertSkill({
+      skillId: `${KOBIETA_ID}::vocab:pl-ru`,
+      wordId: KOBIETA_ID,
+      kind: 'vocab',
+      dimension: 'vocab:pl-ru',
+      state: 'review',
+      stability: 60,
+      difficulty: 3,
+      due: 0,
+      reps: 1,
+      lapses: 0,
+      correct: 1,
+      incorrect: 0,
+      createdAt: 0,
+      updatedAt: 0,
+    })
+
     const user = userEvent.setup()
     renderWordDetail(KOBIETA_ID)
-    await user.click(screen.getByRole('button', { name: /учить/i }))
-    const state = JSON.parse(screen.getByTestId('session-state').textContent ?? '{}') as {
-      wordId?: string
-    }
-    expect(state.wordId).toBe(KOBIETA_ID)
+
+    await user.click(screen.getByRole('button', { name: 'Не учить' }))
+
+    await waitFor(async () => {
+      const skills = await getSkillsForWord(KOBIETA_ID)
+      expect(skills).toHaveLength(1)
+      expect(skills[0]!.kind).toBe('noun')
+    })
+    const toast = await screen.findByRole('status')
+    expect(toast).toHaveTextContent('kobieta')
+  })
+
+  it('the toast\'s "Отменить" fully reverts a "Не учить" write in Dexie', async () => {
+    await upsertSkill({
+      skillId: `${KOBIETA_ID}::vocab:pl-ru`,
+      wordId: KOBIETA_ID,
+      kind: 'vocab',
+      dimension: 'vocab:pl-ru',
+      state: 'review',
+      stability: 60,
+      difficulty: 3,
+      due: 0,
+      reps: 1,
+      lapses: 0,
+      correct: 1,
+      incorrect: 0,
+      createdAt: 0,
+      updatedAt: 0,
+    })
+
+    const user = userEvent.setup()
+    renderWordDetail(KOBIETA_ID)
+    await waitFor(async () => expect(await getSkillsForWord(KOBIETA_ID)).toHaveLength(1))
+
+    await user.click(screen.getByRole('button', { name: 'Не учить' }))
+    await waitFor(async () => expect(await getSkillsForWord(KOBIETA_ID)).toHaveLength(0))
+
+    await user.click(await screen.findByRole('button', { name: /отменить/i }))
+    await waitFor(async () => expect(await getSkillsForWord(KOBIETA_ID)).toHaveLength(1))
   })
 })

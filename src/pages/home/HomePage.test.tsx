@@ -10,7 +10,7 @@
  * `vocabMaturity = stability / 60` exactly (`aggregate.ts#TARGET_STABILITY_DAYS`).
  */
 import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { HomePage } from './HomePage.tsx'
 import { upsertSkill } from '@/db/repositories/skills.repository.ts'
@@ -24,6 +24,14 @@ import type { SkillRecord } from '@/types/progress.ts'
 
 function entry(lemma: string, pos: PosValue, rank: number): WordIndexEntry {
   return { lemma, pos, rank, level: 'A1', primaryRu: 'x', sensesShard: 0, paradigmShard: -1 }
+}
+
+/** Matches an element whose full (deep) text content is exactly `text` — the "По уровням"
+ *  row numbers are split across several colored `<span>`s (учу/знаю), so the built-in string
+ *  matcher (which only looks at a node's own direct text-node children) can never find them;
+ *  this checks `element.textContent` directly instead. */
+function exactTextContent(text: string) {
+  return (_content: string, element: Element | null) => element?.textContent === text
 }
 
 function vocabSkill(
@@ -61,15 +69,18 @@ async function learnWord(wordId: string, stability: number, due = 1000): Promise
   await recomputeWordProgress(wordId)
 }
 
-/** Surfaces the pushed route + the filters store's current `pos` so a test can assert what
- *  "Открыть"/a POS row actually did, without needing the real `WordsListPage`. */
+/** Surfaces the pushed route + the filters store's current `pos`/`levels` so a test can
+ *  assert what "Открыть"/a level row actually did, without needing the real
+ *  `WordsListPage`. */
 function WordsRouteProbe() {
   const location = useLocation()
   const pos = useFiltersStore((s) => s.pos)
+  const levels = useFiltersStore((s) => s.levels)
   return (
     <div>
       <p data-testid="path">{location.pathname}</p>
       <p data-testid="pos-filter">{pos ?? 'ALL'}</p>
+      <p data-testid="levels-filter">{levels.length > 0 ? levels.join(',') : 'ALL'}</p>
     </div>
   )
 }
@@ -164,12 +175,13 @@ describe('HomePage', () => {
 
     await waitFor(() => expect(screen.getByText(/1 изучается/)).toBeInTheDocument())
     expect(screen.getByText(/2 выучено/)).toBeInTheDocument()
-    // "Существительные": 1 learned (kobieta) out of 3 nouns in the index (kot, pies, kobieta).
-    expect(screen.getByText('1 / 3')).toBeInTheDocument()
-    // "Глаголы": 1 learned (być) out of 1 verb in the index.
-    expect(screen.getByText('1 / 1')).toBeInTheDocument()
-    // "Прилагательные" and "Наречия": no adjectives or adverbs in the fixture index at all.
-    expect(screen.getAllByText('0 / 0')).toHaveLength(2)
+    // "По уровням": all four fixture words are A1 -> 1 learning (kot) / 2 known (kobieta,
+    // być) / 4 total. pies stays unstarted, so A1 isn't fully started and every level above
+    // it collapses into one locked row.
+    expect(screen.getByText('A1')).toBeInTheDocument()
+    expect(screen.getByText(exactTextContent('1 / 2 / 4'))).toBeInTheDocument()
+    expect(screen.getByText('A2 – C2')).toBeInTheDocument()
+    expect(screen.getByText('Откроются позже')).toBeInTheDocument()
   })
 
   it('"Открыть" opens /words with the POS filter cleared', async () => {
@@ -185,18 +197,16 @@ describe('HomePage', () => {
     expect(screen.getByTestId('pos-filter')).toHaveTextContent('ALL')
   })
 
-  it('a POS row sets the filters store and opens /words scoped to that part of speech', async () => {
+  it('a level row sets the filters store and opens /words scoped to that level', async () => {
     initIndexStore([entry('kot', 'NOUN', 1)])
     await openDatabase()
 
     renderHomePage()
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /Существительные/ })).toBeInTheDocument(),
-    )
-    screen.getByRole('button', { name: /Существительные/ }).click()
+    await waitFor(() => expect(screen.getByRole('button', { name: /A1/ })).toBeInTheDocument())
+    screen.getByRole('button', { name: /A1/ }).click()
 
     await waitFor(() => expect(screen.getByTestId('path')).toHaveTextContent('/words'))
-    expect(screen.getByTestId('pos-filter')).toHaveTextContent('NOUN')
+    expect(screen.getByTestId('levels-filter')).toHaveTextContent('A1')
   })
 
   it('the CTA always navigates to /session with no setup screen', async () => {
@@ -236,10 +246,14 @@ describe('HomePage', () => {
 
     renderHomePage()
 
-    await waitFor(() =>
-      expect(screen.getByText('Сейчас изучаем: A1 · осталось 2 слова')).toBeInTheDocument(),
+    const levelGateLine = await waitFor(() =>
+      screen.getByText('Сейчас изучаем: A1 · осталось 2 слова'),
     )
-    expect(screen.queryByText(/A2/)).not.toBeInTheDocument()
+    // Scoped to the hero card itself — the "По уровням" section below legitimately mentions
+    // A2 now (task text for this task), but the level-gate line must still never list it.
+    expect(
+      within(levelGateLine.closest('section')!).queryByText(/A2/),
+    ).not.toBeInTheDocument()
   })
 
   it('level-gate line switches to the next level the instant the current one is fully started (no ratchet, no early threshold)', async () => {

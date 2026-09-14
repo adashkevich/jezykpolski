@@ -82,15 +82,43 @@ function bucketProgress<K extends string>(
   })
 }
 
+/** "По уровням" row shape — like `BucketProgress` but with an extra "учу" (`learning`)
+ *  count/percent alongside "знаю" (`known`), since the "По уровням" block (unlike "Части
+ *  речи") shows both statuses at once. */
+export interface LevelBucketProgress {
+  key: LevelValue
+  /** `status ∈ {'known', 'mastered'}` for this level — "знаю". */
+  known: number
+  /** `status === 'learning'` for this level — "учу". */
+  learning: number
+  total: number
+  /** `known / total`, 0..1; `0` when `total` is `0`. */
+  percent: number
+  /** `learning / total`, 0..1; `0` when `total` is `0`. */
+  learningPercent: number
+}
+
 /** "По уровням" — one row per `LEVEL_VALUES` entry (A1..C2), in that order (acceptance
  *  point 1: numerator matches `/words`'s own level+status filter exactly, since both read
  *  the same `known ∪ mastered` id set; acceptance point 2: denominator is
  *  `getIndexStore().byLevel`'s per-level bucket size, content — not a `wordProgress` count). */
-export function levelProgress(summary: WordProgressSummary): BucketProgress<LevelValue>[] {
+export function levelProgress(summary: WordProgressSummary): LevelBucketProgress[] {
   const totals = new Map<LevelValue, number>()
   for (const level of LEVEL_VALUES) totals.set(level, 0)
   for (const entry of getIndexStore().byLevel) totals.set(entry.level, (totals.get(entry.level) ?? 0) + 1)
-  return bucketProgress(LEVEL_VALUES, summary.learnedByLevel, (level) => totals.get(level) ?? 0)
+  return LEVEL_VALUES.map((level) => {
+    const total = totals.get(level) ?? 0
+    const known = summary.learnedByLevel[level] ?? 0
+    const learning = summary.learningByLevel[level] ?? 0
+    return {
+      key: level,
+      known,
+      learning,
+      total,
+      percent: total > 0 ? known / total : 0,
+      learningPercent: total > 0 ? learning / total : 0,
+    }
+  })
 }
 
 /** "Части речи" — one row per `POS_VALUES` entry (NOUN/VERB/ADJ/ADV). Denominator is

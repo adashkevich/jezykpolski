@@ -196,6 +196,7 @@ describe('getWordProgressSummary', () => {
       learnedTotal: 0,
       learnedByPos: {},
       learnedByLevel: {},
+      learningByLevel: {},
     })
   })
 
@@ -235,6 +236,7 @@ describe('getWordProgressSummary', () => {
       learnedTotal: 7, // 4 known + 3 mastered
       learnedByPos: { NOUN: 4, VERB: 2, ADJ: 1 },
       learnedByLevel: { A1: 2, A2: 3, B1: 2 }, // kobieta+człowiek / rower+dom+mieć / dobry+robić
+      learningByLevel: { A1: 3 }, // kot+pies+być, all A1
     })
   })
 

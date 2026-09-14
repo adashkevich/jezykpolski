@@ -7,6 +7,13 @@
       "runtimeArgs": ["-c", "npm run preview -- --port ${PORT:-4173} --strictPort"],
       "port": 4173,
       "autoPort": true
+    },
+    {
+      "name": "dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "npm run dev -- --port ${PORT:-5173} --strictPort"],
+      "port": 5173,
+      "autoPort": true
     }
   ]
 }

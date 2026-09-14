@@ -1,9 +1,9 @@
 /**
  * "Выйти" confirmation (`spec/tasks/13-session-runner.md` §6): "Прогресс уже сохранён,
- * терять нечего — но пользователя надо предупредить, что сессия закроется." Same
- * `AlertDialog` pattern as `word-detail/components/ResetProgressDialog.tsx` (task 08) —
- * an explicit choice, not a dismiss-on-outside-click sheet, since leaving mid-session is
- * still a deliberate action worth a beat of friction even though nothing is actually lost.
+ * терять нечего — но пользователя надо предупредить, что сессия закроется." Radix's
+ * `AlertDialog` — an explicit choice, not a dismiss-on-outside-click sheet, since leaving
+ * mid-session is still a deliberate action worth a beat of friction even though nothing is
+ * actually lost.
  */
 import { AlertDialog } from 'radix-ui'
 import { Button } from '@/components/ui/button.tsx'

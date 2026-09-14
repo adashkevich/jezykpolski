@@ -9,7 +9,8 @@
  * `DegreeComparisonBlock`, the same component `AdjFormsTable` uses for its own degree block —
  * this file only computes ADV's rows and keeps its own empty-state message (an adverb with no
  * comparison forms has nothing else on the card to show, unlike an ADJ card which still has
- * its case x gender table above).
+ * its case x gender table above). `kind="adv"` also tells `DegreeComparisonBlock` to show the
+ * Russian degree names and drop the "новое" untrained-state text — see that file's header.
  */
 import { getFormsForSlot } from '@/content/paradigms.ts'
 import { DEGREE_DISPLAY_ORDER } from '@/learning/skills/dimensions.ts'

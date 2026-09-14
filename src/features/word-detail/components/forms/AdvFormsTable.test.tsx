@@ -56,15 +56,20 @@ function renderTable(wordId: string, paradigm: Paradigm) {
 afterEach(() => cleanup())
 
 describe('dyskretnie — all three degrees render via the shared DegreeComparisonBlock', () => {
-  it('shows the same "Степени сравнения" heading and row shape AdjFormsTable uses', () => {
+  it('shows the same "Степени сравнения" heading and row shape AdjFormsTable uses, with ADV\'s own short Russian labels', () => {
     renderTable(DYSKRETNIE_ID, dyskretnieParadigm)
     expect(screen.getByText('Степени сравнения')).toBeInTheDocument()
-    expect(screen.getByText('Stopień równy:')).toBeInTheDocument()
+    expect(screen.getByText('Исходная форма')).toBeInTheDocument()
     expect(screen.getByText('dyskretnie')).toBeInTheDocument()
-    expect(screen.getByText('Stopień wyższy:')).toBeInTheDocument()
+    expect(screen.getByText('Сравнительная')).toBeInTheDocument()
     expect(screen.getByText('dyskretniej')).toBeInTheDocument()
-    expect(screen.getByText('Stopień najwyższy:')).toBeInTheDocument()
+    expect(screen.getByText('Превосходная')).toBeInTheDocument()
     expect(screen.getByText('najdyskretniej')).toBeInTheDocument()
+  })
+
+  it('an untrained comparative/superlative shows no "новое" clutter next to the form', () => {
+    renderTable(DYSKRETNIE_ID, dyskretnieParadigm)
+    expect(screen.queryByText('новое')).not.toBeInTheDocument()
   })
 
   it('comparative/superlative rows are clickable buttons (enumerateSkills makes adv:degree:comparative/superlative); positive is not (no such skill)', async () => {
@@ -73,9 +78,11 @@ describe('dyskretnie — all three degrees render via the shared DegreeCompariso
 
     // Positive: plain text, no button — `enumerateSkills`'s ADV branch never produces
     // `adv:degree:positive` (an adverb's own base form isn't a recall-worthy skill).
-    expect(screen.queryByRole('button', { name: /Stopień równy/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Исходная форма/i })).not.toBeInTheDocument()
 
-    const comparativeButton = screen.getByRole('button', { name: /Stopień wyższy.*dyskretniej/i })
+    const comparativeButton = screen.getByRole('button', {
+      name: /Сравнительная.*dyskretniej/i,
+    })
     await user.click(comparativeButton)
     const state = JSON.parse(screen.getByTestId('session-state').textContent ?? '{}') as {
       targetSkillIds?: string[]
@@ -89,9 +96,9 @@ describe('dyskretnie — all three degrees render via the shared DegreeCompariso
 describe('niejednokrotnie — only the positive degree exists, no comparative/superlative rows', () => {
   it('shows exactly one row, as plain text (no skill to train)', () => {
     renderTable(NIEJEDNOKROTNIE_ID, niejednokrotnieParadigm)
-    expect(screen.getByText('Stopień równy:')).toBeInTheDocument()
-    expect(screen.queryByText('Stopień wyższy:')).not.toBeInTheDocument()
-    expect(screen.queryByText('Stopień najwyższy:')).not.toBeInTheDocument()
+    expect(screen.getByText('Исходная форма')).toBeInTheDocument()
+    expect(screen.queryByText('Сравнительная')).not.toBeInTheDocument()
+    expect(screen.queryByText('Превосходная')).not.toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 })

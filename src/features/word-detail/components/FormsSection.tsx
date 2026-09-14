@@ -1,12 +1,11 @@
 /**
- * "Формы слова" — collapsible, closed by default (`spec/tasks/08-word-detail.md` §3, FR-42,
- * acceptance points 1 and 9). Does not render at all for the 14 paradigm-less words
- * (acceptance point 4: absent, not an empty/disabled block) — `WordDetailPage` only mounts
- * this component when `entry.paradigmShard !== -1`, so that check isn't duplicated here.
- *
- * Expanding the disclosure is the ONE thing that calls `lazyParadigm.load()` — collapsing it
- * back does not discard already-fetched data (no point re-fetching on next expand), it's a
- * pure `open` toggle.
+ * "Формы слова" — always expanded for every POS that has one: NOUN's "Формы и склонение",
+ * VERB's "Формы и спряжение", ADJ's own "Формы и склонение" (`spec/design/word-noun.png` /
+ * `word-verb.png` / `word-adjective.png`) and ADV's "Формы слова" (only degrees of comparison,
+ * nothing to decline). None of them have a disclosure control — they load their paradigm on
+ * mount instead of on click. Does not render at all for the 14 paradigm-less words (acceptance
+ * point 4: absent, not an empty/disabled block) — `WordDetailPage` only mounts this component
+ * when `entry.paradigmShard !== -1`, so that check isn't duplicated here.
  *
  * `wordId`/`skills` (task 17, `spec/tasks/17-nouns-section.md` §4) were threaded through only
  * as far as `NounFormsTable` at first — the one table task 17 made clickable. Task 20
@@ -23,7 +22,7 @@
  * same generic "Не удалось загрузить формы: <message>" + Retry shown for a genuine (online)
  * failure, where retrying is actually the useful next step.
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button.tsx'
@@ -73,8 +72,16 @@ export function FormsSection({
   lazyParadigm: LazyParadigm
   skills: readonly SkillRecord[] | undefined
 }) {
-  const [open, setOpen] = useState(false)
+  const alwaysOpen = pos === 'NOUN' || pos === 'VERB' || pos === 'ADJ' || pos === 'ADV'
+  const [open, setOpen] = useState(alwaysOpen)
   const online = useOnlineStatus()
+
+  // NOUN's "Формы и склонение" / VERB's "Формы и спряжение" / ADJ's "Формы и склонение" are
+  // always expanded (never collapsible) — load their paradigm as soon as the section mounts
+  // instead of waiting for a disclosure click that doesn't exist.
+  useEffect(() => {
+    if (alwaysOpen) lazyParadigm.load()
+  }, [alwaysOpen, wordId, lazyParadigm.load])
 
   function handleToggle() {
     const next = !open
@@ -84,25 +91,31 @@ export function FormsSection({
 
   return (
     <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-card">
-      <button
-        type="button"
-        onClick={handleToggle}
-        aria-expanded={open}
-        className="-m-1 flex min-h-11 items-center justify-between gap-2 rounded-lg p-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-      >
-        <span className="font-heading text-headline-md text-foreground">Формы слова</span>
-        <span
-          aria-hidden="true"
-          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary"
+      {alwaysOpen ? (
+        <h2 className="font-heading text-headline-md text-foreground">
+          {pos === 'VERB' ? 'Формы и спряжение' : pos === 'ADV' ? 'Формы слова' : 'Формы и склонение'}
+        </h2>
+      ) : (
+        <button
+          type="button"
+          onClick={handleToggle}
+          aria-expanded={open}
+          className="-m-1 flex min-h-11 items-center justify-between gap-2 rounded-lg p-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
-          <ChevronDown
-            className={cn(
-              'size-5 text-foreground transition-transform motion-reduce:transition-none',
-              open && 'rotate-180',
-            )}
-          />
-        </span>
-      </button>
+          <span className="font-heading text-headline-md text-foreground">Формы слова</span>
+          <span
+            aria-hidden="true"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary"
+          >
+            <ChevronDown
+              className={cn(
+                'size-5 text-foreground transition-transform motion-reduce:transition-none',
+                open && 'rotate-180',
+              )}
+            />
+          </span>
+        </button>
+      )}
 
       {open && (
         <div>
@@ -123,8 +136,8 @@ export function FormsSection({
               </div>
             ) : (
               <p className="text-body-sm text-muted-foreground">
-                Формы недоступны офлайн. Откройте это слово ещё раз при подключении к сети —
-                или включите заранее в{' '}
+                Формы недоступны офлайн. Откройте это слово ещё раз при подключении к сети — или
+                включите заранее в{' '}
                 <Link to="/settings" className="text-foreground underline underline-offset-2">
                   настройках
                 </Link>{' '}

@@ -1,6 +1,8 @@
 /**
  * "Прогресс" — two independent bars plus an expandable per-dimension breakdown
- * (`spec/tasks/08-word-detail.md` §4, FR-46/FR-47, `spec/architecture.md` §5.4/§5.5).
+ * (`spec/tasks/08-word-detail.md` §4, FR-46/FR-47, `spec/architecture.md` §5.4/§5.5). NOUN,
+ * VERB, ADJ and ADV all show only the "Запоминание карточки" bar — no "Формы" bar and no
+ * "Детализация по измерениям" disclosure — both are hidden via `hideFormsBreakdown` below.
  *
  * The two top-level bars read `WordProgressRecord.vocabMaturity`/`morphMaturity` straight
  * from the denormalized cache (`useWordProgress`, task 05) rather than recomputing
@@ -58,6 +60,8 @@ export function ProgressSection({
   skills: readonly SkillRecord[] | undefined
 }) {
   const [open, setOpen] = useState(false)
+  const hideFormsBreakdown =
+    entry.pos === 'NOUN' || entry.pos === 'VERB' || entry.pos === 'ADJ' || entry.pos === 'ADV'
 
   const descriptors = useMemo(
     () => enumerateSkills(entry, paradigm ?? undefined),
@@ -79,14 +83,14 @@ export function ProgressSection({
     // No card chrome of its own — `WordDetailPage` wraps this together with `WordActions` in
     // one "spaced repetition" card, as in the design mockups.
     <div className="flex flex-col gap-4">
-      <h2 className="font-heading text-headline-md text-foreground">Прогресс</h2>
+      <h2 className="font-heading text-headline-md text-foreground">Интервальное повторение</h2>
 
       <div className="flex flex-col gap-3">
-        <MaturityBar label="Слово" value={vocabMaturity} />
-        {hasParadigm && <MaturityBar label="Формы" value={morphMaturity} />}
+        <MaturityBar label="Запоминание карточки" value={vocabMaturity} />
+        {hasParadigm && !hideFormsBreakdown && <MaturityBar label="Формы" value={morphMaturity} />}
       </div>
 
-      {hasParadigm && (
+      {hasParadigm && !hideFormsBreakdown && (
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
@@ -101,7 +105,8 @@ export function ProgressSection({
         </button>
       )}
 
-      {open &&
+      {!hideFormsBreakdown &&
+        open &&
         (paradigm ? (
           <div className="flex flex-col gap-3">
             {groups.map((group) => (

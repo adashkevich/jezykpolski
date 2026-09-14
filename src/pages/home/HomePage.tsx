@@ -14,14 +14,15 @@
  * with no manual refetch anywhere on this page (acceptance point 4):
  *  - "N слов готовы к повторению" — `useDueCount()` (task 05/11), already an index-only
  *    `countDue` query (`skills.repository.ts`, the `due` index).
- *  - "изучается / выучено", overall and per part of speech — `useWordProgressSummary()`
- *    (`src/hooks/useWordProgressSummary.ts`, new in this task). Its repository function
- *    reads `wordProgress` ONLY through the `status` index
- *    (`.where('status').equals(...).primaryKeys()`, never `.toArray()` over the full
- *    ~8000-row table — acceptance point 8) and buckets the matches by POS from the
- *    already-decoded `wordId` (`decodeWordId`). The *denominator* — how many words a
- *    section has in total — comes from `getIndexStore().byPos`, the in-memory content index
- *    built once at startup (task 04): a synchronous `Map` read, not a second Dexie query.
+ *  - "изучается / выучено", overall — `useWordProgressSummary()`
+ *    (`src/hooks/useWordProgressSummary.ts`). Its repository function reads `wordProgress`
+ *    ONLY through the `status` index (`.where('status').equals(...).primaryKeys()`, never
+ *    `.toArray()` over the full ~8000-row table — acceptance point 8).
+ *  - "По уровням" — the same `LevelProgressCard` (`features/stats/components/
+ *    LevelProgressCard.tsx`) `/stats` uses for its own "По уровням" block, so the two screens
+ *    can never disagree: per-level "учу"/"знаю"/total counts from `stats.repository.ts
+ *    #levelProgress`, denominator from `getIndexStore().byLevel` (task 04, in-memory, not a
+ *    second Dexie query), gated the same way by `useLevelGate()`.
  *  - "Сегодня" — `useDailyStats()` for today's local-calendar-day `DailyStatsRecord`.
  *
  * Deliberately no streak counter or weekly delta even though the mockup sketches them:
@@ -38,11 +39,11 @@
  *    повторений" rather than "0 слов готовы к повторению" (acceptance point 7 — a bare zero
  *    reads as broken, not as "you're caught up").
  *
- * Navigation for "Открыть"/a POS row: sets `useFiltersStore`'s `pos` filter and pushes
- * `/words` — reusing the store's own setter (`filters.store.ts`, task 07) rather than a new
- * mechanism, so `/words` opens already scoped to that part of speech instead of landing on
- * the still-stub `/nouns`/`/verbs`/`/adjectives` pages (architecture.md §9 documents those
- * as reachable via a POS switcher *inside* "Слова", not as independent list screens yet).
+ * Navigation for "Открыть"/a level row: sets `useFiltersStore`'s `pos`/`levels` filter and
+ * pushes `/words` — reusing the store's own setters (`filters.store.ts`, task 07) rather than
+ * a new mechanism, so `/words` opens already scoped instead of landing on the still-stub
+ * `/nouns`/`/verbs`/`/adjectives` pages (architecture.md §9 documents those as reachable via a
+ * POS switcher *inside* "Слова", not as independent list screens yet).
  */
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
@@ -58,22 +59,26 @@ import {
 import { PageContainer } from '@/components/app/PageContainer.tsx'
 import { PageHeader } from '@/components/app/PageHeader.tsx'
 import { Button } from '@/components/ui/button.tsx'
-import type { PosValue } from '@/content/codec.ts'
+import type { LevelValue } from '@/content/codec.ts'
 import { getIndexStore } from '@/content/index-store.ts'
+import type { WordProgressSummary } from '@/db/repositories/words-progress.repository.ts'
 import { LearnHero } from '@/features/learn/components/LearnHero.tsx'
+import { LevelProgressCard } from '@/features/stats/components/LevelProgressCard.tsx'
 import { useDailyStats } from '@/hooks/useDailyStats.ts'
+import { useLevelGate } from '@/hooks/useLevelGate.ts'
 import { useWordProgressSummary } from '@/hooks/useWordProgressSummary.ts'
 import { toLocalDateKey } from '@/lib/dates.ts'
 import { pluralize } from '@/lib/pluralize.ts'
 import { cn } from '@/lib/utils'
 import { useFiltersStore } from '@/stores/filters.store.ts'
 
-const POS_SECTIONS: ReadonlyArray<{ pos: PosValue; label: string; pl: string; bar: string }> = [
-  { pos: 'NOUN', label: 'Существительные', pl: 'Rzeczowniki', bar: 'bg-primary' },
-  { pos: 'VERB', label: 'Глаголы', pl: 'Czasowniki', bar: 'bg-state-learning' },
-  { pos: 'ADJ', label: 'Прилагательные', pl: 'Przymiotniki', bar: 'bg-muted-foreground' },
-  { pos: 'ADV', label: 'Наречия', pl: 'Przysłówki', bar: 'bg-muted-foreground' },
-]
+const EMPTY_SUMMARY: WordProgressSummary = {
+  learningTotal: 0,
+  learnedTotal: 0,
+  learnedByPos: {},
+  learnedByLevel: {},
+  learningByLevel: {},
+}
 
 function ratio(part: number, total: number): number {
   return total > 0 ? Math.min(100, Math.round((part / total) * 100)) : 0
@@ -132,6 +137,7 @@ export function HomePage() {
 
   const summary = useWordProgressSummary()
   const dailyStats = useDailyStats(today)
+  const levelGate = useLevelGate()
 
   const learningTotal = summary?.learningTotal ?? 0
   const learnedTotal = summary?.learnedTotal ?? 0
@@ -142,8 +148,13 @@ export function HomePage() {
   const newSkillsStarted = dailyStats?.newSkillsStarted ?? 0
   const percentCorrect = reviewsCount > 0 ? Math.round((correctCount / reviewsCount) * 100) : null
 
-  function openWords(pos?: PosValue) {
-    useFiltersStore.getState().setPos(pos ?? null)
+  function openWords() {
+    useFiltersStore.getState().setPos(null)
+    navigate('/words')
+  }
+
+  function openLevel(level: LevelValue) {
+    useFiltersStore.getState().setLevels([level])
     navigate('/words')
   }
 
@@ -230,33 +241,11 @@ export function HomePage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-headline-md text-foreground">По частям речи</h2>
-        <ul className="flex flex-col gap-2.5">
-          {POS_SECTIONS.map(({ pos, label, pl, bar }) => {
-            const total = getIndexStore().byPos.get(pos)?.length ?? 0
-            const learned = summary?.learnedByPos[pos] ?? 0
-            return (
-              <li key={pos}>
-                <button
-                  type="button"
-                  onClick={() => openWords(pos)}
-                  className="flex min-h-18 w-full items-center justify-between gap-4 rounded-2xl border border-border bg-card px-5 py-4 text-left shadow-card transition-colors hover:bg-surface-low focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
-                >
-                  <span className="flex min-w-0 flex-col">
-                    <span className="text-headline-sm break-words text-foreground">{label}</span>
-                    <span className="text-label-md font-semibold text-muted-foreground">{pl}</span>
-                  </span>
-                  <span className="flex w-24 shrink-0 flex-col items-end gap-2">
-                    <span className="tnum text-label-lg text-foreground">
-                      {learned.toLocaleString('ru-RU')} / {total.toLocaleString('ru-RU')}
-                    </span>
-                    <Bar percent={ratio(learned, total)} className={bar} />
-                  </span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
+        <LevelProgressCard
+          summary={summary ?? EMPTY_SUMMARY}
+          levelGate={levelGate}
+          onSelectLevel={openLevel}
+        />
       </section>
     </PageContainer>
   )

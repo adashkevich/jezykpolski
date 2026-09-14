@@ -27,6 +27,12 @@
  * ADJ has no such gap (its citation-slot rule fires for any degree present, including
  * `positive`). `hasSkillFor` below encodes exactly that asymmetry so an ADV positive row
  * renders as plain text, never a button with nothing real to navigate to.
+ *
+ * The `kind` prop also picks the row label and the untrained-state text, per the adverb page's
+ * own requirements: ADV shows its own short Russian label (`ADV_DEGREE_LABELS` below, not the
+ * Polish `label.pl` ADJ keeps) since the label itself isn't something to learn — and it never
+ * shows the "новое" placeholder `cellStateLabel` still returns for ADJ, the same "no clutter
+ * for an untouched skill" rule `NounFormsTable`/`VerbFormsTable` already follow.
  */
 import { useNavigate } from 'react-router'
 import type { DegreeValue } from '@/content/codec.ts'
@@ -40,9 +46,12 @@ export interface DegreeRow {
   readonly forms: readonly string[]
 }
 
-function cellStateLabel(skill: SkillRecord | undefined): string {
+/** ADV rows never show the "новое" placeholder (no clutter for a never-trained skill, same
+ *  convention `NounFormsTable`/`VerbFormsTable` already follow) — only a real percentage or ✓
+ *  once there's something to show. ADJ keeps "новое" as before. */
+function cellStateLabel(skill: SkillRecord | undefined, kind: 'adj' | 'adv'): string {
   const maturity = skillMaturity(skill)
-  if (skill === undefined || maturity <= 0) return 'новое'
+  if (skill === undefined || maturity <= 0) return kind === 'adv' ? '' : 'новое'
   if (maturity >= MASTERED_THRESHOLD) return '✓'
   return `${Math.round(maturity * 100)}%`
 }
@@ -51,6 +60,17 @@ function cellStateLabel(skill: SkillRecord | undefined): string {
  *  degree present in the data, ADV never has one for `positive`. */
 function hasSkillFor(kind: 'adj' | 'adv', degree: DegreeValue): boolean {
   return kind === 'adj' || degree !== 'positive'
+}
+
+/** ADV's own row labels — shorter and worded differently from `DEGREE_LABELS.ru` (which ADJ's
+ *  aria-label still uses as its parenthetical): "Исходная форма" rather than "Положительная
+ *  степень" for `positive` (an adverb's base form isn't really a "degree" the way ADJ's is),
+ *  and the other two trimmed to just the adjective ("Сравнительная"/"Превосходная") since
+ *  "степень" is implied by the "Степени сравнения" heading above them. */
+const ADV_DEGREE_LABELS: Readonly<Record<DegreeValue, string>> = {
+  positive: 'Исходная форма',
+  comparative: 'Сравнительная',
+  superlative: 'Превосходная',
 }
 
 export function DegreeComparisonBlock({
@@ -95,33 +115,48 @@ export function DegreeComparisonBlock({
       <ul className="grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] gap-2">
         {rows.map((row) => {
           const label = DEGREE_LABELS[row.degree]
+          // ADV shows its own short Russian label, with no trailing colon (nothing to learn
+          // in the label itself, unlike the Polish forms) — ADJ keeps Polish primary /
+          // Russian parenthetical, colon included.
+          const labelText =
+            kind === 'adv' ? ADV_DEGREE_LABELS[row.degree] : `${label.pl}:`
           const formsText = row.forms.join(' / ')
 
           if (!hasSkillFor(kind, row.degree)) {
             return (
               <li key={row.degree} className={tileClass}>
-                <span className="text-label-md text-muted-foreground">{label.pl}:</span>
+                <span className="text-label-md text-muted-foreground">{labelText}</span>
                 <span className={formClass(row.degree)}>{formsText}</span>
               </li>
             )
           }
 
           const skillId = encodeSkillId(wordId, `${kind}:degree:${row.degree}`)
-          const stateLabel = cellStateLabel(known.get(skillId))
+          const stateLabel = cellStateLabel(known.get(skillId), kind)
+          const stateSuffix = stateLabel ? ` — ${stateLabel}` : ''
+          const ariaLabel =
+            kind === 'adv'
+              ? `${labelText}: ${formsText}${stateSuffix}. Тренировать.`
+              : `${label.pl} (${label.ru}): ${formsText}${stateSuffix}. Тренировать.`
 
           return (
             <li key={row.degree}>
               <button
                 type="button"
                 onClick={() => handleTrain(skillId)}
-                aria-label={`${label.pl} (${label.ru}): ${formsText} — ${stateLabel}. Тренировать.`}
+                aria-label={ariaLabel}
                 className={`${tileClass} transition-colors hover:bg-surface-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50`}
               >
-                <span className="text-label-md text-muted-foreground">{label.pl}:</span>
+                <span className="text-label-md text-muted-foreground">{labelText}</span>
                 <span className={formClass(row.degree)}>{formsText}</span>
-                <span aria-hidden="true" className="text-[10px] leading-none text-muted-foreground">
-                  {stateLabel}
-                </span>
+                {stateLabel && (
+                  <span
+                    aria-hidden="true"
+                    className="text-[10px] leading-none text-muted-foreground"
+                  >
+                    {stateLabel}
+                  </span>
+                )}
               </button>
             </li>
           )

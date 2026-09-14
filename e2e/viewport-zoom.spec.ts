@@ -71,9 +71,7 @@ test.describe('320px mobile viewport — no auto-zoom, no horizontal scroll', ()
     await expect(page.getByRole('link', { name: 'Polski' })).toBeVisible()
     await expectNoHorizontalScroll(page, '/settings')
 
-    await expectFocusedFontSizeAtLeast16(
-      page.getByRole('combobox', { name: 'Новых слов в день' }),
-    )
+    await expectFocusedFontSizeAtLeast16(page.getByRole('combobox', { name: 'Новых слов в день' }))
   })
 
   test('practice setup: forms block select', async ({ page }) => {
@@ -92,8 +90,11 @@ test.describe('320px mobile viewport — no auto-zoom, no horizontal scroll', ()
   test('table practice: NOUN declension cell input', async ({ page }) => {
     await page.goto('/words')
     await page.getByRole('searchbox').fill('kobieta')
-    await page.getByRole('link', { name: /kobieta/ }).first().click()
-    await page.getByRole('button', { name: 'Формы слова' }).click()
+    await page
+      .getByRole('link', { name: /kobieta/ })
+      .first()
+      .click()
+    // "Формы и склонение" is always expanded (no disclosure button).
     await page.getByRole('button', { name: 'Тренировать таблицей' }).click()
     await expect(page).toHaveURL(/\/practice\/table\//)
     await expectNoHorizontalScroll(page, '/practice/table/:wordId')
@@ -109,7 +110,10 @@ test.describe('320px mobile viewport — no auto-zoom, no horizontal scroll', ()
 
     await page.goto('/words')
     await page.getByRole('searchbox').fill('kobieta')
-    await page.getByRole('link', { name: /kobieta/ }).first().click()
+    await page
+      .getByRole('link', { name: /kobieta/ })
+      .first()
+      .click()
     await expect(page).toHaveURL(/\/words\/kobieta/)
     await expectNoHorizontalScroll(page, '/words/:wordId')
   })

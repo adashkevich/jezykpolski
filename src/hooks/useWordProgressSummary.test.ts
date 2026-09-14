@@ -80,6 +80,7 @@ describe('useWordProgressSummary', () => {
         learnedTotal: 0,
         learnedByPos: {},
         learnedByLevel: {},
+        learningByLevel: {},
       }),
     )
   })
@@ -107,6 +108,7 @@ describe('useWordProgressSummary', () => {
         learnedTotal: 3,
         learnedByPos: { NOUN: 1, VERB: 1, ADJ: 1 },
         learnedByLevel: { A1: 3 },
+        learningByLevel: { A1: 2 },
       }),
     )
   })
@@ -127,6 +129,7 @@ describe('useWordProgressSummary', () => {
         learnedTotal: 1,
         learnedByPos: { NOUN: 1 },
         learnedByLevel: { A1: 1 },
+        learningByLevel: {},
       }),
     )
   })

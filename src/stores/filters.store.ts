@@ -57,6 +57,7 @@ interface FiltersState extends PersistedFilters {
    *  scroll container, so returning from a word-card navigation can restore it. */
   scrollOffset: number
   toggleLevel: (level: LevelValue) => void
+  setLevels: (levels: LevelValue[]) => void
   setPos: (pos: PosValue | null) => void
   setStatus: (status: WordStatus | null) => void
   setTopN: (topN: TopNOption) => void
@@ -104,6 +105,7 @@ export const useFiltersStore = create<FiltersState>()(
             : [...state.levels, level],
         })),
 
+      setLevels: (levels) => set({ levels }),
       setPos: (pos) => set({ pos }),
       setStatus: (status) => set({ status }),
       setTopN: (topN) => set({ topN }),

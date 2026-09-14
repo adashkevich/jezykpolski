@@ -196,6 +196,53 @@ export async function markWordUnknown(wordId: WordId, now = Date.now()): Promise
   return applyTriage(wordId, [{ dimension: 'vocab:pl-ru', srsState: createSwipeUnknownState(now) }])
 }
 
+/**
+ * "Не учить" button (`spec/design/word-noun.png`'s word-detail card): removes this word from
+ * the Learn/Practice queues by deleting its three `vocab:*` skills outright, rather than
+ * resetting them to a fresh `new` state the way `markWordUnknown` does — a fresh `new` skill
+ * is exactly what makes a word due again, the opposite of what this button promises. This is
+ * a genuinely different write shape from `applyTriage` above (which only ever puts records,
+ * never deletes), so it isn't built on that helper — it uses the same `[wordId+kind]` compound
+ * index `resetWord` (`skills.repository.ts`) reads, scoped to `kind: 'vocab'` so any `noun:*`/
+ * `verb:*`/etc. skills the word also has are left untouched.
+ *
+ * Deleting the vocab skills is NOT the same as excluding the word forever: with zero recorded
+ * skills the word's aggregate status reads back as `'new'`
+ * (`learning/progress/aggregate.ts#aggregateWord`), so it can resurface as a new-word candidate
+ * in a later session. That's an accepted tradeoff, not an oversight — there is deliberately no
+ * separate "excluded" flag on the word/progress record.
+ *
+ * Returns a `TriageSnapshot` so the caller's undo path is `undoTriage`, unchanged — the
+ * snapshot shape (previous per-skill records, `undefined` where a skill didn't exist) already
+ * expresses "put these back or delete them" regardless of whether the original write put or
+ * deleted.
+ */
+export async function forgetWordVocab(wordId: WordId): Promise<TriageSnapshot> {
+  const currentSkills = await getSkillsForWord(wordId)
+  const vocabSkills = currentSkills.filter((s) => s.kind === 'vocab')
+
+  const previousSkills = new Map<SkillId, SkillRecord | undefined>(
+    vocabSkills.map((s) => [s.skillId, s] as const),
+  )
+  const remainingSkills = currentSkills.filter((s) => s.kind !== 'vocab')
+
+  const previousWordProgress = await getWordProgress(wordId)
+  const nextWordProgress = await computeWordProgress(wordId, remainingSkills)
+
+  await db.transaction('rw', db.skills, db.wordProgress, async () => {
+    for (const skillId of previousSkills.keys()) {
+      await db.skills.delete(skillId)
+    }
+    if (nextWordProgress === undefined) {
+      await db.wordProgress.delete(wordId)
+    } else {
+      await db.wordProgress.put(nextWordProgress)
+    }
+  })
+
+  return { wordId, previousSkills, previousWordProgress }
+}
+
 /** Fully reverts a `markWordKnown`/`markWordUnknown` write — restores every touched skill
  *  row to exactly what it was before (deleting it if it didn't exist yet) and the
  *  `wordProgress` row the same way. */
