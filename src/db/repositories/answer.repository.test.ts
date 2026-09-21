@@ -347,3 +347,93 @@ describe('applyAnswer — awaitingRecognition (task 43 §1)', () => {
     expect((await db.skills.get(SKILL_ID))?.awaitingRecognition).toBe(true)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Задача 45 §2: `accuracyAttempts`/`accuracyClean` растут только на первом ответе в сессии.
+// ---------------------------------------------------------------------------
+
+describe('applyAnswer — счётчики точности дня (задача 45 §2)', () => {
+  /** Ответ в тот же день; `reviewedAt` сдвигается, чтобы логи различались. */
+  function answer(
+    n: number,
+    fields: Pick<ReviewLogRecord, 'correct' | 'rating'> & Partial<ReviewLogRecord>,
+  ): AnswerInput {
+    const base = makeInput()
+    return {
+      ...base,
+      isNewSkill: false,
+      reviewLog: { ...base.reviewLog, reviewedAt: REVIEWED_AT + n * 1000, ...fields },
+    }
+  }
+
+  it('чистый первый ответ: 1 из 1', async () => {
+    await db.skills.add(BASE_SKILL)
+    await applyAnswer(answer(0, { correct: true, rating: 3, clean: true, firstInSession: true }))
+
+    const stats = await db.dailyStats.get(EXPECTED_DATE_KEY)
+    expect(stats?.accuracyAttempts).toBe(1)
+    expect(stats?.accuracyClean).toBe(1)
+  })
+
+  it('верный, но нечистый первый ответ (набор с исправленной буквой): попытка есть, чистого нет — 0 из 1', async () => {
+    await db.skills.add(BASE_SKILL)
+    await applyAnswer(answer(0, { correct: true, rating: 2, clean: false, firstInSession: true }))
+
+    const stats = await db.dailyStats.get(EXPECTED_DATE_KEY)
+    expect(stats?.correctCount).toBe(1) // «в итоге совпало» — счётчик повторений не меняется
+    expect(stats?.accuracyAttempts).toBe(1)
+    expect(stats?.accuracyClean).toBe(0)
+  })
+
+  it('неверный ответ + верный повтор в той же сессии: в точность входит один неверный ответ (0 из 1), а не 1 из 2', async () => {
+    await db.skills.add(BASE_SKILL)
+    await applyAnswer(answer(0, { correct: false, rating: 1, clean: false, firstInSession: true }))
+    await applyAnswer(
+      answer(1, { correct: true, rating: 3, clean: true, firstInSession: false, srsApplied: false }),
+    )
+
+    const stats = await db.dailyStats.get(EXPECTED_DATE_KEY)
+    expect(stats?.reviewsCount).toBe(2)
+    expect(stats?.correctCount).toBe(1)
+    expect(stats?.accuracyAttempts).toBe(1)
+    expect(stats?.accuracyClean).toBe(0)
+  })
+
+  it('ответ без полей задачи 45 (вызов по-старому) счётчики точности не заводит', async () => {
+    await db.skills.add(BASE_SKILL)
+    await applyAnswer(makeInput())
+
+    const stats = await db.dailyStats.get(EXPECTED_DATE_KEY)
+    expect(stats?.reviewsCount).toBe(1)
+    expect(stats && 'accuracyAttempts' in stats).toBe(false)
+    expect(stats && 'accuracyClean' in stats).toBe(false)
+  })
+
+  it('день, записанный до задачи 45 (без полей), продолжает копиться с нуля от первого нового ответа', async () => {
+    await db.skills.add(BASE_SKILL)
+    await db.dailyStats.put({
+      date: EXPECTED_DATE_KEY,
+      reviewsCount: 4,
+      correctCount: 3,
+      newSkillsStarted: 0,
+      sessionsCount: 1,
+      timeSpentMs: 0,
+      updatedAt: REVIEWED_AT,
+    })
+    await applyAnswer(answer(0, { correct: true, rating: 3, clean: true, firstInSession: true }))
+
+    const stats = await db.dailyStats.get(EXPECTED_DATE_KEY)
+    expect(stats?.reviewsCount).toBe(5)
+    expect(stats?.accuracyAttempts).toBe(1)
+    expect(stats?.accuracyClean).toBe(1)
+  })
+
+  it('firstInSession без явного clean: чистота берётся по запасному правилу (correct и рейтинг не Hard)', async () => {
+    await db.skills.add(BASE_SKILL)
+    await applyAnswer(answer(0, { correct: true, rating: 2, firstInSession: true }))
+
+    const stats = await db.dailyStats.get(EXPECTED_DATE_KEY)
+    expect(stats?.accuracyAttempts).toBe(1)
+    expect(stats?.accuracyClean).toBe(0)
+  })
+})

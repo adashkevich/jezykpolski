@@ -28,6 +28,7 @@
  */
 import { db } from '../database.ts'
 import { toLocalDateKey } from '@/lib/dates.ts'
+import { isCleanLog } from '@/learning/progress/accuracy.ts'
 import { nextCorrectStreak } from '@/learning/progress/stage.ts'
 import type { SkillId, WordId } from '@/learning/skills/skill-id.ts'
 import type {
@@ -145,6 +146,16 @@ export async function applyAnswer(input: AnswerInput): Promise<void> {
       correctCount: base.correctCount + (correct ? 1 : 0),
       newSkillsStarted: base.newSkillsStarted + (input.isNewSkill ? 1 : 0),
       timeSpentMs: base.timeSpentMs + input.reviewLog.elapsedMs,
+      // Задача 45 §2: «точность» дня — только первые ответы на навык в сессии, и верным в ней
+      // считается лишь чистый (`accuracy.ts`). `reviewsCount`/`correctCount` выше остаются как
+      // были: они считают все ответы, включая повторы, и счётчик повторений на главной берёт их.
+      // Поля пишутся только на первом ответе — у дня без них (записан до задачи 45) их нет.
+      ...(input.reviewLog.firstInSession === true
+        ? {
+            accuracyAttempts: (base.accuracyAttempts ?? 0) + 1,
+            accuracyClean: (base.accuracyClean ?? 0) + (isCleanLog(input.reviewLog) ? 1 : 0),
+          }
+        : {}),
       updatedAt: input.reviewLog.reviewedAt,
     })
   })

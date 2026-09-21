@@ -36,6 +36,7 @@ import { diffAnswer } from '@/learning/exercises/answer-diff.ts'
 import type { DimensionLabel } from '@/learning/skills/dimensions.ts'
 import {
   mistakeSkillIds,
+  type AssistedEntry,
   type HardestDimensionEntry,
   type MistakeEntry,
 } from '@/features/session-results/lib/build-session-summary.ts'
@@ -95,6 +96,36 @@ function MistakeRow({ entry }: { entry: MistakeEntry }) {
         ) : (
           <span className="text-success">{entry.expected}</span>
         )}
+      </p>
+    </li>
+  )
+}
+
+/** Пометки к верным-но-нечистым ответам (задача 45 §3) — те же слова, что статусы панели фидбэка
+ *  (`ExerciseFeedback`, задача 42). `null` — у лога нет `assist` (записан до задачи 45 или это
+ *  самооценка «Трудно»): причина неизвестна, честно остаётся «с трудом» — так Hard описан в
+ *  `policy.ts` («вспомнил, но с трудом»). */
+const ASSIST_NOTE: Readonly<Record<NonNullable<AssistedEntry['assist']> | 'unknown', string>> = {
+  corrected: 'с исправлением',
+  hinted: 'с подсказкой',
+  unknown: 'с трудом',
+}
+
+/** Ответ, верный не с первого раза или с помощью (задача 45): не ошибка, но он снизил процент, и без
+ *  этой строки падение ничем не объяснено. Текст пометки — отдельным элементом (не цветом
+ *  единственным, NFR-11). */
+function AssistedRow({ entry }: { entry: AssistedEntry }) {
+  return (
+    <li className="flex flex-col gap-1 border-b border-border py-3 last:border-b-0">
+      <p className="text-sm text-foreground">
+        <span className="font-medium">{entry.lemma}</span>
+        <span className="text-muted-foreground"> · {bilingual(entry.dimensionLabel)}</span>
+      </p>
+      <p className="flex items-center justify-between gap-3 font-mono text-sm">
+        <span className="text-success">{entry.expected}</span>
+        <span className="shrink-0 font-sans text-xs font-medium text-warning">
+          {ASSIST_NOTE[entry.assist ?? 'unknown']}
+        </span>
       </p>
     </li>
   )
@@ -190,13 +221,21 @@ export function SessionResultPage() {
         </Card>
       )}
 
-      {summary.mistakes.length > 0 && (
+      {/* Задача 45 §3: процент считает только чистые первые ответы, так что верный набор с
+          исправлением/подсказкой тоже «стоит» процентов — он показан в том же списке, что и
+          ошибки, с пометкой. Без таких ответов заголовок и список — как раньше. */}
+      {(summary.mistakes.length > 0 || summary.assisted.length > 0) && (
         <Card>
           <CardContent>
-            <h2 className="mb-1 font-heading text-base font-medium text-foreground">Ошибки</h2>
+            <h2 className="mb-1 font-heading text-base font-medium text-foreground">
+              {summary.assisted.length > 0 ? 'Что снизило процент' : 'Ошибки'}
+            </h2>
             <ul>
               {summary.mistakes.map((entry) => (
                 <MistakeRow key={entry.skillId} entry={entry} />
+              ))}
+              {summary.assisted.map((entry) => (
+                <AssistedRow key={entry.skillId} entry={entry} />
               ))}
             </ul>
           </CardContent>

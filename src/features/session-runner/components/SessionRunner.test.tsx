@@ -19,7 +19,11 @@ import { SessionRunner } from './SessionRunner.tsx'
 import { useSessionBootstrap } from '../hooks/useSessionBootstrap.ts'
 import type { SessionScope } from '../lib/session-scope.ts'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
+import { getDailyStats } from '@/db/repositories/daily-stats.repository.ts'
+import { getLogsForSession } from '@/db/repositories/reviews.repository.ts'
+import { getSession } from '@/db/repositories/sessions.repository.ts'
 import { getSkill, getSkillsForWord, upsertSkill } from '@/db/repositories/skills.repository.ts'
+import { toLocalDateKey } from '@/lib/dates.ts'
 import { recomputeWordProgress } from '@/db/repositories/words-progress.repository.ts'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
 import { __resetLoaderCachesForTest } from '@/content/loader.ts'
@@ -521,3 +525,65 @@ describe('«Показать слово» и блокировка ввода (з
   })
 })
 
+
+// ---------------------------------------------------------------------------
+// Задача 45: «точность» — только чистый первый ответ; сквозной путь через настоящий раннер.
+// ---------------------------------------------------------------------------
+
+describe('«Точность»: чистый первый ответ (задача 45)', () => {
+  const today = () => toLocalDateKey(Date.now())
+
+  async function startTyping() {
+    await seed(skillRecord('vocab:ru-pl-input'))
+    const runtime = await startSession({ kind: 'word', wordId: KOBIETA })
+    expect(currentSkillId()).toBe(skillId('vocab:ru-pl-input'))
+    return runtime
+  }
+
+  it('набор с исправленной буквой + безупречный повтор в той же сессии: точность дня и сессии — 0 из 1', async () => {
+    const user = userEvent.setup()
+    const runtime = await startTyping()
+
+    // Первый ответ: неверная первая буква, затем верное слово — исправленная ошибка.
+    await user.type(screen.getByRole('textbox', { name: 'Ответ по-польски' }), 'xkobieta')
+    await user.click(await screen.findByRole('button', { name: 'Далее' }))
+
+    // Слово вернулось в очередь (рейтинг Hard) — отвечаем безупречно.
+    await waitFor(() => expect(useSessionStore.getState().queue).toHaveLength(2))
+    await user.type(await screen.findByRole('textbox', { name: 'Ответ по-польски' }), 'kobieta')
+    await user.click(await screen.findByRole('button', { name: 'Далее' }))
+
+    // Сессия закрылась: запись сессии посчитана по чистому первому ответу.
+    await waitFor(async () => expect((await getSession(runtime.sessionId))?.endedAt).toBeDefined())
+    expect(await getSession(runtime.sessionId)).toMatchObject({ totalCount: 1, correctCount: 0 })
+
+    const [first, retry] = await getLogsForSession(runtime.sessionId)
+    expect(first).toMatchObject({
+      correct: true,
+      clean: false,
+      firstInSession: true,
+      assist: 'corrected',
+    })
+    expect(retry).toMatchObject({ correct: true, clean: true, firstInSession: false })
+
+    const stats = await getDailyStats(today())
+    expect(stats).toMatchObject({
+      reviewsCount: 2,
+      correctCount: 2,
+      accuracyAttempts: 1,
+      accuracyClean: 0,
+    })
+  })
+
+  it('безупречный набор: 1 из 1 и в дне, и в записи сессии', async () => {
+    const user = userEvent.setup()
+    const runtime = await startTyping()
+
+    await user.type(screen.getByRole('textbox', { name: 'Ответ по-польски' }), 'kobieta')
+    await user.click(await screen.findByRole('button', { name: 'Далее' }))
+
+    await waitFor(async () => expect((await getSession(runtime.sessionId))?.endedAt).toBeDefined())
+    expect(await getSession(runtime.sessionId)).toMatchObject({ totalCount: 1, correctCount: 1 })
+    expect(await getDailyStats(today())).toMatchObject({ accuracyAttempts: 1, accuracyClean: 1 })
+  })
+})

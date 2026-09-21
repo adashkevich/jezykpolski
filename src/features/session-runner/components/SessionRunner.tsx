@@ -45,6 +45,7 @@ import { useEffect, useMemo, useRef, useState, type ComponentType, type RefObjec
 import { LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button.tsx'
 import { getSkill } from '@/db/repositories/skills.repository.ts'
+import { getLogsForSession } from '@/db/repositories/reviews.repository.ts'
 import { completeSession, deleteSession } from '@/db/repositories/sessions.repository.ts'
 import {
   markWordProductionKnown,
@@ -53,12 +54,10 @@ import {
 } from '@/db/repositories/swipe.repository.ts'
 import type { Exercise, ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import type { GradeResult } from '@/learning/exercises/grade.ts'
-import {
-  isFlawlessAttempt,
-  type TypedAttemptOutcome,
-} from '@/learning/exercises/letter-attempt.ts'
+import type { TypedAttemptOutcome } from '@/learning/exercises/letter-attempt.ts'
+import { isCleanAnswer, summarizeFirstAnswers } from '@/learning/progress/accuracy.ts'
 import { VOCAB_STAGE_ORDER } from '@/learning/progress/stage.ts'
-import { AGAIN, HARD } from '@/learning/srs/policy.ts'
+import { HARD } from '@/learning/srs/policy.ts'
 import type { VocabDimension } from '@/learning/skills/dimensions.ts'
 import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import { encodeSkillId, type SkillId } from '@/learning/skills/skill-id.ts'
@@ -84,13 +83,15 @@ export interface SessionRunnerProps {
   onFinished(sessionId: number, totalCount: number): void
 }
 
-function summarizeSession(newSkillIds: ReadonlySet<SkillId>) {
-  const state = useSessionStore.getState()
-  let correctCount = 0
-  for (const rating of state.firstAnswerBySkill.values()) {
-    if (rating !== AGAIN) correctCount++
-  }
-  const totalCount = state.firstAnswerBySkill.size
+/**
+ * Итог сессии для `SessionRecord`. Задача 45 §3: «верно» — только чистый первый ответ, а рейтинг
+ * (`rating !== AGAIN`, как здесь было раньше) чистоту не выражает — набор с исправленной буквой
+ * получает Hard и считался верным. Поэтому счёт берётся из записанных логов тем же
+ * `accuracy.ts#summarizeFirstAnswers`, что и экран итогов (`buildSessionSummary`), — без копий
+ * формулы. Каждый ответ уже в БД: `submitAnswer` ждёт `applyAnswer` до показа фидбэка.
+ */
+async function summarizeSession(sessionId: number, newSkillIds: ReadonlySet<SkillId>) {
+  const { totalCount, correctCount } = summarizeFirstAnswers(await getLogsForSession(sessionId))
   const newSkillCount = newSkillIds.size
   return { totalCount, correctCount, newSkillCount, reviewedSkillCount: totalCount - newSkillCount }
 }
@@ -117,7 +118,7 @@ export function SessionRunner({ runtime, onFinished }: SessionRunnerProps) {
    * returned `totalCount === 0` is exactly `SessionPage`'s "go home instead" signal.
    */
   async function writeSessionRecord() {
-    const summary = summarizeSession(newSkillIdsRef.current)
+    const summary = await summarizeSession(runtime.sessionId, newSkillIdsRef.current)
     if (summary.totalCount === 0) {
       await deleteSession(runtime.sessionId)
     } else {
@@ -338,9 +339,12 @@ function ActiveQuestion({
       }
 
       // «Знаю» (задача 41 §1) — на любом из трёх этапов перевода, уже после первого верного
-      // ответа, и только когда нажатие что-то изменит. Читается после `submitAnswer`, так что
-      // SRS-обновление самого этого ответа уже учтено. Условия идут от дешёвого к дорогому:
-      // чтение БД (`wouldMarkKnownChange`) — последним.
+      // ответа, и только когда нажатие что-то изменит. «Чистый» — то же определение, что у
+      // «точности» (`accuracy.ts#isCleanAnswer`, задача 45): после «верно, но с исправлением/
+      // подсказкой» панель говорит «Слово вернётся на повторение», и «Знаю» рядом с этим было бы
+      // противоречием. Читается после `submitAnswer`, так что SRS-обновление самого этого ответа
+      // уже учтено. Условия идут от дешёвого к дорогому: чтение БД (`wouldMarkKnownChange`) —
+      // последним.
       setMarkKnownOffered(
         isCleanAnswer(result.gradeResult, attempt) &&
           isVocabStage(descriptor.dimension) &&
@@ -426,18 +430,6 @@ const VOCAB_STAGES: ReadonlySet<SkillDescriptor['dimension']> = new Set(VOCAB_ST
  *  морфологические навыки кнопки не предлагают. */
 function isVocabStage(dimension: SkillDescriptor['dimension']): dimension is VocabDimension {
   return VOCAB_STAGES.has(dimension)
-}
-
-/**
- * Ответ «чистый» — такой, после которого «Знаю» не противоречит панели фидбэка (задача 41
- * §1): верный, а для побуквенного ввода ещё и безупречный (`isFlawlessAttempt`: ноль ошибок,
- * ноль подсказок, без «глазка»). После «верно, но с исправлением/подсказкой» панель говорит
- * «Слово вернётся на повторение», и «Знаю» рядом с этим было бы противоречием. Ответы без
- * `attempt` (выбор из вариантов) чисты по построению — то же правило, по которому
- * `ExerciseFeedback` называет их «Верно!».
- */
-function isCleanAnswer(result: GradeResult, attempt: TypedAttemptOutcome | undefined): boolean {
-  return result.correct && (attempt === undefined || isFlawlessAttempt(attempt))
 }
 
 /** A zeroed-out placeholder `SkillRecord` — only its FSRS-facing fields are read (via

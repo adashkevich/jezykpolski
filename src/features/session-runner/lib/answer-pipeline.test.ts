@@ -14,6 +14,8 @@ import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.reposi
 import { ensureSkill, getSkill, upsertSkill } from '@/db/repositories/skills.repository.ts'
 import { getWordProgress } from '@/db/repositories/words-progress.repository.ts'
 import { getLogsForSession } from '@/db/repositories/reviews.repository.ts'
+import { getDailyStats } from '@/db/repositories/daily-stats.repository.ts'
+import { toLocalDateKey } from '@/lib/dates.ts'
 import {
   CUED_RECALL_UNLOCK_STABILITY_DAYS,
   CUED_RECALL_UNLOCK_STREAK,
@@ -1275,5 +1277,191 @@ describe('submitAnswer — «Показать слово» возвращает 
       )
       expect((await getWordProgress(WORD_ID))?.nextDue).toBe(Math.min(...dues))
     })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Задача 45 (`spec/tasks/45-accuracy-counts-first-clean-answer.md`): «точность» — только чистый
+// первый ответ. `submitAnswer` пишет в лог `clean`/`firstInSession`/`assist`, а `applyAnswer`
+// по ним растит счётчики дня.
+// ---------------------------------------------------------------------------
+
+describe('submitAnswer — чистый первый ответ для точности (task 45)', () => {
+  const NOW = 1_000_000
+  const DAY = toLocalDateKey(NOW)
+
+  interface AnswerOptions {
+    readonly exercise?: Exercise
+    readonly answerGiven?: string
+    readonly attempt?: { mistakes: number; hintsUsed: number; revealed: boolean; letterCount: number }
+    readonly isFirstAnswerInSession?: boolean
+    readonly firstInSession?: boolean
+    readonly mode?: 'learn' | 'practice' | 'mistakes'
+    readonly now?: number
+    readonly sessionId?: number
+  }
+
+  async function answer(options: AnswerOptions = {}) {
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+    return submitAnswer({
+      sessionId: options.sessionId ?? 1,
+      mode: options.mode ?? 'learn',
+      exercise: options.exercise ?? CHOICE_EXERCISE,
+      skillId: SKILL_ID,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: options.answerGiven ?? 'женщина',
+      isFirstAnswerInSession: options.isFirstAnswerInSession ?? true,
+      ...(options.firstInSession === undefined ? {} : { firstInSession: options.firstInSession }),
+      elapsedMs: 1000,
+      now: options.now ?? NOW,
+      ...(options.attempt ? { attempt: options.attempt } : {}),
+    })
+  }
+
+  const CLEAN_ATTEMPT = { mistakes: 0, hintsUsed: 0, revealed: false, letterCount: 7 }
+
+  it('чистый ответ: лог clean + firstInSession, счётчики дня 1 из 1', async () => {
+    await answer()
+
+    const [log] = await getLogsForSession(1)
+    expect(log).toMatchObject({ clean: true, firstInSession: true })
+    expect(log && 'assist' in log).toBe(false)
+    const stats = await getDailyStats(DAY)
+    expect(stats).toMatchObject({ accuracyAttempts: 1, accuracyClean: 1 })
+  })
+
+  it('безупречный набор — чистый', async () => {
+    await answer({ exercise: INPUT_EXERCISE, attempt: CLEAN_ATTEMPT })
+
+    const [log] = await getLogsForSession(1)
+    expect(log).toMatchObject({ correct: true, clean: true, firstInSession: true })
+    expect(await getDailyStats(DAY)).toMatchObject({ accuracyAttempts: 1, accuracyClean: 1 })
+  })
+
+  it('набор с исправленной буквой: correct остаётся true, но ответ не чистый — 0% для этого ответа (и в дне)', async () => {
+    await answer({ exercise: INPUT_EXERCISE, attempt: { ...CLEAN_ATTEMPT, mistakes: 1 } })
+
+    const [log] = await getLogsForSession(1)
+    expect(log).toMatchObject({ correct: true, clean: false, firstInSession: true, assist: 'corrected' })
+    const stats = await getDailyStats(DAY)
+    expect(stats).toMatchObject({ correctCount: 1, accuracyAttempts: 1, accuracyClean: 0 })
+  })
+
+  it('набор с подсказкой: не чистый, assist = hinted (подсказка сильнее исправления)', async () => {
+    await answer({
+      exercise: INPUT_EXERCISE,
+      attempt: { ...CLEAN_ATTEMPT, mistakes: 2, hintsUsed: 1 },
+    })
+
+    const [log] = await getLogsForSession(1)
+    expect(log).toMatchObject({ correct: true, clean: false, assist: 'hinted' })
+  })
+
+  it('«глазок»: не чистый, верного итога нет — пометки assist тоже нет', async () => {
+    await answer({
+      exercise: INPUT_EXERCISE,
+      answerGiven: 'жен',
+      attempt: { ...CLEAN_ATTEMPT, revealed: true },
+    })
+
+    const [log] = await getLogsForSession(1)
+    expect(log).toMatchObject({ correct: false, clean: false, firstInSession: true })
+    expect(log && 'assist' in log).toBe(false)
+    expect(await getDailyStats(DAY)).toMatchObject({ accuracyAttempts: 1, accuracyClean: 0 })
+  })
+
+  it('неверный выбор: не чистый', async () => {
+    await answer({ answerGiven: 'мужчина' })
+
+    const [log] = await getLogsForSession(1)
+    expect(log).toMatchObject({ correct: false, clean: false, firstInSession: true })
+  })
+
+  it('near-miss (ячейка таблицы без диакритики) не чистый', async () => {
+    const morphSkillId = 'kobieta|NOUN::noun:sg:genitive'
+    await ensureSkill(morphSkillId, WORD_ID, 'noun', 'noun:sg:genitive')
+    await submitAnswer({
+      sessionId: 1,
+      mode: 'practice',
+      exercise: {
+        type: 'form-input',
+        lemma: 'kobieta',
+        hint: '',
+        promptMode: 'lemma',
+        slot: 'noun:sg:genitive',
+        accepted: ['księżniczki'],
+      },
+      skillId: morphSkillId,
+      wordId: WORD_ID,
+      kind: 'noun',
+      answerGiven: 'ksiezniczki',
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now: NOW,
+    })
+
+    const [log] = await getLogsForSession(1)
+    expect(log).toMatchObject({ correct: false, clean: false, firstInSession: true })
+  })
+
+  it('неверный ответ + верный повтор в той же сессии: в точность идёт один неверный ответ (0 из 1), а не 1 из 2', async () => {
+    await answer({ answerGiven: 'мужчина' })
+    await answer({ isFirstAnswerInSession: false, now: NOW + 20_000 })
+
+    const [first, retry] = await getLogsForSession(1)
+    expect(first).toMatchObject({ clean: false, firstInSession: true })
+    expect(retry).toMatchObject({ correct: true, clean: true, firstInSession: false })
+    const stats = await getDailyStats(DAY)
+    expect(stats).toMatchObject({
+      reviewsCount: 2,
+      correctCount: 1,
+      accuracyAttempts: 1,
+      accuracyClean: 0,
+    })
+  })
+
+  it('исправленный набор + безупречный повтор: тоже 0 из 1', async () => {
+    await answer({ exercise: INPUT_EXERCISE, attempt: { ...CLEAN_ATTEMPT, mistakes: 1 } })
+    await answer({
+      exercise: INPUT_EXERCISE,
+      attempt: CLEAN_ATTEMPT,
+      isFirstAnswerInSession: false,
+      now: NOW + 20_000,
+    })
+
+    expect(await getDailyStats(DAY)).toMatchObject({ accuracyAttempts: 1, accuracyClean: 0 })
+  })
+
+  it('mistakes-режим: первый ответ на навык входит в точность, хотя SRS в нём не применяется', async () => {
+    await answer({ mode: 'mistakes' })
+
+    const [log] = await getLogsForSession(1)
+    expect(log).toMatchObject({ srsApplied: false, firstInSession: true, clean: true })
+    expect(await getDailyStats(DAY)).toMatchObject({ accuracyAttempts: 1, accuracyClean: 1 })
+  })
+
+  it('firstInSession переопределяет isFirstAnswerInSession (сопоставление, §4): первый ответ по точности, хотя SRS по нему не применяется', async () => {
+    await answer({ isFirstAnswerInSession: false, firstInSession: true })
+
+    const [log] = await getLogsForSession(1)
+    expect(log).toMatchObject({ srsApplied: false, firstInSession: true, clean: true })
+    expect(await getDailyStats(DAY)).toMatchObject({ accuracyAttempts: 1, accuracyClean: 1 })
+  })
+
+  it('самооценка: «Трудно» не чистый ответ (как у запасного правила старых логов), «Знаю» — чистый', async () => {
+    await answer({ exercise: SELF_ASSESS_EXERCISE, answerGiven: '2' })
+    const [hard] = await getLogsForSession(1)
+    expect(hard).toMatchObject({ correct: true, rating: 2, clean: false })
+
+    await answer({
+      exercise: SELF_ASSESS_EXERCISE,
+      answerGiven: '3',
+      sessionId: 2,
+      isFirstAnswerInSession: true,
+      now: NOW + 40_000,
+    })
+    const [good] = await getLogsForSession(2)
+    expect(good).toMatchObject({ correct: true, rating: 3, clean: true })
   })
 })

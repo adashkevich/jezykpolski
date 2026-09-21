@@ -20,6 +20,11 @@
  * explicitly, on purpose — the cascade would otherwise re-credit `vocab:pl-ru` a second time
  * once the `vocab:ru-pl-choice` call runs, double-counting one match into two `correct`
  * increments on the lower stage.
+ *
+ * Task 45 §4 ("точность", `spec/tasks/45-accuracy-counts-first-clean-answer.md`): a graded pair
+ * is a clean first answer on both skills — `firstInSession: true` below, and `choice` is clean
+ * whenever it is correct. Tainted words write nothing and so stay out of accuracy: a deliberate
+ * consequence of task 44's "not credited", not an omission.
  */
 import type { Exercise, MatchingPairSource } from '@/learning/exercises/exercise.types.ts'
 import { ensureSkill } from '@/db/repositories/skills.repository.ts'
@@ -94,6 +99,10 @@ export async function gradeMatchingPair(input: GradeMatchingPairInput): Promise<
       kind: 'vocab',
       answerGiven: correctAnswer,
       isFirstAnswerInSession: skill.reps === 0,
+      // Task 45 §4: a graded pair is a clean first answer on both skills whatever `reps` says
+      // (that SRS gate is about the grid's credit, not about the session) — a word appears in
+      // the grid at most once per session, and tainted words never reach this call.
+      firstInSession: true,
       elapsedMs,
       now,
       skipCascade: true,

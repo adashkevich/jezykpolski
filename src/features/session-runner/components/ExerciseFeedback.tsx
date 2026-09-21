@@ -28,7 +28,7 @@
  * подсказкой», был хотя бы один запрос подсказки) и `corrected` («Верно, но с исправлением»,
  * подсказок не было, но была исправленная ошибка) — раньше ответ с одной лишь исправленной
  * ошибкой тоже назывался «с подсказкой». Что считать безупречным ответом, решает
- * `letter-attempt.ts#isFlawlessAttempt` — условие здесь не дублируется.
+ * `letter-attempt.ts#isFlawlessAttempt` (через `assistOf`, задача 45) — условие здесь не дублируется.
  */
 import {
   AlertTriangle,
@@ -43,10 +43,7 @@ import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button.tsx'
 import { cn } from '@/lib/utils'
 import type { GradeResult } from '@/learning/exercises/grade.ts'
-import {
-  isFlawlessAttempt,
-  type TypedAttemptOutcome,
-} from '@/learning/exercises/letter-attempt.ts'
+import { assistOf, type TypedAttemptOutcome } from '@/learning/exercises/letter-attempt.ts'
 
 export interface ExerciseFeedbackProps {
   readonly feedback: GradeResult
@@ -114,13 +111,10 @@ const STATUS_META: Readonly<Record<FeedbackStatus, StatusMeta>> = {
 
 function statusOf(feedback: GradeResult, attempt: TypedAttemptOutcome | undefined): FeedbackStatus {
   if (feedback.correct) {
-    if (attempt === undefined || isFlawlessAttempt(attempt)) return 'correct'
-    // Подсказка — более сильный признак помощи, чем исправленная ошибка (задача 42 §3), так
-    // что при обоих сразу побеждает `hinted`. «Глазок» тоже считаем подсказкой, не «исправлением»:
-    // с `correct: true` он в норме не встречается (раскрытый префикс короче слова), но если
-    // совпадёт с более коротким допустимым вариантом, ошибок в нём нет, и «исправление» было бы
-    // ложью.
-    return attempt.hintsUsed > 0 || attempt.revealed ? 'hinted' : 'corrected'
+    // Подсказка сильнее исправленной ошибки, «глазок» — тоже `hinted` (задача 42 §3): правило
+    // живёт в `letter-attempt.ts#assistOf` — с `correct: true` «глазок» в норме не встречается
+    // (раскрытый префикс короче слова), но совпасть с более коротким допустимым вариантом может.
+    return (attempt === undefined ? null : assistOf(attempt)) ?? 'correct'
   }
   if (feedback.nearMiss) return 'nearMiss'
   return 'incorrect'

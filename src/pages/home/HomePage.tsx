@@ -23,7 +23,9 @@
  *    can never disagree: per-level "учу"/"знаю"/total counts from `stats.repository.ts
  *    #levelProgress`, denominator from `getIndexStore().byLevel` (task 04, in-memory, not a
  *    second Dexie query), gated the same way by `useLevelGate()`.
- *  - "Сегодня" — `useDailyStats()` for today's local-calendar-day `DailyStatsRecord`.
+ *  - "Сегодня" — `useDailyStats()` for today's local-calendar-day `DailyStatsRecord`. Its
+ *    "% правильных" and the "Точность" tile are one number: **изменено задачей 45** — only clean
+ *    first answers count (`learning/progress/accuracy.ts#dailyAccuracyPercent`), not every answer.
  *
  * Deliberately no streak counter or weekly delta even though the mockup sketches them:
  * `StatsPage.tsx`'s FR-126 "no gamification" rule applies here too, and there is no data
@@ -67,6 +69,7 @@ import { LevelProgressCard } from '@/features/stats/components/LevelProgressCard
 import { useDailyStats } from '@/hooks/useDailyStats.ts'
 import { useLevelGate } from '@/hooks/useLevelGate.ts'
 import { useWordProgressSummary } from '@/hooks/useWordProgressSummary.ts'
+import { dailyAccuracyPercent } from '@/learning/progress/accuracy.ts'
 import { toLocalDateKey } from '@/lib/dates.ts'
 import { pluralize } from '@/lib/pluralize.ts'
 import { cn } from '@/lib/utils'
@@ -144,9 +147,12 @@ export function HomePage() {
   const totalWords = getIndexStore().byId.size
 
   const reviewsCount = dailyStats?.reviewsCount ?? 0
-  const correctCount = dailyStats?.correctCount ?? 0
   const newSkillsStarted = dailyStats?.newSkillsStarted ?? 0
-  const percentCorrect = reviewsCount > 0 ? Math.round((correctCount / reviewsCount) * 100) : null
+  // Задача 45: «точность» — только чистые первые ответы (`accuracyClean / accuracyAttempts`);
+  // повторы в сессии и набор с исправленной ошибкой её не тянут вверх. Счётчик повторений
+  // (`reviewsCount`) считает все ответы, как и раньше. День, записанный до задачи 45, — по
+  // прежней формуле (`accuracy.ts#dailyAccuracyPercent`).
+  const percentCorrect = dailyAccuracyPercent(dailyStats)
 
   function openWords() {
     useFiltersStore.getState().setPos(null)

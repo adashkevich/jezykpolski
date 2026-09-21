@@ -182,6 +182,44 @@ describe('export -> reset -> import round trip (acceptance point 1)', () => {
   })
 })
 
+describe('export -> reset -> import — поля точности (задача 45)', () => {
+  it('clean / firstInSession / assist у лога и accuracyAttempts / accuracyClean у дня переживают круг экспорт → сброс → импорт', async () => {
+    initIndexStore([entry('kobieta', 1)])
+    await db.skills.add(vocabSkill('kobieta|NOUN', 'vocab:ru-pl-input', 30))
+    const sessionId = (await db.sessions.add(session())) as number
+    await db.reviewLogs.add({
+      ...reviewLog(sessionId, 'kobieta|NOUN::vocab:ru-pl-input', 'kobieta|NOUN'),
+      rating: 2,
+      clean: false,
+      firstInSession: true,
+      assist: 'corrected',
+    })
+    await db.dailyStats.add({
+      date: '2026-09-22',
+      reviewsCount: 2,
+      correctCount: 2,
+      newSkillsStarted: 0,
+      sessionsCount: 1,
+      timeSpentMs: 1200,
+      accuracyAttempts: 1,
+      accuracyClean: 0,
+      updatedAt: 1000,
+    })
+
+    const backup = await buildBackupExport('content-v1')
+    await resetAllData()
+    const { data } = prepareImport(JSON.parse(JSON.stringify(backup)), 'content-v1')
+    await applyImport(data, 'content-v1')
+
+    const [log] = await db.reviewLogs.toArray()
+    expect(log).toMatchObject({ clean: false, firstInSession: true, assist: 'corrected' })
+    expect(await db.dailyStats.get('2026-09-22')).toMatchObject({
+      accuracyAttempts: 1,
+      accuracyClean: 0,
+    })
+  })
+})
+
 describe('prepareImport / applyImport — validation and edge cases (acceptance points 2-6)', () => {
   it('rejects malformed JSON and leaves the DB untouched (acceptance point 2)', async () => {
     initIndexStore([entry('kobieta', 1)])

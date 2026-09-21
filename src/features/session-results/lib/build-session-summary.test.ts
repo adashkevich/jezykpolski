@@ -56,13 +56,13 @@ describe('buildSessionSummary — score (acceptance point 1)', () => {
     expect(summary.percent).toBe(0)
   })
 
-  it('a near-miss (Hard rating, correct:false) counts as correct for the score, matching SessionRunner.tsx#summarizeSession', () => {
+  it('a near-miss (Hard rating, correct:false) is NOT clean, so it no longer counts as correct (task 45 — used to count via rating !== AGAIN)', () => {
     const logs: ReviewLogRecord[] = [
       log({ skillId: KOBIETA_DATIVE, reviewedAt: 1000, rating: HARD, correct: false }),
     ]
     const summary = buildSessionSummary({ newSkillCount: 0, reviewedSkillCount: 1 }, logs)
-    expect(summary.correctCount).toBe(1)
-    expect(summary.percent).toBe(100)
+    expect(summary.correctCount).toBe(0)
+    expect(summary.percent).toBe(0)
   })
 
   it('passes newSkillCount/reviewedSkillCount straight through from the session record, not recomputed', () => {
@@ -177,5 +177,143 @@ describe('buildSessionSummary — hardestDimensions (acceptance point 3)', () =>
     const summary = buildSessionSummary({ newSkillCount: 2, reviewedSkillCount: 0 }, logs)
     expect(summary.hardestDimensions).toHaveLength(1)
     expect(summary.hardestDimensions[0]).toMatchObject({ key: 'vocab:pl-ru', accuracy: 0.5 })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Задача 45 (`spec/tasks/45-accuracy-counts-first-clean-answer.md` §3): «верно» — только чистый
+// первый ответ; верные-но-нечистые перечислены отдельно, чтобы падение процента было объяснено.
+// ---------------------------------------------------------------------------
+
+describe('buildSessionSummary — чистый первый ответ (задача 45)', () => {
+  it('набор с исправленной буквой (correct: true, clean: false): 0% для этого ответа', () => {
+    const logs: ReviewLogRecord[] = [
+      log({
+        skillId: CZLOWIEK_LOCATIVE,
+        reviewedAt: 1000,
+        rating: HARD,
+        correct: true,
+        clean: false,
+        firstInSession: true,
+        assist: 'corrected',
+      }),
+    ]
+    const summary = buildSessionSummary({ newSkillCount: 0, reviewedSkillCount: 1 }, logs)
+    expect(summary.totalCount).toBe(1)
+    expect(summary.correctCount).toBe(0)
+    expect(summary.percent).toBe(0)
+    expect(summary.hardestDimensions[0]).toMatchObject({ correctCount: 0, totalCount: 1, accuracy: 0 })
+  })
+
+  it('неверный ответ + верный повтор в той же сессии: 0/1, а не 1/2', () => {
+    const logs: ReviewLogRecord[] = [
+      log({ skillId: KOBIETA_DATIVE, reviewedAt: 1000, rating: AGAIN, correct: false, clean: false }),
+      log({
+        skillId: KOBIETA_DATIVE,
+        reviewedAt: 2000,
+        rating: GOOD,
+        correct: true,
+        clean: true,
+        firstInSession: false,
+      }),
+    ]
+    const summary = buildSessionSummary({ newSkillCount: 0, reviewedSkillCount: 1 }, logs)
+    expect(summary).toMatchObject({ totalCount: 1, correctCount: 0, percent: 0 })
+  })
+
+  it('чистый ответ: 1/1', () => {
+    const logs: ReviewLogRecord[] = [
+      log({ skillId: KOBIETA_DATIVE, reviewedAt: 1000, rating: EASY, correct: true, clean: true }),
+    ]
+    const summary = buildSessionSummary({ newSkillCount: 0, reviewedSkillCount: 1 }, logs)
+    expect(summary).toMatchObject({ totalCount: 1, correctCount: 1, percent: 100 })
+    expect(summary.assisted).toEqual([])
+    expect(summary.mistakes).toEqual([])
+  })
+
+  it('перечисляет верные-но-нечистые первые ответы с пометкой «с исправлением» / «с подсказкой», mistakes их не содержит', () => {
+    const logs: ReviewLogRecord[] = [
+      log({
+        skillId: CZLOWIEK_LOCATIVE,
+        reviewedAt: 1000,
+        rating: HARD,
+        correct: true,
+        clean: false,
+        assist: 'corrected',
+        expected: 'człowieku',
+        answerGiven: 'człowieku',
+      }),
+      log({
+        skillId: KOBIETA_DATIVE,
+        reviewedAt: 2000,
+        rating: HARD,
+        correct: true,
+        clean: false,
+        assist: 'hinted',
+        expected: 'kobiecie',
+        answerGiven: 'kobiecie',
+      }),
+      log({ skillId: DOBRY_GENITIVE, reviewedAt: 3000, rating: EASY, correct: true, clean: true }),
+    ]
+    const summary = buildSessionSummary({ newSkillCount: 0, reviewedSkillCount: 3 }, logs)
+
+    expect(summary.mistakes).toEqual([])
+    expect(mistakeSkillIds(summary)).toEqual([]) // «Разобрать ошибки» не предлагается за подсказки
+    expect(summary.percent).toBe(33)
+    expect(summary.assisted).toHaveLength(2)
+    expect(summary.assisted[0]).toMatchObject({
+      skillId: CZLOWIEK_LOCATIVE,
+      lemma: 'człowiek',
+      expected: 'człowieku',
+      assist: 'corrected',
+    })
+    expect(summary.assisted[1]).toMatchObject({ skillId: KOBIETA_DATIVE, assist: 'hinted' })
+  })
+
+  it('assisted берётся только по ПЕРВОМУ ответу: нечистый повтор после чистого первого в список не попадает', () => {
+    const logs: ReviewLogRecord[] = [
+      log({ skillId: KOBIETA_DATIVE, reviewedAt: 1000, rating: EASY, correct: true, clean: true }),
+      log({
+        skillId: KOBIETA_DATIVE,
+        reviewedAt: 2000,
+        rating: HARD,
+        correct: true,
+        clean: false,
+        assist: 'hinted',
+        firstInSession: false,
+      }),
+    ]
+    const summary = buildSessionSummary({ newSkillCount: 0, reviewedSkillCount: 1 }, logs)
+    expect(summary.assisted).toEqual([])
+    expect(summary.percent).toBe(100)
+  })
+
+  it('старые логи без новых полей: чистота по запасному правилу (correct и рейтинг не Hard), пометка — null', () => {
+    const logs: ReviewLogRecord[] = [
+      // Hard + correct: раньше шёл в «верно», теперь — нечистый, причина неизвестна.
+      log({ skillId: CZLOWIEK_LOCATIVE, reviewedAt: 1000, rating: HARD, correct: true }),
+      log({ skillId: KOBIETA_DATIVE, reviewedAt: 2000, rating: GOOD, correct: true }),
+      log({ skillId: DOBRY_GENITIVE, reviewedAt: 3000, rating: AGAIN, correct: false }),
+    ]
+    const summary = buildSessionSummary({ newSkillCount: 0, reviewedSkillCount: 3 }, logs)
+
+    expect(summary).toMatchObject({ totalCount: 3, correctCount: 1, percent: 33 })
+    expect(summary.assisted.map((a) => [a.skillId, a.assist])).toEqual([[CZLOWIEK_LOCATIVE, null]])
+    expect(summary.mistakes.map((m) => m.skillId)).toEqual([DOBRY_GENITIVE])
+  })
+
+  it('самооценка «Трудно» с clean: false: верно, но нечисто — в assisted без пометки', () => {
+    const logs: ReviewLogRecord[] = [
+      log({
+        skillId: KOBIETA_DATIVE,
+        reviewedAt: 1000,
+        exerciseType: 'self-assess',
+        rating: HARD,
+        correct: true,
+        clean: false,
+      }),
+    ]
+    const summary = buildSessionSummary({ newSkillCount: 0, reviewedSkillCount: 1 }, logs)
+    expect(summary.assisted.map((a) => a.assist)).toEqual([null])
   })
 })

@@ -13,7 +13,10 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { HomePage } from './HomePage.tsx'
-import { upsertSkill } from '@/db/repositories/skills.repository.ts'
+import { applyAnswer } from '@/db/repositories/answer.repository.ts'
+import { ensureSkill, getSkill, upsertSkill } from '@/db/repositories/skills.repository.ts'
+import { submitAnswer } from '@/features/session-runner/lib/answer-pipeline.ts'
+import type { Exercise } from '@/learning/exercises/exercise.types.ts'
 import { recomputeWordProgress } from '@/db/repositories/words-progress.repository.ts'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
@@ -282,5 +285,163 @@ describe('HomePage', () => {
       expect(screen.getByRole('button', { name: 'Учить новые слова' })).toBeInTheDocument(),
     )
     expect(screen.queryByText(/Сейчас изучаем/)).not.toBeInTheDocument()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Задача 45 (`spec/tasks/45-accuracy-counts-first-clean-answer.md` §3): «Точность за сегодня» —
+// только чистые первые ответы (`accuracyClean / accuracyAttempts`). Ответы пишет настоящий
+// `submitAnswer` — так проверяется вся цепочка «ответ → лог → счётчики дня → экран».
+// ---------------------------------------------------------------------------
+
+describe('HomePage — «Точность» по чистым первым ответам (задача 45)', () => {
+  const WORD_ID = 'kobieta|NOUN'
+  const SKILL_ID = `${WORD_ID}::vocab:pl-ru`
+  const CHOICE: Exercise = {
+    type: 'choice',
+    direction: 'pl-ru',
+    prompt: 'kobieta',
+    options: ['женщина', 'мужчина'],
+    correct: 'женщина',
+  }
+  const INPUT: Exercise = {
+    type: 'input',
+    direction: 'pl-ru',
+    prompt: 'kobieta',
+    accepted: ['женщина'],
+  }
+  const CLEAN_TYPING = { mistakes: 0, hintsUsed: 0, revealed: false, letterCount: 7 }
+
+  let offset = 0
+  async function answer(
+    exercise: Exercise,
+    answerGiven: string,
+    options: {
+      isFirstAnswerInSession: boolean
+      attempt?: typeof CLEAN_TYPING
+      skillId?: string
+    },
+  ) {
+    const skillId = options.skillId ?? SKILL_ID
+    await ensureSkill(skillId, WORD_ID, 'vocab', 'vocab:pl-ru')
+    await submitAnswer({
+      sessionId: 1,
+      mode: 'learn',
+      exercise,
+      skillId,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven,
+      isFirstAnswerInSession: options.isFirstAnswerInSession,
+      elapsedMs: 1000,
+      // Сегодня, чтобы запись попала в день, который открывает главная.
+      now: Date.now() + offset++,
+      ...(options.attempt ? { attempt: options.attempt } : {}),
+    })
+  }
+
+  /** Плитка «Точность» целиком: подпись, значение, единица. */
+  function accuracyTile(): HTMLElement {
+    return screen.getByText('Точность').parentElement!.parentElement!
+  }
+
+  async function renderToday() {
+    renderHomePage()
+    await waitFor(() => expect(screen.getByText('Точность')).toBeInTheDocument())
+  }
+
+  function initWord() {
+    initIndexStore([{ ...entry('kobieta', 'NOUN', 1), primaryRu: 'женщина' }])
+  }
+
+  it('чистый ответ: 100%', async () => {
+    initWord()
+    await openDatabase()
+    await answer(CHOICE, 'женщина', { isFirstAnswerInSession: true })
+
+    await renderToday()
+    await waitFor(() => expect(within(accuracyTile()).getByText('100%')).toBeInTheDocument())
+    expect(screen.getByText(/· 100% правильных/)).toBeInTheDocument()
+  })
+
+  it('набор с исправленной буквой: 0%, хотя слово в итоге набрано верно', async () => {
+    initWord()
+    await openDatabase()
+    await answer(INPUT, 'женщина', {
+      isFirstAnswerInSession: true,
+      attempt: { ...CLEAN_TYPING, mistakes: 1 },
+    })
+
+    await renderToday()
+    await waitFor(() => expect(within(accuracyTile()).getByText('0%')).toBeInTheDocument())
+    expect(screen.getByText(/· 0% правильных/)).toBeInTheDocument()
+  })
+
+  it('неверный ответ + верный повтор в той же сессии: 0%, а не 50%; счётчик повторений по-прежнему 2', async () => {
+    initWord()
+    await openDatabase()
+    await answer(CHOICE, 'мужчина', { isFirstAnswerInSession: true })
+    await answer(CHOICE, 'женщина', { isFirstAnswerInSession: false })
+
+    await renderToday()
+    await waitFor(() => expect(within(accuracyTile()).getByText('0%')).toBeInTheDocument())
+    expect(screen.getByText(/2 повторения/)).toBeInTheDocument()
+  })
+
+  it('два первых ответа, один чистый: 50%; повторы в знаменатель не входят', async () => {
+    initWord()
+    await openDatabase()
+    const OTHER = `${WORD_ID}::vocab:ru-pl-choice`
+    await answer(CHOICE, 'женщина', { isFirstAnswerInSession: true })
+    await answer(INPUT, 'женщина', {
+      isFirstAnswerInSession: true,
+      attempt: { ...CLEAN_TYPING, hintsUsed: 1 },
+      skillId: OTHER,
+    })
+    await answer(CHOICE, 'женщина', { isFirstAnswerInSession: false })
+
+    await renderToday()
+    await waitFor(() => expect(within(accuracyTile()).getByText('50%')).toBeInTheDocument())
+  })
+
+  it('день только со старыми счётчиками (без accuracy*): прежняя формула, без ошибок', async () => {
+    initWord()
+    await openDatabase()
+    await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
+    const skill = (await getSkill(SKILL_ID))!
+    // Ответы «по-старому»: лог и вызов без `clean`/`firstInSession` — как записывались до задачи 45.
+    for (const [n, correct] of [true, true, true, false].entries()) {
+      await applyAnswer({
+        skillId: SKILL_ID,
+        wordId: WORD_ID,
+        kind: 'vocab',
+        nextSrsState: skill,
+        reviewLog: {
+          sessionId: 1,
+          skillId: SKILL_ID,
+          wordId: WORD_ID,
+          exerciseType: 'choice',
+          reviewedAt: Date.now() + n,
+          rating: correct ? 3 : 1,
+          correct,
+          answerGiven: 'x',
+          expected: 'x',
+          elapsedMs: 100,
+          srsApplied: false,
+        },
+        isNewSkill: false,
+        nextWordProgress: {
+          wordId: WORD_ID,
+          status: 'learning',
+          vocabMaturity: 0,
+          morphMaturity: 0,
+          updatedAt: 0,
+        },
+      })
+    }
+
+    await renderToday()
+    await waitFor(() => expect(within(accuracyTile()).getByText('75%')).toBeInTheDocument())
+    expect(screen.getByText(/4 повторения/)).toBeInTheDocument()
   })
 })

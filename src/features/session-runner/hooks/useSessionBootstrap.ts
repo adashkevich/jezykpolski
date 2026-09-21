@@ -47,7 +47,8 @@ import {
   DEFAULT_EXERCISE_TYPES_SETTING_KEY,
   resolveForceCategory,
 } from '@/learning/exercises/default-exercise-type.ts'
-import type { Rating, SessionMode, SkillRecord } from '@/types/progress.ts'
+import { summarizeFirstAnswers } from '@/learning/progress/accuracy.ts'
+import type { Rating, ReviewLogRecord, SessionMode, SkillRecord } from '@/types/progress.ts'
 import { getIncompleteSession } from '@/db/repositories/sessions.repository.ts'
 import { useSessionStore } from '@/stores/session.store.ts'
 import { SessionContentCache } from '../lib/session-content-context.ts'
@@ -122,17 +123,10 @@ function errorMessage(error: unknown): string {
  *  see `answer-pipeline.ts`'s own header on why that flag only exists transiently at
  *  answer-time), so it's reported as `0` here. The natural-completion path in
  *  `SessionRunner.tsx` tracks it live instead and does not go through this function. */
-function summarizeLogsForAbandonedSession(
-  logs: { skillId: SkillId; correct: boolean; reviewedAt: number }[],
-) {
-  const firstLogBySkill = new Map<SkillId, { correct: boolean }>()
-  for (const log of [...logs].sort((a, b) => a.reviewedAt - b.reviewedAt)) {
-    if (!firstLogBySkill.has(log.skillId))
-      firstLogBySkill.set(log.skillId, { correct: log.correct })
-  }
-  const totalCount = firstLogBySkill.size
-  let correctCount = 0
-  for (const { correct } of firstLogBySkill.values()) if (correct) correctCount++
+function summarizeLogsForAbandonedSession(logs: readonly ReviewLogRecord[]) {
+  // Задача 45: «верно» — чистый первый ответ, тем же `summarizeFirstAnswers`, что и у
+  // `SessionRunner.tsx` и экрана итогов (раньше здесь была своя копия по `log.correct`).
+  const { totalCount, correctCount } = summarizeFirstAnswers(logs)
   return { totalCount, correctCount, newSkillCount: 0, reviewedSkillCount: totalCount }
 }
 

@@ -24,8 +24,17 @@
  * attempt 1 but corrected via the mistake-requeue on attempt 2 (`SessionRunner.tsx`'s own
  * requeue mechanic) still counts as ONE mistake here, not zero — the requeued retry doesn't
  * retroactively erase the fact that the first answer was wrong.
+ *
+ * **Изменено задачей 45** (`spec/tasks/45-accuracy-counts-first-clean-answer.md` §3): «верным»
+ * в счёте (`correctCount`/`percent`) и в измерениях (`hardestDimensions`) теперь считается только
+ * ЧИСТЫЙ первый ответ — `learning/progress/accuracy.ts#isCleanLog` (у старых логов без поля
+ * `clean` — запасное правило `correct && rating !== HARD`), а не `rating !== AGAIN`/`log.correct`.
+ * Раньше набор с исправленной буквой или подсказкой (рейтинг Hard, `correct: true`) шёл в
+ * «верно», а near-miss таблицы (`correct: false`, Hard) — тоже. `mistakes` остаётся по
+ * `!log.correct`; чтобы у упавшего процента было объяснение, верные-но-нечистые первые ответы
+ * перечислены отдельно (`assisted`) с пометкой «с исправлением» / «с подсказкой».
  */
-import { AGAIN } from '@/learning/srs/policy.ts'
+import { firstLogsBySkill, isCleanLog } from '@/learning/progress/accuracy.ts'
 import {
   decodeSkillId,
   decodeWordId,
@@ -52,13 +61,29 @@ export interface MistakeEntry {
   readonly typedAnswer: boolean
 }
 
+/** Задача 45 §3: первый ответ, который засчитан как верный (`correct`), но НЕ чистый — набор с
+ *  исправленной ошибкой или подсказкой, самооценка «Трудно». Именно эти ответы (вместе с
+ *  `mistakes`) снижают процент, и без строки в списке падение ничем не объяснено. */
+export interface AssistedEntry {
+  readonly skillId: SkillId
+  readonly wordId: WordId
+  readonly lemma: string
+  readonly dimensionLabel: DimensionLabel
+  /** Принятый ответ, к которому пришёл пользователь (`ReviewLogRecord.expected`). */
+  readonly expected: string
+  /** Чем ответ не безупречен: `hinted` — «с подсказкой», `corrected` — «с исправлением»; `null` —
+   *  у лога нет `assist` (записан до задачи 45, либо самооценка «Трудно»), причина неизвестна. */
+  readonly assist: 'hinted' | 'corrected' | null
+}
+
 export interface HardestDimensionEntry {
   /** Stable grouping key (`dimension-group.ts#DimensionGroup.key`) — not shown, only used
    *  for React list keys / test assertions that need something more specific than the
    *  (possibly duplicated across languages) label text. */
   readonly key: string
   readonly label: DimensionLabel
-  /** 0..1 — `correctCount / totalCount` for this dimension group, first attempts only. */
+  /** 0..1 — `correctCount / totalCount` for this dimension group, first attempts only, and only
+   *  clean ones count as correct (task 45). */
   readonly accuracy: number
   readonly correctCount: number
   readonly totalCount: number
@@ -73,20 +98,12 @@ export interface SessionSummaryView {
   readonly reviewedSkillCount: number
   /** First-attempt-wrong entries only, in the order they were first answered. */
   readonly mistakes: readonly MistakeEntry[]
+  /** Верные, но нечистые первые ответы (задача 45 §3), в порядке первого ответа. Не входят ни в
+   *  `mistakes`, ни в «Разобрать ошибки» (`mistakeSkillIds`) — это не ошибки, а помощь. */
+  readonly assisted: readonly AssistedEntry[]
   /** Sorted ascending by `accuracy` (worst first, `spec/tasks/14-session-results.md`'s own
    *  "сортировка по возрастанию точности"); ties broken by `key` for a deterministic order. */
   readonly hardestDimensions: readonly HardestDimensionEntry[]
-}
-
-/** One row per `skillId` — the earliest-`reviewedAt` log for it, i.e. exactly the answer
- *  `stores/session.store.ts#recordAnswer` would have set `firstAnswerBySkill`/`mistakes`
- *  from while the session was live. */
-function firstLogsBySkill(logs: readonly ReviewLogRecord[]): ReviewLogRecord[] {
-  const bySkill = new Map<SkillId, ReviewLogRecord>()
-  for (const log of [...logs].sort((a, b) => a.reviewedAt - b.reviewedAt)) {
-    if (!bySkill.has(log.skillId)) bySkill.set(log.skillId, log)
-  }
-  return [...bySkill.values()]
 }
 
 export function buildSessionSummary(
@@ -96,11 +113,9 @@ export function buildSessionSummary(
   const firstLogs = firstLogsBySkill(logs)
 
   const totalCount = firstLogs.length
-  // `rating !== AGAIN` — matches `SessionRunner.tsx#summarizeSession`'s own definition of
-  // "correct" (a near-miss graded Hard still counts as recalled for the headline score, even
-  // though `log.correct` is `false` for it — see `mistakes` below, which uses the stricter
-  // boolean and so CAN include a near-miss the score doesn't penalize).
-  const correctCount = firstLogs.filter((log) => log.rating !== AGAIN).length
+  // Задача 45: «верно» — только чистый первый ответ (`isCleanLog`); тем же определением считает
+  // `SessionRecord.correctCount` (`accuracy.ts#summarizeFirstAnswers`) и «Точность» на главной.
+  const correctCount = firstLogs.filter(isCleanLog).length
   const percent = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0
 
   const mistakes: MistakeEntry[] = firstLogs
@@ -119,13 +134,28 @@ export function buildSessionSummary(
       }
     })
 
+  const assisted: AssistedEntry[] = firstLogs
+    .filter((log) => log.correct && !isCleanLog(log))
+    .map((log) => {
+      const { wordId, dimension } = decodeSkillId(log.skillId)
+      const { lemma } = decodeWordId(wordId)
+      return {
+        skillId: log.skillId,
+        wordId,
+        lemma,
+        dimensionLabel: dimensionGroup(dimension).label,
+        expected: log.expected,
+        assist: log.assist ?? null,
+      }
+    })
+
   const buckets = new Map<string, { label: DimensionLabel; correct: number; total: number }>()
   for (const log of firstLogs) {
     const { dimension } = decodeSkillId(log.skillId)
     const { key, label } = dimensionGroup(dimension)
     const bucket = buckets.get(key) ?? { label, correct: 0, total: 0 }
     bucket.total += 1
-    if (log.correct) bucket.correct += 1
+    if (isCleanLog(log)) bucket.correct += 1
     buckets.set(key, bucket)
   }
   const hardestDimensions: HardestDimensionEntry[] = [...buckets.entries()]
@@ -145,6 +175,7 @@ export function buildSessionSummary(
     newSkillCount: session.newSkillCount,
     reviewedSkillCount: session.reviewedSkillCount,
     mistakes,
+    assisted,
     hardestDimensions,
   }
 }

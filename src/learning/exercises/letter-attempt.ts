@@ -285,6 +285,22 @@ export function isFlawlessAttempt(
   return attempt.mistakes === 0 && attempt.hintsUsed === 0 && !attempt.revealed
 }
 
+/** Чем не безупречна попытка (задача 45 §3): `hinted` — была подсказка или «глазок», `corrected`
+ *  — подсказок не было, но была исправленная ошибка; `null` — попытка безупречна
+ *  (`isFlawlessAttempt`). Подсказка — более сильный признак помощи, чем исправленная ошибка, так что
+ *  при обоих сразу побеждает `hinted`. «Глазок» тоже `hinted`, не `corrected`: ошибок в нём может и
+ *  не быть, и «исправление» было бы ложью. Единственное место этого правила — статус панели
+ *  фидбэка (`ExerciseFeedback`) и пометка в итоге сессии (`ReviewLogRecord.assist`) берут его
+ *  отсюда. */
+export type AttemptAssist = 'hinted' | 'corrected'
+
+export function assistOf(
+  attempt: Pick<TypedAttemptOutcome, 'mistakes' | 'hintsUsed' | 'revealed'>,
+): AttemptAssist | null {
+  if (isFlawlessAttempt(attempt)) return null
+  return attempt.hintsUsed > 0 || attempt.revealed ? 'hinted' : 'corrected'
+}
+
 export function outcomeOf(state: LetterAttempt): TypedAttemptOutcome {
   const letterCount = state.cells.filter((cell) => cell.state !== 'separator').length
   return {

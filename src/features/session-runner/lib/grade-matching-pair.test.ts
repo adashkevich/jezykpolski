@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
 import { getSkill } from '@/db/repositories/skills.repository.ts'
 import { getLogsForSession } from '@/db/repositories/reviews.repository.ts'
+import { getDailyStats } from '@/db/repositories/daily-stats.repository.ts'
+import { toLocalDateKey } from '@/lib/dates.ts'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
 import type { MatchingPairSource } from '@/learning/exercises/exercise.types.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
@@ -94,5 +96,34 @@ describe('gradeMatchingPair', () => {
       now: 2_000_000,
     })
     expect(second.newSkillCount).toBe(0)
+  })
+})
+
+// Задача 45 §4: засчитанная пара — чистый первый ответ по обоим навыкам.
+describe('gradeMatchingPair — точность (задача 45 §4)', () => {
+  it('оба лога пары — чистый первый ответ, в точность дня идут 2 из 2', async () => {
+    await gradeMatchingPair({ sessionId: 1, mode: 'practice', pair: PAIR, elapsedMs: 500, now: 1_000_000 })
+
+    const logs = await getLogsForSession(1)
+    expect(logs).toHaveLength(2)
+    for (const log of logs) expect(log).toMatchObject({ clean: true, firstInSession: true })
+    expect(await getDailyStats(toLocalDateKey(1_000_000))).toMatchObject({
+      accuracyAttempts: 2,
+      accuracyClean: 2,
+    })
+  })
+
+  it('уже повторявшийся навык (SRS по нему в сетке не применяется) всё равно чистый первый ответ', async () => {
+    await gradeMatchingPair({ sessionId: 1, mode: 'practice', pair: PAIR, elapsedMs: 500, now: 1_000_000 })
+    await gradeMatchingPair({ sessionId: 2, mode: 'practice', pair: PAIR, elapsedMs: 500, now: 2_000_000 })
+
+    const logs = await getLogsForSession(2)
+    for (const log of logs) {
+      expect(log).toMatchObject({ srsApplied: false, clean: true, firstInSession: true })
+    }
+    expect(await getDailyStats(toLocalDateKey(2_000_000))).toMatchObject({
+      accuracyAttempts: 4,
+      accuracyClean: 4,
+    })
   })
 })

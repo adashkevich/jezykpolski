@@ -61,6 +61,12 @@ export const BackupReviewLogRecordSchema = z.object({
   expected: z.string(),
   elapsedMs: z.number().nonnegative(),
   srsApplied: z.boolean(),
+  // Задача 45: опциональные — бэкап со старыми логами по-прежнему валиден (версия формата не
+  // растёт, см. `CURRENT_BACKUP_SCHEMA_VERSION`), но zod-объект вырезает неизвестные ключи, так что
+  // без них импорт молча потерял бы чистоту/«первый ответ» и точность считалась бы по запасному правилу.
+  clean: z.boolean().optional(),
+  firstInSession: z.boolean().optional(),
+  assist: z.enum(['hinted', 'corrected']).optional(),
 })
 
 export const BackupSessionRecordSchema = z.object({
@@ -81,6 +87,9 @@ export const BackupDailyStatsRecordSchema = z.object({
   newSkillsStarted: z.number().int().nonnegative(),
   sessionsCount: z.number().int().nonnegative(),
   timeSpentMs: z.number().nonnegative(),
+  // Задача 45: см. комментарий у `BackupReviewLogRecordSchema`.
+  accuracyAttempts: z.number().int().nonnegative().optional(),
+  accuracyClean: z.number().int().nonnegative().optional(),
   updatedAt: z.number(),
 })
 

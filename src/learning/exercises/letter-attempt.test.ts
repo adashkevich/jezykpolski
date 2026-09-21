@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
+  assistOf,
   attemptValue,
   computeVisibleCount,
   createLetterAttempt,
@@ -344,6 +345,25 @@ describe('isFlawlessAttempt (задача 42 §3, единый источник 
     sloppy = typeLetters(sloppy, 'kot')
     expect(isFlawlessAttempt(sloppy)).toBe(false)
     expect(isFlawlessAttempt(outcomeOf(sloppy))).toBe(false)
+  })
+})
+
+describe('assistOf (задача 45 §3, единый источник «с подсказкой» / «с исправлением»)', () => {
+  it('безупречная попытка — null', () => {
+    expect(assistOf({ mistakes: 0, hintsUsed: 0, revealed: false })).toBeNull()
+  })
+
+  it('только исправленная ошибка — corrected', () => {
+    expect(assistOf({ mistakes: 2, hintsUsed: 0, revealed: false })).toBe('corrected')
+  })
+
+  it('подсказка — hinted, и она сильнее ошибки', () => {
+    expect(assistOf({ mistakes: 0, hintsUsed: 1, revealed: false })).toBe('hinted')
+    expect(assistOf({ mistakes: 3, hintsUsed: 1, revealed: false })).toBe('hinted')
+  })
+
+  it('«глазок» — hinted, а не corrected', () => {
+    expect(assistOf({ mistakes: 0, hintsUsed: 0, revealed: true })).toBe('hinted')
   })
 })
 

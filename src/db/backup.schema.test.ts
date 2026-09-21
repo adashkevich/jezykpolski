@@ -136,3 +136,62 @@ describe('parseBackupJson', () => {
     }
   })
 })
+
+// Задача 45: `clean`/`firstInSession`/`assist` у логов и `accuracyAttempts`/`accuracyClean` у
+// дней — опциональные поля; схема (zod-объект вырезает неизвестные ключи) обязана их сохранить,
+// иначе импорт молча вернёт точность по прежней формуле.
+describe('parseBackupJson — поля точности (задача 45)', () => {
+  const LOG = {
+    sessionId: 1,
+    skillId: 'kobieta|NOUN::vocab:ru-pl-input',
+    wordId: 'kobieta|NOUN',
+    exerciseType: 'input',
+    reviewedAt: 3,
+    rating: 2,
+    correct: true,
+    answerGiven: 'kobieta',
+    expected: 'kobieta',
+    elapsedMs: 900,
+    srsApplied: true,
+  }
+  const DAY = {
+    date: '2026-09-22',
+    reviewsCount: 2,
+    correctCount: 1,
+    newSkillsStarted: 0,
+    sessionsCount: 1,
+    timeSpentMs: 900,
+    updatedAt: 3,
+  }
+
+  it('сохраняет clean / firstInSession / assist у лога и accuracyAttempts / accuracyClean у дня', () => {
+    const data = parseBackupJson(
+      validBackup({
+        reviewLogs: [{ ...LOG, clean: false, firstInSession: true, assist: 'corrected' }],
+        dailyStats: [{ ...DAY, accuracyAttempts: 1, accuracyClean: 0 }],
+      }),
+    )
+    expect(data.reviewLogs[0]).toMatchObject({ clean: false, firstInSession: true, assist: 'corrected' })
+    expect(data.dailyStats[0]).toMatchObject({ accuracyAttempts: 1, accuracyClean: 0 })
+  })
+
+  it('бэкап со старыми логами и днями (без новых полей) по-прежнему валиден и полей не добавляет', () => {
+    const data = parseBackupJson(validBackup({ reviewLogs: [LOG], dailyStats: [DAY] }))
+    expect('clean' in data.reviewLogs[0]!).toBe(false)
+    expect('firstInSession' in data.reviewLogs[0]!).toBe(false)
+    expect('assist' in data.reviewLogs[0]!).toBe(false)
+    expect('accuracyAttempts' in data.dailyStats[0]!).toBe(false)
+  })
+
+  it('отвергает неверный тип новых полей и неизвестное значение assist', () => {
+    expect(() => parseBackupJson(validBackup({ reviewLogs: [{ ...LOG, clean: 'yes' }] }))).toThrow(
+      BackupValidationError,
+    )
+    expect(() => parseBackupJson(validBackup({ reviewLogs: [{ ...LOG, assist: 'magic' }] }))).toThrow(
+      BackupValidationError,
+    )
+    expect(() =>
+      parseBackupJson(validBackup({ dailyStats: [{ ...DAY, accuracyAttempts: -1 }] })),
+    ).toThrow(BackupValidationError)
+  })
+})

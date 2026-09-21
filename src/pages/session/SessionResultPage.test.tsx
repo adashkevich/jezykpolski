@@ -8,7 +8,7 @@
  * `wordId`/`skillId` strings, it never touches `content/**`.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { SessionResultPage } from './SessionResultPage.tsx'
@@ -189,6 +189,159 @@ describe('SessionResultPage — real session data (acceptance points 1-4)', () =
     renderResultPage({ pathname: '/session/result', state: { sessionId } })
     await screen.findByText('1 / 1')
     expect(screen.queryByRole('button', { name: /разобрать ошибки/i })).not.toBeInTheDocument()
+  })
+})
+
+// Задача 45 §3: верный, но нечистый первый ответ снижает процент — и итог перечисляет его.
+describe('SessionResultPage — ответы с исправлением и подсказкой (задача 45)', () => {
+  async function seedAssistedSession() {
+    const sessionId = await createSession('learn', 1000)
+    // człowiek — набор с исправленной буквой: correct, но не чистый.
+    await logReview(
+      reviewLog({
+        sessionId,
+        skillId: CZLOWIEK_LOCATIVE,
+        reviewedAt: 1100,
+        rating: 2, // HARD
+        correct: true,
+        clean: false,
+        firstInSession: true,
+        assist: 'corrected',
+        answerGiven: 'człowieku',
+        expected: 'człowieku',
+      }),
+    )
+    // kobieta — набор с подсказкой.
+    await logReview(
+      reviewLog({
+        sessionId,
+        skillId: KOBIETA_DATIVE,
+        reviewedAt: 1200,
+        rating: 2,
+        correct: true,
+        clean: false,
+        firstInSession: true,
+        assist: 'hinted',
+        answerGiven: 'kobiecie',
+        expected: 'kobiecie',
+      }),
+    )
+    await completeSession(sessionId, 2000, {
+      totalCount: 2,
+      correctCount: 0,
+      newSkillCount: 0,
+      reviewedSkillCount: 2,
+    })
+    return sessionId
+  }
+
+  it('процент падает до 0%, а ответы с исправлением и с подсказкой перечислены с пометками', async () => {
+    const sessionId = await seedAssistedSession()
+    renderResultPage({ pathname: '/session/result', state: { sessionId } })
+
+    expect(await screen.findByText('0 / 2')).toBeInTheDocument()
+    // «0%» — и общий процент, и строки «Сложнее всего» по измерениям (там тоже чистые ответы).
+    expect(screen.getAllByText('0%').length).toBeGreaterThanOrEqual(2)
+
+    expect(screen.getByRole('heading', { name: 'Что снизило процент' })).toBeInTheDocument()
+    const corrected = screen.getByText('człowiek').closest('li')!
+    expect(within(corrected).getByText('с исправлением')).toBeInTheDocument()
+    expect(within(corrected).getByText('człowieku')).toBeInTheDocument()
+    const hinted = screen.getByText('kobieta').closest('li')!
+    expect(within(hinted).getByText('с подсказкой')).toBeInTheDocument()
+  })
+
+  it('«Разобрать ошибки» за такие ответы не предлагается — это не ошибки', async () => {
+    const sessionId = await seedAssistedSession()
+    renderResultPage({ pathname: '/session/result', state: { sessionId } })
+    await screen.findByText('0 / 2')
+
+    expect(screen.queryByRole('button', { name: /разобрать ошибки/i })).not.toBeInTheDocument()
+  })
+
+  it('ошибка и ответ с исправлением — в одном списке; «Разобрать ошибки» ведёт только на ошибку', async () => {
+    const sessionId = await createSession('learn', 1000)
+    await logReview(
+      reviewLog({
+        sessionId,
+        skillId: CZLOWIEK_LOCATIVE,
+        reviewedAt: 1100,
+        rating: 1,
+        correct: false,
+        clean: false,
+        firstInSession: true,
+        answerGiven: 'człowieka',
+        expected: 'człowieku',
+      }),
+    )
+    await logReview(
+      reviewLog({
+        sessionId,
+        skillId: KOBIETA_DATIVE,
+        reviewedAt: 1200,
+        rating: 2,
+        correct: true,
+        clean: false,
+        firstInSession: true,
+        assist: 'corrected',
+        expected: 'kobiecie',
+      }),
+    )
+    await completeSession(sessionId, 2000, {
+      totalCount: 2,
+      correctCount: 0,
+      newSkillCount: 0,
+      reviewedSkillCount: 2,
+    })
+    renderResultPage({ pathname: '/session/result', state: { sessionId } })
+    await screen.findByText('0 / 2')
+
+    expect(screen.getByText('człowieka')).toBeInTheDocument()
+    expect(screen.getByText('с исправлением')).toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /разобрать ошибки/i }))
+    const state = JSON.parse(screen.getByTestId('session-state').textContent ?? 'null')
+    expect(state).toEqual({ skillIds: [CZLOWIEK_LOCATIVE] })
+  })
+
+  it('старые логи без новых полей открываются без ошибок: Hard + correct — нечистый, пометка «с трудом»', async () => {
+    const sessionId = await createSession('learn', 1000)
+    await logReview(
+      reviewLog({ sessionId, skillId: KOBIETA_DATIVE, reviewedAt: 1100, rating: 2, correct: true }),
+    )
+    await logReview(
+      reviewLog({ sessionId, skillId: CZLOWIEK_LOCATIVE, reviewedAt: 1200, rating: 3, correct: true }),
+    )
+    await completeSession(sessionId, 2000, {
+      totalCount: 2,
+      correctCount: 2,
+      newSkillCount: 0,
+      reviewedSkillCount: 2,
+    })
+    renderResultPage({ pathname: '/session/result', state: { sessionId } })
+
+    // Счёт пересчитывается по логам, а не берётся из SessionRecord.correctCount (2).
+    expect(await screen.findByText('1 / 2')).toBeInTheDocument()
+    expect(screen.getByText('50%')).toBeInTheDocument()
+    expect(screen.getByText('с трудом')).toBeInTheDocument()
+  })
+
+  it('без нечистых ответов блока нет, заголовок «Ошибки» остаётся только у настоящих ошибок', async () => {
+    const sessionId = await createSession('learn', 1000)
+    await logReview(
+      reviewLog({ sessionId, skillId: KOBIETA_DATIVE, reviewedAt: 1100, rating: 4, correct: true, clean: true }),
+    )
+    await completeSession(sessionId, 2000, {
+      totalCount: 1,
+      correctCount: 1,
+      newSkillCount: 0,
+      reviewedSkillCount: 1,
+    })
+    renderResultPage({ pathname: '/session/result', state: { sessionId } })
+    await screen.findByText('1 / 1')
+
+    expect(screen.queryByRole('heading', { name: 'Что снизило процент' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Ошибки' })).not.toBeInTheDocument()
   })
 })
 

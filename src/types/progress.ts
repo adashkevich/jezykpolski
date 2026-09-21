@@ -45,6 +45,10 @@ export interface SkillRecord {
   lapses: number
 
   // Applied statistics, independent of the FSRS state.
+  // Задача 45: это НЕ «точность» — «в итоге совпало» (`gradeResult.correct`); вместе с
+  // `correctStreak` они управляют прогрессией этапов (задача 40), и смысл им не меняется.
+  // Точность считается по `ReviewLogRecord.clean`/`firstInSession` и `DailyStatsRecord.accuracy*`
+  // (`learning/progress/accuracy.ts`).
   correct: number
   incorrect: number
   /** Consecutive correct answers ending at the most recent graded attempt — any incorrect
@@ -119,6 +123,20 @@ export interface ReviewLogRecord {
   elapsedMs: number
   /** `false` for an error-review repeat or part of a practice run that skips SRS updates. */
   srsApplied: boolean
+  /** Задача 45 §1-2: ответ «чистый» — без ошибок, подсказок и «глазка» (`correct` этого не
+   *  говорит: он значит «в итоге совпало»). Пишет `answer-pipeline.ts#submitAnswer`. Опциональное
+   *  и неиндексируемое — миграция Dexie не нужна; у старых логов поля нет, читать его надо только
+   *  через `learning/progress/accuracy.ts#isCleanLog` (запасное правило `correct && rating !== HARD`). */
+  clean?: boolean
+  /** Задача 45 §1-2: первый ответ на этот навык в сессии — только такие ответы идут в «точность»
+   *  (`DailyStatsRecord.accuracyAttempts`). Читать через `accuracy.ts#isFirstInSessionLog`
+   *  (у старых логов — `srsApplied`). */
+  firstInSession?: boolean
+  /** Задача 45 §3: чем не безупречен верный ответ при наборе — `hinted` (была подсказка или
+   *  «глазок») либо `corrected` (только исправленная ошибка); те же два слова, что статус
+   *  `ExerciseFeedback` (задача 42). Нужен итогу сессии, чтобы подписать ответ, снизивший
+   *  процент, — из `clean` одного этого не восстановить. Только у `correct && !clean` набора. */
+  assist?: 'hinted' | 'corrected'
 }
 
 // ---------------------------------------------------------------------------
@@ -166,5 +184,13 @@ export interface DailyStatsRecord {
   newSkillsStarted: number
   sessionsCount: number
   timeSpentMs: number
+  /** Задача 45 §2: сколько первых ответов на навык в сессии засчитано в «точность» дня
+   *  (`ReviewLogRecord.firstInSession`). `reviewsCount`/`correctCount` считают ВСЕ ответы, включая
+   *  повторы, и остаются как были — счётчик повторений на главной берёт их. Опциональные и
+   *  неиндексируемые; у дней, записанных до задачи 45, их нет (`accuracy.ts#dailyAccuracyPercent`
+   *  тогда считает по старым счётчикам), задним числом дни не пересчитываются. */
+  accuracyAttempts?: number
+  /** Из них чистых (`ReviewLogRecord.clean`). */
+  accuracyClean?: number
   updatedAt: number
 }

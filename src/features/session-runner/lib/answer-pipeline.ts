@@ -34,11 +34,19 @@
  * to 0 and blocks the input stage itself (`SkillRecord.awaitingRecognition`, set through
  * `applyAnswer`'s `awaitingRecognition`); `buildRecognitionUnlock` below lifts that block again
  * once `vocab:ru-pl-choice` has been recognized `RELEARN_RECOGNITION_STREAK` times in a row.
+ *
+ * Task 45 (`spec/tasks/45-accuracy-counts-first-clean-answer.md`): every log also carries
+ * `clean` (no mistakes/hints/"глазок" — `learning/progress/accuracy.ts#isCleanAnswer`),
+ * `firstInSession` and, for a typed answer that was correct but not flawless, `assist`.
+ * `applyAnswer` turns them into the day's "точность" counters. Nothing here changes what SRS,
+ * ratings or `correctStreak` see — they keep reading `gradeResult.correct`.
  */
 import { grade, type GradeResult } from '@/learning/exercises/grade.ts'
 import type { Exercise } from '@/learning/exercises/exercise.types.ts'
+import { assistOf } from '@/learning/exercises/letter-attempt.ts'
 import {
   AGAIN,
+  HARD,
   applyPracticeDamping,
   capRatingForMode,
   mapResultToRating,
@@ -58,6 +66,7 @@ import {
   shouldUnlockProduction,
   withoutRecognitionLock,
 } from '@/learning/progress/stage.ts'
+import { isCleanAnswer } from '@/learning/progress/accuracy.ts'
 import { encodeSkillId } from '@/learning/skills/skill-id.ts'
 import { applyAnswer } from '@/db/repositories/answer.repository.ts'
 import { ensureSkill, getSkill, getSkillsForWord } from '@/db/repositories/skills.repository.ts'
@@ -81,6 +90,14 @@ export interface SubmitAnswerInput {
    *  the chosen rating serialized as `'1' | '2' | '3'` (`SelfAssessExercise`'s own contract). */
   readonly answerGiven: string
   readonly isFirstAnswerInSession: boolean
+  /**
+   * Task 45 §4: what goes into `ReviewLogRecord.firstInSession` (and so into the day's
+   * "точность" counters) when it is NOT the same thing as `isFirstAnswerInSession`. Absent
+   * means "same as `isFirstAnswerInSession`". Set by `grade-matching-pair.ts`: it passes
+   * `skill.reps === 0` as `isFirstAnswerInSession` (an SRS gate for the grid, not a claim
+   * about the session), but a graded matching pair is a clean first answer either way.
+   */
+  readonly firstInSession?: boolean
   readonly elapsedMs: number
   readonly now: number
   /** The outcome of a letter-by-letter attempt (task 29, `LetterSlotsInput`) — only set for
@@ -444,6 +461,17 @@ export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnsw
   }
 
   const correctAnswer = correctAnswerOf(exercise)
+
+  // Task 45: "точность" counts only a CLEAN FIRST answer (`learning/progress/accuracy.ts`).
+  // `gradeResult.correct` means "matched in the end" and stays what SRS/`correctStreak` read;
+  // `clean` is the stricter reading (no mistakes, hints or "глазок"). A self-assessed "Трудно"
+  // is not a clean recall either — same as the `correct && rating !== HARD` fallback that
+  // `isCleanLog` applies to logs written before this field existed.
+  const clean =
+    exercise.type === 'self-assess' ? rating > HARD : isCleanAnswer(gradeResult, input.attempt)
+  // Why a typed-correct answer was not clean, for the session summary's "с исправлением" /
+  // "с подсказкой" note (`build-session-summary.ts`).
+  const assist = gradeResult.correct && input.attempt ? assistOf(input.attempt) : null
   const reviewLog: Omit<ReviewLogRecord, 'id'> = {
     sessionId,
     skillId,
@@ -456,6 +484,9 @@ export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnsw
     expected: correctAnswer,
     elapsedMs,
     srsApplied,
+    clean,
+    firstInSession: input.firstInSession ?? input.isFirstAnswerInSession,
+    ...(assist === null ? {} : { assist }),
   }
 
   await applyAnswer({
