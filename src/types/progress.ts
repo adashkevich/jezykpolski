@@ -54,6 +54,12 @@ export interface SkillRecord {
    *  indexed. Only vocab dimensions ever consume it (stage-unlock thresholds), but it's
    *  tracked for every skill uniformly, same as `correct`/`incorrect` themselves. */
   correctStreak?: number
+  /** Только `vocab:ru-pl-input` (task 43, `spec/tasks/43-reveal-returns-to-recognition.md`):
+   *  пользователь нажал «Показать слово», и вопрос на ввод не задаётся, пока слово не узнано
+   *  `stage.ts#RELEARN_RECOGNITION_STREAK` раз подряд на `vocab:ru-pl-choice` (или пока не
+   *  нажата «Знаю»). Как и `correctStreak`, опциональное и неиндексируемое — миграция Dexie не
+   *  нужна; поле снимается целиком (`stage.ts#withoutRecognitionLock`), а не ставится в `false`. */
+  awaitingRecognition?: true
   createdAt: number
   updatedAt: number
 }

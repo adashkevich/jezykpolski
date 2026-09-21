@@ -9,13 +9,17 @@ import {
   CUED_RECALL_UNLOCK_STABILITY_DAYS,
   CUED_RECALL_UNLOCK_STREAK,
   hasGraduatedProduction,
+  isAwaitingRecognition,
   lowerVocabDimensions,
   nextCorrectStreak,
   PRODUCTION_UNLOCK_STREAK,
   RECOGNITION_UNLOCK_STABILITY_DAYS,
+  RELEARN_RECOGNITION_STREAK,
+  shouldLiftRecognitionLock,
   shouldUnlockCuedRecall,
   shouldUnlockProduction,
   stageOf,
+  withoutRecognitionLock,
 } from './stage.ts'
 
 function record(
@@ -121,6 +125,61 @@ describe('shouldUnlockProduction', () => {
 
   it('нет записи этапа 2 — нечего выпускать', () => {
     expect(shouldUnlockProduction(undefined)).toBe(false)
+  })
+})
+
+describe('RELEARN_RECOGNITION_STREAK (задача 43 §3)', () => {
+  it('короче первого прохождения: повторное обучение после «Показать слово» короче исходного порога открытия ввода', () => {
+    expect(RELEARN_RECOGNITION_STREAK).toBe(2)
+    expect(RELEARN_RECOGNITION_STREAK).toBeLessThan(PRODUCTION_UNLOCK_STREAK)
+  })
+})
+
+describe('shouldLiftRecognitionLock (задача 43 §3)', () => {
+  it('снимает блокировку, когда серия на vocab:ru-pl-choice достигла порога', () => {
+    expect(
+      shouldLiftRecognitionLock(
+        record('vocab:ru-pl-choice', { correctStreak: RELEARN_RECOGNITION_STREAK }),
+      ),
+    ).toBe(true)
+    expect(
+      shouldLiftRecognitionLock(
+        record('vocab:ru-pl-choice', { correctStreak: RELEARN_RECOGNITION_STREAK + 3 }),
+      ),
+    ).toBe(true)
+  })
+
+  it('не снимает, пока серия ниже порога — и стабильность здесь ничего не решает', () => {
+    expect(
+      shouldLiftRecognitionLock(
+        record('vocab:ru-pl-choice', {
+          correctStreak: RELEARN_RECOGNITION_STREAK - 1,
+          stability: 100,
+        }),
+      ),
+    ).toBe(false)
+    expect(shouldLiftRecognitionLock(record('vocab:ru-pl-choice'))).toBe(false)
+  })
+
+  it('нет записи этапа 2 — нечего снимать', () => {
+    expect(shouldLiftRecognitionLock(undefined)).toBe(false)
+  })
+})
+
+describe('isAwaitingRecognition / withoutRecognitionLock (задача 43 §1)', () => {
+  it('isAwaitingRecognition читает флаг записи; undefined и запись без флага — не заблокированы', () => {
+    expect(isAwaitingRecognition(record('vocab:ru-pl-input', { awaitingRecognition: true }))).toBe(
+      true,
+    )
+    expect(isAwaitingRecognition(record('vocab:ru-pl-input'))).toBe(false)
+    expect(isAwaitingRecognition(undefined)).toBe(false)
+  })
+
+  it('withoutRecognitionLock убирает поле целиком, остальные поля не трогает', () => {
+    const locked = record('vocab:ru-pl-input', { awaitingRecognition: true, due: 42 })
+    const unlocked = withoutRecognitionLock(locked)
+    expect('awaitingRecognition' in unlocked).toBe(false)
+    expect(unlocked).toEqual(record('vocab:ru-pl-input', { due: 42 }))
   })
 })
 

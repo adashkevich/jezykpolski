@@ -289,3 +289,97 @@ describe('buildLearnQueue — one question per word per session (task 40 §2)', 
     expect(skillIds).toEqual(['a|NOUN::vocab:ru-pl-choice', 'b|NOUN::vocab:pl-ru'])
   })
 })
+
+// ---------------------------------------------------------------------------
+// Task 43 §2: `vocab:ru-pl-input` с `awaitingRecognition` не участвует в очереди.
+// ---------------------------------------------------------------------------
+
+describe('collapseVocabStages — блокировка ввода после «Показать слово» (task 43 §2)', () => {
+  const plRu = (due: number) =>
+    skill({ skillId: 'a|NOUN::vocab:pl-ru', dimension: 'vocab:pl-ru', due })
+  const choice = (due: number) =>
+    skill({ skillId: 'a|NOUN::vocab:ru-pl-choice', dimension: 'vocab:ru-pl-choice', due })
+  const lockedInput = (due: number) =>
+    skill({
+      skillId: 'a|NOUN::vocab:ru-pl-input',
+      dimension: 'vocab:ru-pl-input',
+      due,
+      awaitingRecognition: true,
+    })
+
+  it('заблокированный ввод исключается, даже самый просроченный: слово приходит вопросом ru-pl-choice', () => {
+    expect(collapseVocabStages([plRu(200), choice(200), lockedInput(50)])).toEqual([choice(200)])
+  })
+
+  it('при равном due из оставшихся побеждает старший этап — ru-pl-choice, а не pl-ru', () => {
+    expect(collapseVocabStages([lockedInput(100), plRu(100), choice(100)])).toEqual([choice(100)])
+  })
+
+  it('если у слова больше нет других просроченных этапов, оно из очереди уходит целиком', () => {
+    expect(collapseVocabStages([lockedInput(100)])).toEqual([])
+  })
+
+  it('заблокированный ввод одного слова не влияет на другое слово', () => {
+    const other = skill({ skillId: 'b|NOUN::vocab:ru-pl-input', dimension: 'vocab:ru-pl-input', due: 10 })
+    expect(collapseVocabStages([lockedInput(1), choice(5), other])).toEqual(
+      expect.arrayContaining([choice(5), other]),
+    )
+    expect(collapseVocabStages([lockedInput(1), choice(5), other])).toHaveLength(2)
+  })
+
+  it('ввод без флага ведёт себя как раньше (побеждает по due / по старшинству)', () => {
+    const openInput = skill({
+      skillId: 'a|NOUN::vocab:ru-pl-input',
+      dimension: 'vocab:ru-pl-input',
+      due: 100,
+    })
+    expect(collapseVocabStages([plRu(200), choice(150), openInput])).toEqual([openInput])
+  })
+})
+
+describe('buildLearnQueue — блокировка ввода (task 43 §2)', () => {
+  it('просроченный vocab:ru-pl-input с awaitingRecognition не выдаётся; слово приходит ru-pl-choice', () => {
+    const lockedInput = skill({
+      skillId: 'a|NOUN::vocab:ru-pl-input',
+      dimension: 'vocab:ru-pl-input',
+      due: 10,
+      awaitingRecognition: true,
+    })
+    const choice = skill({
+      skillId: 'a|NOUN::vocab:ru-pl-choice',
+      dimension: 'vocab:ru-pl-choice',
+      due: 500,
+    })
+    const plRu = skill({ skillId: 'a|NOUN::vocab:pl-ru', dimension: 'vocab:pl-ru', due: 500 })
+
+    const plan = buildLearnQueue({
+      now: 1000,
+      dueSkills: [lockedInput, plRu, choice],
+      newWordsBudget: 0,
+      candidateNewWords: [],
+      targetSize: 20,
+    })
+
+    expect(plan.items.map((i) => (i.source === 'due' ? i.skill.skillId : i.wordId))).toEqual([
+      'a|NOUN::vocab:ru-pl-choice',
+    ])
+  })
+
+  it('после снятия флага тот же ввод снова попадает в очередь', () => {
+    const openInput = skill({
+      skillId: 'a|NOUN::vocab:ru-pl-input',
+      dimension: 'vocab:ru-pl-input',
+      due: 10,
+    })
+    const plan = buildLearnQueue({
+      now: 1000,
+      dueSkills: [openInput],
+      newWordsBudget: 0,
+      candidateNewWords: [],
+      targetSize: 20,
+    })
+    expect(plan.items.map((i) => (i.source === 'due' ? i.skill.skillId : i.wordId))).toEqual([
+      'a|NOUN::vocab:ru-pl-input',
+    ])
+  })
+})

@@ -462,3 +462,62 @@ describe('«Знаю» на vocab:ru-pl-input (задача 41 §1-2)', () => {
     expect(markKnownButton()).toBeInTheDocument()
   })
 })
+
+// ---------------------------------------------------------------------------
+// Задача 43: «Показать слово» возвращает слово к узнаванию, «Знаю» снимает блокировку ввода.
+// ---------------------------------------------------------------------------
+
+describe('«Показать слово» и блокировка ввода (задача 43)', () => {
+  it('«Показать слово» на вводе: младшие этапы к повтору сейчас с серией 0, ввод заблокирован', async () => {
+    const user = userEvent.setup()
+    await seed(
+      reviewedSkill('vocab:pl-ru', 40, 20),
+      reviewedSkill('vocab:ru-pl-choice', 40, 20),
+      { ...reviewedSkill('vocab:ru-pl-input', 40, -1), due: Date.now() - 1000 },
+    )
+    await startSession({ kind: 'word', wordId: KOBIETA })
+    expect(currentSkillId()).toBe(skillId('vocab:ru-pl-input'))
+
+    const before = Date.now()
+    await user.click(screen.getByRole('button', { name: /^Показать слово/ }))
+    await screen.findByRole('button', { name: 'Далее' })
+    const after = Date.now()
+
+    for (const dimension of ['vocab:pl-ru', 'vocab:ru-pl-choice'] as const) {
+      const lower = (await getSkill(skillId(dimension)))!
+      expect(lower.correctStreak).toBe(0)
+      expect(lower.due).toBeGreaterThanOrEqual(before)
+      expect(lower.due).toBeLessThanOrEqual(after)
+    }
+    expect((await getSkill(skillId('vocab:ru-pl-input')))!.awaitingRecognition).toBe(true)
+  })
+
+  it('«Знаю» показывается на этапе выбора, пока ввод заблокирован, хотя оба этапа выбора уже на полу известности; нажатие снимает блокировку и ставит вводу due = now', async () => {
+    const user = userEvent.setup()
+    await seed(
+      { ...reviewedSkill('vocab:pl-ru', 40, -1), due: Date.now() - 1000 },
+      reviewedSkill('vocab:ru-pl-choice', 40, 20),
+      {
+        ...skillRecord('vocab:ru-pl-input', { due: Date.now() + 20 * DAY_MS }),
+        awaitingRecognition: true,
+      },
+    )
+    await startSession({ kind: 'word', wordId: KOBIETA })
+    expect(currentSkillId()).toBe(skillId('vocab:pl-ru'))
+
+    await answerChoice(user, true)
+    expect(markKnownButton()).toBeInTheDocument()
+
+    const before = Date.now()
+    await user.click(markKnownButton()!)
+    await waitFor(async () =>
+      expect('awaitingRecognition' in (await getSkill(skillId('vocab:ru-pl-input')))!).toBe(false),
+    )
+    const after = Date.now()
+
+    const input = (await getSkill(skillId('vocab:ru-pl-input')))!
+    expect(input.due).toBeGreaterThanOrEqual(before)
+    expect(input.due).toBeLessThanOrEqual(after)
+  })
+})
+

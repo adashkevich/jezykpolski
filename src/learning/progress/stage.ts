@@ -72,6 +72,13 @@ export const CUED_RECALL_UNLOCK_STREAK = 2
  *  языке, и explicitly просился пользователем как "три подряд", не два. */
 export const PRODUCTION_UNLOCK_STREAK = 3
 
+/** Сколько верных ответов ПОДРЯД на `vocab:ru-pl-choice` нужно после «Показать слово» на вводе
+ *  (`SkillRecord.awaitingRecognition`, задача 43 §3), чтобы вопрос на ввод снова начал
+ *  задаваться. Пользователь просил «определённое количество». 2 выбрано меньше
+ *  `PRODUCTION_UNLOCK_STREAK`: слово уже один раз проходило этот порог, повторное обучение
+ *  должно быть короче первого. Значение — константа, его легко поменять. */
+export const RELEARN_RECOGNITION_STREAK = 2
+
 /**
  * Считает следующее значение `SkillRecord.correctStreak` для одного оценённого ответа.
  *
@@ -118,6 +125,32 @@ export function shouldUnlockProduction(cuedRecall: SkillRecord | undefined): boo
     (cuedRecall?.correctStreak ?? 0) >= PRODUCTION_UNLOCK_STREAK ||
     (cuedRecall?.stability ?? 0) >= CUED_RECALL_UNLOCK_STABILITY_DAYS
   )
+}
+
+/**
+ * Пора ли снимать блокировку ввода (`SkillRecord.awaitingRecognition`, задача 43 §3) — вводу
+ * после «Показать слово» — для слова, чей `vocab:ru-pl-choice` только что получил оценку.
+ * Тот же контракт, что у `shouldUnlockProduction`: принимает УЖЕ обновлённое состояние навыка.
+ * Смотрит только на серию — порог стабильности здесь не запасная ветка: после «Показать
+ * слово» именно серия узнаваний «после провала» и есть то, что нужно набрать заново.
+ * `vocab:pl-ru` сюда не попадает: считается «вспомнить польское слово по русскому».
+ */
+export function shouldLiftRecognitionLock(cuedRecall: SkillRecord | undefined): boolean {
+  return (cuedRecall?.correctStreak ?? 0) >= RELEARN_RECOGNITION_STREAK
+}
+
+/** Стоит ли на записи блокировка ввода после «Показать слово». `undefined` — навыка нет,
+ *  блокировать нечего. */
+export function isAwaitingRecognition(skill: SkillRecord | undefined): boolean {
+  return skill?.awaitingRecognition === true
+}
+
+/** Копия записи без `awaitingRecognition` — поле убирается целиком, а не выставляется в
+ *  `undefined`, чтобы в IndexedDB не оставалось ключа без значения. */
+export function withoutRecognitionLock(skill: SkillRecord): SkillRecord {
+  const rest = { ...skill }
+  delete rest.awaitingRecognition
+  return rest
 }
 
 /**

@@ -81,6 +81,16 @@ export interface AnswerInput {
    * `swipe.repository.ts`'s known/unknown triage, which writes `skills` without a log too).
    */
   readonly cascadeSkills?: readonly SkillRecord[]
+
+  /**
+   * Task 43 §1: sets `SkillRecord.awaitingRecognition` on `skillId` itself — "Показать слово"
+   * on `vocab:ru-pl-input` blocks that stage until the word is recognized again. The answered
+   * skill is read fresh inside this transaction (its SRS/`correct` fields are merged here, not
+   * by the caller), so a flag on it has to travel as its own input instead of via
+   * `cascadeSkills`. Absent means "leave whatever the record already has": an ordinary answer
+   * never lifts the lock, only `answer-pipeline.ts`'s recognition streak or "Знаю" do.
+   */
+  readonly awaitingRecognition?: true
 }
 
 /**
@@ -105,6 +115,7 @@ export async function applyAnswer(input: AnswerInput): Promise<void> {
       correct: skill.correct + (correct ? 1 : 0),
       incorrect: skill.incorrect + (correct ? 0 : 1),
       correctStreak: nextCorrectStreak(skill.correctStreak, correct, input.reviewLog.srsApplied),
+      ...(input.awaitingRecognition ? { awaitingRecognition: true as const } : {}),
       updatedAt: input.reviewLog.reviewedAt,
     }
     await db.skills.put(updatedSkill)

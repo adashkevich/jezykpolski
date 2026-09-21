@@ -239,6 +239,124 @@ describe('markWordTranslationKnown (task 40 §3)', () => {
   })
 })
 
+describe('markWordTranslationKnown — снимает блокировку ввода (task 43 §3, task 41 §2)', () => {
+  /** Слово после «Показать слово»: ввод заблокирован, его `due` далеко впереди. */
+  function lockedInput(): SkillRecord {
+    return {
+      ...skillAt('vocab:ru-pl-input', 6),
+      state: 'relearning',
+      due: NOW + 20 * DAY_MS,
+      lapses: 1,
+      awaitingRecognition: true,
+    }
+  }
+
+  it('«Знаю» на этапе выбора снимает флаг и ставит вводу due = now, остальную SRS-запись не трогает', async () => {
+    const input = lockedInput()
+    await db.skills.bulkPut([
+      { ...skillAt('vocab:pl-ru', 3), due: NOW },
+      { ...skillAt('vocab:ru-pl-choice', 3), due: NOW },
+      input,
+    ])
+
+    await markWordTranslationKnown('kobieta|NOUN', NOW)
+
+    const after = (await getSkill('kobieta|NOUN::vocab:ru-pl-input'))!
+    expect('awaitingRecognition' in after).toBe(false)
+    expect(after.due).toBe(NOW)
+    expect(after.state).toBe(input.state)
+    expect(after.stability).toBe(input.stability)
+    expect(after.lapses).toBe(input.lapses)
+    // Этапы выбора при этом уходят в review, как и без флага.
+    for (const dimension of ['vocab:pl-ru', 'vocab:ru-pl-choice'] as const) {
+      const skill = (await getSkill(`kobieta|NOUN::${dimension}`))!
+      expect(skill.state).toBe('review')
+      expect(skill.due).toBe(NOW + SWIPE_KNOWN_DUE_DAYS * DAY_MS)
+    }
+  })
+
+  it('снимает флаг и когда оба этапа выбора уже на полу известности — тогда меняется только ввод', async () => {
+    await db.skills.bulkPut([
+      skillAt('vocab:pl-ru', SWIPE_KNOWN_INITIAL_STABILITY),
+      skillAt('vocab:ru-pl-choice', SWIPE_KNOWN_INITIAL_STABILITY),
+      lockedInput(),
+    ])
+    const choiceBefore = (await getSkill('kobieta|NOUN::vocab:ru-pl-choice'))!
+
+    await markWordTranslationKnown('kobieta|NOUN', NOW)
+
+    expect(await getSkill('kobieta|NOUN::vocab:ru-pl-choice')).toEqual({
+      ...choiceBefore,
+      updatedAt: expect.any(Number),
+    })
+    const input = (await getSkill('kobieta|NOUN::vocab:ru-pl-input'))!
+    expect('awaitingRecognition' in input).toBe(false)
+    expect(input.due).toBe(NOW)
+  })
+
+  it('ввод без флага по-прежнему не трогается: due остаётся как был', async () => {
+    const input = { ...lockedInput() }
+    delete input.awaitingRecognition
+    await db.skills.put(input)
+
+    await markWordTranslationKnown('kobieta|NOUN', NOW)
+
+    expect((await getSkill('kobieta|NOUN::vocab:ru-pl-input'))?.due).toBe(input.due)
+  })
+
+  it('undoTriage возвращает флаг и прежний due ввода', async () => {
+    const input = lockedInput()
+    await db.skills.put(input)
+
+    const snapshot = await markWordTranslationKnown('kobieta|NOUN', NOW)
+    await undoTriage(snapshot)
+
+    expect(await getSkill('kobieta|NOUN::vocab:ru-pl-input')).toEqual(input)
+  })
+})
+
+describe('«Знаю» на вводе и свайп вправо снимают блокировку ввода (task 43 §3)', () => {
+  const locked = (): SkillRecord => ({
+    ...skillAt('vocab:ru-pl-input', 6),
+    state: 'relearning',
+    awaitingRecognition: true,
+  })
+
+  it('markWordProductionKnown: ввод в review и без флага', async () => {
+    await db.skills.put(locked())
+    await markWordProductionKnown('kobieta|NOUN', NOW)
+
+    const input = (await getSkill('kobieta|NOUN::vocab:ru-pl-input'))!
+    expect('awaitingRecognition' in input).toBe(false)
+    expect(input.state).toBe('review')
+    expect(input.stability).toBe(SWIPE_KNOWN_INITIAL_STABILITY)
+  })
+
+  it('markWordKnown (свайп вправо в списке слов): то же — явное «я знаю» блокировку снимает', async () => {
+    await db.skills.put(locked())
+    await markWordKnown('kobieta|NOUN', NOW)
+    expect('awaitingRecognition' in (await getSkill('kobieta|NOUN::vocab:ru-pl-input'))!).toBe(
+      false,
+    )
+  })
+
+  it('даже монотонный случай (ввод уже выше пола известности) флаг снимает', async () => {
+    await db.skills.put({ ...locked(), stability: 45, state: 'review' })
+    await markWordProductionKnown('kobieta|NOUN', NOW)
+    const input = (await getSkill('kobieta|NOUN::vocab:ru-pl-input'))!
+    expect(input.stability).toBe(45)
+    expect('awaitingRecognition' in input).toBe(false)
+  })
+
+  it('undoTriage возвращает флаг', async () => {
+    const before = locked()
+    await db.skills.put(before)
+    const snapshot = await markWordProductionKnown('kobieta|NOUN', NOW)
+    await undoTriage(snapshot)
+    expect(await getSkill('kobieta|NOUN::vocab:ru-pl-input')).toEqual(before)
+  })
+})
+
 /** Полная запись навыка для `db.skills.put` — то же, что вручную собирают тесты выше. */
 function skillAt(
   dimension: 'vocab:pl-ru' | 'vocab:ru-pl-choice' | 'vocab:ru-pl-input',
@@ -334,6 +452,20 @@ describe('wouldMarkKnownChange (task 41 §3 — replaces areChoiceStagesKnown)',
       await db.skills.put({ ...skillAt('vocab:ru-pl-input', 1), state: 'learning' })
       expect(await wouldMarkKnownChange('kobieta|NOUN', 'vocab:pl-ru')).toBe(false)
     })
+
+    it('task 43: is true while vocab:ru-pl-input is blocked by awaitingRecognition, even with both choice stages known — the button is the way to lift the lock', async () => {
+      await markWordTranslationKnown('kobieta|NOUN', NOW)
+      await db.skills.put({ ...skillAt('vocab:ru-pl-input', 1), awaitingRecognition: true })
+      expect(await wouldMarkKnownChange('kobieta|NOUN', 'vocab:pl-ru')).toBe(true)
+      expect(await wouldMarkKnownChange('kobieta|NOUN', 'vocab:ru-pl-choice')).toBe(true)
+    })
+
+    it('task 43: goes back to false once the lock is gone — the button pressed once is not offered again', async () => {
+      await markWordTranslationKnown('kobieta|NOUN', NOW)
+      await db.skills.put({ ...skillAt('vocab:ru-pl-input', 1), awaitingRecognition: true })
+      await markWordTranslationKnown('kobieta|NOUN', NOW)
+      expect(await wouldMarkKnownChange('kobieta|NOUN', 'vocab:pl-ru')).toBe(false)
+    })
   })
 
   describe('on vocab:ru-pl-input', () => {
@@ -358,6 +490,13 @@ describe('wouldMarkKnownChange (task 41 §3 — replaces areChoiceStagesKnown)',
     it('is false only when all three stages are at or above the known floor', async () => {
       await markWordKnown('kobieta|NOUN', NOW)
       expect(await wouldMarkKnownChange('kobieta|NOUN', 'vocab:ru-pl-input')).toBe(false)
+    })
+
+    it('task 43: is true when all three stages are at the floor but the input is still blocked — pressing lifts the lock', async () => {
+      await markWordKnown('kobieta|NOUN', NOW)
+      const input = (await getSkill('kobieta|NOUN::vocab:ru-pl-input'))!
+      await db.skills.put({ ...input, awaitingRecognition: true })
+      expect(await wouldMarkKnownChange('kobieta|NOUN', 'vocab:ru-pl-input')).toBe(true)
     })
   })
 })

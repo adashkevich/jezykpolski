@@ -44,7 +44,7 @@ import type { SkillRecord } from '@/types/progress.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import { encodeWordId } from '@/learning/skills/skill-id.ts'
 import type { VocabDimension } from '@/learning/skills/dimensions.ts'
-import { vocabStageRank } from '@/learning/progress/stage.ts'
+import { isAwaitingRecognition, vocabStageRank } from '@/learning/progress/stage.ts'
 import type { LearnQueueItem, QueuePlan } from './session.types.ts'
 
 export interface BuildLearnQueueInput {
@@ -81,6 +81,14 @@ function isLearningOrRelearning(skill: SkillRecord): boolean {
  * cascade — §2.2/§2.3 of the task — is what keeps the lower stages' `due` moving in step with
  * the one actually answered, so they don't all pile up "overdue" forever).
  *
+ * Task 43 §2: a `vocab:ru-pl-input` with `awaitingRecognition` ("Показать слово" was pressed on
+ * it, `answer-pipeline.ts#submitAnswer`) is dropped BEFORE grouping, even if it is the most
+ * overdue stage — the word then arrives as a recognition question (at equal `due` the more
+ * advanced of the rest, i.e. `vocab:ru-pl-choice`), and if no other stage of it is due the word
+ * simply isn't in this build. The lock is lifted by a streak of correct `vocab:ru-pl-choice`
+ * answers or by "Знаю" (`stage.ts#RELEARN_RECOGNITION_STREAK`). Practice needs no such filter:
+ * `build-practice-queue.ts` selects by the user's explicit dimension choice, never by `due`.
+ *
  * Non-vocab (morphological) skills are untouched, even for a word that also has a vocab
  * skill due — collapsing is specifically about the three translation stages competing to ask
  * "do you know this word's translation" more than once a session, not about a word's forms.
@@ -98,6 +106,7 @@ export function collapseVocabStages(dueSkills: readonly SkillRecord[]): SkillRec
       result.push(skill)
       continue
     }
+    if (isAwaitingRecognition(skill)) continue
     const bucket = vocabByWord.get(skill.wordId)
     if (bucket) bucket.push(skill)
     else vocabByWord.set(skill.wordId, [skill])

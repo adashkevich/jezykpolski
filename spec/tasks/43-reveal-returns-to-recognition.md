@@ -81,11 +81,11 @@
 
 ## Acceptance
 
-- [ ] «Показать слово» на вводе: `pl-ru` и `ru-pl-choice` получают `due = now` и
+- [x] «Показать слово» на вводе: `pl-ru` и `ru-pl-choice` получают `due = now` и
       `correctStreak = 0`, у ввода выставлен `awaitingRecognition`
-- [ ] Пока флаг стоит, `buildLearnQueue` не выдаёт `vocab:ru-pl-input` этого слова, даже
+- [x] Пока флаг стоит, `buildLearnQueue` не выдаёт `vocab:ru-pl-input` этого слова, даже
       просроченный; слово приходит вопросом `ru-pl-choice`
-- [ ] После `RELEARN_RECOGNITION_STREAK` верных `ru-pl-choice` подряд флаг снят, вводу
+- [x] После `RELEARN_RECOGNITION_STREAK` верных `ru-pl-choice` подряд флаг снят, вводу
       поставлен `due = now`; ошибка между ними обнуляет счёт
-- [ ] «Знаю» на этапе выбора снимает флаг сразу
-- [ ] `npm test`, `npm run lint`, `npm run build` проходят
+- [x] «Знаю» на этапе выбора снимает флаг сразу
+- [x] `npm test`, `npm run lint`, `npm run build` проходят

@@ -28,6 +28,12 @@
  * слово" on the input stage pulls those same lower skills' `due` back to "now" instead. Both
  * write through `applyAnswer`'s `cascadeSkills` — same transaction as the answered skill
  * itself, no `reviewLogs` row, no `dailyStats` bump (the user only answered ONE question).
+ *
+ * Task 43 (`spec/tasks/43-reveal-returns-to-recognition.md`) finishes the "Показать слово"
+ * half: besides pulling the lower stages' `due` back, the reveal resets their `correctStreak`
+ * to 0 and blocks the input stage itself (`SkillRecord.awaitingRecognition`, set through
+ * `applyAnswer`'s `awaitingRecognition`); `buildRecognitionUnlock` below lifts that block again
+ * once `vocab:ru-pl-choice` has been recognized `RELEARN_RECOGNITION_STREAK` times in a row.
  */
 import { grade, type GradeResult } from '@/learning/exercises/grade.ts'
 import type { Exercise } from '@/learning/exercises/exercise.types.ts'
@@ -44,10 +50,13 @@ import type { SrsState } from '@/learning/srs/srs.types.ts'
 import type { VocabDimension } from '@/learning/skills/dimensions.ts'
 import type { SkillId, WordId } from '@/learning/skills/skill-id.ts'
 import {
+  isAwaitingRecognition,
   lowerVocabDimensions,
   nextCorrectStreak,
+  shouldLiftRecognitionLock,
   shouldUnlockCuedRecall,
   shouldUnlockProduction,
+  withoutRecognitionLock,
 } from '@/learning/progress/stage.ts'
 import { encodeSkillId } from '@/learning/skills/skill-id.ts'
 import { applyAnswer } from '@/db/repositories/answer.repository.ts'
@@ -236,8 +245,9 @@ async function unlockNextVocabStage(args: {
  * Two independent branches, mutually exclusive (a revealed attempt always wins — see below):
  *
  *  - **Revealed** (`attempt.revealed`, "Показать слово"): pulls every lower stage's `due`
- *    back to "now", nothing else — this is a request to see the translation again, not a
- *    graded review, so SRS fields/streak/`correct` stay untouched. Not gated on `srsApplied`
+ *    back to "now" and zeroes its `correctStreak` (task 43 §1), nothing else — this is a
+ *    request to see the translation again, not a graded review, so SRS fields/`correct`
+ *    stay untouched. Not gated on `srsApplied`
  *    at all (unlike the branch below): it's idempotent (`due: now` twice is a no-op the
  *    second time) and should resurface the lower stages even on a `mistakes`-mode or
  *    in-session repeat reveal.
@@ -267,7 +277,9 @@ function buildVocabCascade(args: {
   if (lowerSkills.length === 0) return []
 
   if (args.revealed) {
-    return lowerSkills.map((s) => ({ ...s, due: args.now, updatedAt: args.now }))
+    // `correctStreak = 0` (task 43 §1): the streak left over from earlier successes would make
+    // "how many times recognized since the failure" impossible to count.
+    return lowerSkills.map((s) => ({ ...s, due: args.now, correctStreak: 0, updatedAt: args.now }))
   }
 
   if (!args.srsApplied || !args.correct) return []
@@ -283,6 +295,35 @@ function buildVocabCascade(args: {
       updatedAt: args.now,
     }
   })
+}
+
+/**
+ * Task 43 §3 — lifts `vocab:ru-pl-input`'s `awaitingRecognition` lock once the word's
+ * `vocab:ru-pl-choice` has reached `RELEARN_RECOGNITION_STREAK` correct answers in a row: the
+ * input record loses the flag and gets `due = now`, nothing else about it changes (this is a
+ * lock lift, not a review). Complements `unlockNextVocabStage` above — that one CREATES the
+ * input record, this one only re-opens a record that a "Показать слово" blocked — and,
+ * like it, does nothing when `srsApplied` is false (the streak did not move for this answer).
+ * Independent of `skipCascade`: a matching-grid answer on `vocab:ru-pl-choice` is a real
+ * recognition, and lifting the lock is not a cascade onto a lower stage. Returned as skill
+ * rows for `applyAnswer`'s `cascadeSkills` (same transaction, no `reviewLog` of its own).
+ *
+ * The lock takes effect from the NEXT queue build: the current session's queue is already
+ * assembled (`useSessionBootstrap`), so, like `unlockNextVocabStage`, this keeps FR-81.
+ */
+function buildRecognitionUnlock(args: {
+  readonly answered: SkillRecord
+  readonly updatedAnswered: SkillRecord
+  readonly otherWordSkills: readonly SkillRecord[]
+  readonly srsApplied: boolean
+  readonly now: number
+}): SkillRecord[] {
+  if (!args.srsApplied) return []
+  if (args.answered.kind !== 'vocab' || args.answered.dimension !== 'vocab:ru-pl-choice') return []
+  if (!shouldLiftRecognitionLock(args.updatedAnswered)) return []
+  const input = args.otherWordSkills.find((s) => s.dimension === 'vocab:ru-pl-input')
+  if (input === undefined || !isAwaitingRecognition(input)) return []
+  return [{ ...withoutRecognitionLock(input), due: args.now, updatedAt: args.now }]
 }
 
 export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnswerResult> {
@@ -352,18 +393,40 @@ export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnsw
   // stages of this word so the next queue build doesn't ask about the same word's
   // translation twice. Computed from `otherSkillsForWord` (already fetched above) so the
   // aggregate below sees the SAME lower-stage values that get persisted, not the stale ones.
-  const cascadeSkills = input.skipCascade
-    ? []
-    : buildVocabCascade({
-        skill: currentSkill,
-        otherWordSkills: otherSkillsForWord,
-        cappedRating,
-        mode,
-        correct: gradeResult.correct,
-        srsApplied,
-        revealed: input.attempt?.revealed ?? false,
-        now,
-      })
+  const revealed = input.attempt?.revealed ?? false
+  const cascadeSkills = [
+    ...(input.skipCascade
+      ? []
+      : buildVocabCascade({
+          skill: currentSkill,
+          otherWordSkills: otherSkillsForWord,
+          cappedRating,
+          mode,
+          correct: gradeResult.correct,
+          srsApplied,
+          revealed,
+          now,
+        })),
+    // Task 43 §3: recognition streak reached -> the input stage stops being blocked.
+    ...buildRecognitionUnlock({
+      answered: currentSkill,
+      updatedAnswered: updatedSkillForProgress,
+      otherWordSkills: otherSkillsForWord,
+      srsApplied,
+      now,
+    }),
+  ]
+
+  // Task 43 §1: "Показать слово" on the input stage blocks that stage itself until the word is
+  // recognized again. Not gated on `srsApplied` (an explicit "show it again", like the lower
+  // stages' `due` above) — but only when a `vocab:ru-pl-choice` record exists to unblock it:
+  // an input opened without the recognition stages (Practice / single-skill scope) would
+  // otherwise be hidden from the queue with nothing able to lift the block.
+  const locksInput =
+    revealed &&
+    currentSkill.kind === 'vocab' &&
+    currentSkill.dimension === 'vocab:ru-pl-input' &&
+    otherSkillsForWord.some((s) => s.dimension === 'vocab:ru-pl-choice')
   const cascadeBySkillId = new Map(cascadeSkills.map((s) => [s.skillId, s]))
   const skillsForProgress = otherSkillsForWord.map((s) => cascadeBySkillId.get(s.skillId) ?? s)
 
@@ -404,6 +467,7 @@ export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnsw
     isNewSkill,
     nextWordProgress,
     cascadeSkills,
+    ...(locksInput ? { awaitingRecognition: true as const } : {}),
   })
 
   return { gradeResult, rating: cappedRating, correctAnswer, isNewSkill }

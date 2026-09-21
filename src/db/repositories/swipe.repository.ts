@@ -25,6 +25,11 @@
  * `words-progress.repository.ts`'s file header for the same hazard). The actual `skills` +
  * `wordProgress` write is a single short, purely-Dexie transaction.
  *
+ * Every patched record also loses `SkillRecord.awaitingRecognition` (task 43 §3): each action
+ * built on `applyTriage` is an explicit statement by the user about the word ("Знаю", swipe
+ * right), which overrides the "recognize it again first" lock a "Показать слово" put on
+ * `vocab:ru-pl-input`.
+ *
  * Undo (task text §4: "Toast «Отменить» ... полностью откатывающий изменение — реальный
  * откат данных в Dexie") snapshots each touched skill's PREVIOUS row (or `undefined` if it
  * didn't exist yet — swiping a brand-new word materializes it, so undo must delete it again,
@@ -41,7 +46,11 @@ import {
 import type { SrsState } from '@/learning/srs/srs.types.ts'
 import { encodeSkillId, type SkillId, type WordId } from '@/learning/skills/skill-id.ts'
 import type { VocabDimension } from '@/learning/skills/dimensions.ts'
-import { VOCAB_STAGE_ORDER } from '@/learning/progress/stage.ts'
+import {
+  isAwaitingRecognition,
+  VOCAB_STAGE_ORDER,
+  withoutRecognitionLock,
+} from '@/learning/progress/stage.ts'
 import type { SkillRecord, WordProgressRecord } from '@/types/progress.ts'
 import { getSkillsForWord } from './skills.repository.ts'
 import { computeWordProgress, getWordProgress } from './words-progress.repository.ts'
@@ -99,7 +108,10 @@ async function applyTriage(
     const resolvedSrsState =
       typeof patch.srsState === 'function' ? patch.srsState(previous) : patch.srsState
 
-    nextBySkillId.set(skillId, { ...base, ...resolvedSrsState, updatedAt: now })
+    nextBySkillId.set(
+      skillId,
+      withoutRecognitionLock({ ...base, ...resolvedSrsState, updatedAt: now }),
+    )
   }
 
   const previousWordProgress = await getWordProgress(wordId)
@@ -151,14 +163,21 @@ export async function markWordKnown(wordId: WordId, now = Date.now()): Promise<T
  * `vocab:ru-pl-choice` answer clearing `stage.ts#shouldUnlockProduction`,
  * `answer-pipeline.ts#unlockNextVocabStage` — still exists and still fires on its own; this
  * button is a second, explicit way to reach the same open-but-not-yet-earned state.
+ *
+ * Task 43 §3: a `vocab:ru-pl-input` blocked by `awaitingRecognition` ("Показать слово" was
+ * pressed on it) is unblocked immediately — the flag goes (`applyTriage` strips it) and its
+ * `due` becomes `now`, the rest of its SRS state untouched — "Знаю" is the user saying they
+ * recognize the word, so there is nothing left to re-prove before the input can be asked.
  */
 export async function markWordTranslationKnown(
   wordId: WordId,
   now = Date.now(),
 ): Promise<TriageSnapshot> {
   const resolveKnown = (previous: SkillRecord | undefined) => resolveSwipeKnownState(previous, now)
-  const resolveUnlocked = (previous: SkillRecord | undefined) =>
-    resolveSwipeUnlockedState(previous, now)
+  const resolveUnlocked = (previous: SkillRecord | undefined): SrsState => {
+    const state = resolveSwipeUnlockedState(previous, now)
+    return isAwaitingRecognition(previous) ? { ...state, due: now } : state
+  }
   return applyTriage(wordId, [
     ...CHOICE_STAGE_DIMENSIONS.map((dimension) => ({ dimension, srsState: resolveKnown })),
     { dimension: 'vocab:ru-pl-input', srsState: resolveUnlocked },
@@ -199,12 +218,13 @@ export const CHOICE_STAGE_DIMENSIONS = [
  *  - On a choice stage (`markWordTranslationKnown`): `false` only when both choice stages are
  *    already at or above the known floor (`resolveSwipeKnownState` would keep each verbatim)
  *    AND `vocab:ru-pl-input` already exists (`resolveSwipeUnlockedState` never touches an
- *    existing record, so re-pressing would change nothing there either). Task 43 extends this
- *    with the `awaitingRecognition` lock on the input record — the button is the way to lift
- *    it, so it must stay visible while that lock is set.
+ *    existing record, so re-pressing would change nothing there either) AND is not blocked
+ *    by `awaitingRecognition` (task 43): the button is the way to lift that lock, so it must
+ *    stay visible while the lock is set.
  *  - On `vocab:ru-pl-input` (`markWordProductionKnown`): `false` only when all three stages
- *    are at or above the floor. Two known choice stages are NOT enough here — the input
- *    itself may still be below it, and that is exactly what this button raises.
+ *    are at or above the floor (and, for the same task-43 reason, the input is not blocked —
+ *    pressing would clear the flag). Two known choice stages are NOT enough here — the input
+ *    itself may still be below the floor, and that is exactly what this button raises.
  */
 export async function wouldMarkKnownChange(
   wordId: WordId,
@@ -214,10 +234,13 @@ export async function wouldMarkKnownChange(
   const atFloor = (stage: VocabDimension) =>
     isAtOrAboveSwipeKnownFloor(skills.find((s) => s.dimension === stage))
 
-  if (dimension === 'vocab:ru-pl-input') return !VOCAB_STAGE_ORDER.every(atFloor)
+  const input = skills.find((s) => s.dimension === 'vocab:ru-pl-input')
+  const inputBlocked = isAwaitingRecognition(input)
 
-  const inputOpened = skills.some((s) => s.dimension === 'vocab:ru-pl-input')
-  return !(CHOICE_STAGE_DIMENSIONS.every(atFloor) && inputOpened)
+  if (dimension === 'vocab:ru-pl-input') return !(VOCAB_STAGE_ORDER.every(atFloor) && !inputBlocked)
+
+  const inputReady = input !== undefined && !inputBlocked
+  return !(CHOICE_STAGE_DIMENSIONS.every(atFloor) && inputReady)
 }
 
 /**

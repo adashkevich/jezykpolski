@@ -11,7 +11,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
-import { ensureSkill, getSkill } from '@/db/repositories/skills.repository.ts'
+import { ensureSkill, getSkill, upsertSkill } from '@/db/repositories/skills.repository.ts'
 import { getWordProgress } from '@/db/repositories/words-progress.repository.ts'
 import { getLogsForSession } from '@/db/repositories/reviews.repository.ts'
 import {
@@ -19,6 +19,7 @@ import {
   CUED_RECALL_UNLOCK_STREAK,
   PRODUCTION_UNLOCK_STREAK,
   RECOGNITION_UNLOCK_STABILITY_DAYS,
+  RELEARN_RECOGNITION_STREAK,
 } from '@/learning/progress/stage.ts'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
@@ -916,7 +917,7 @@ describe('submitAnswer — каскад на младшие этапы вока�
     expect(await getSkill(CUED_RECALL_SKILL_ID)).toBeUndefined()
   })
 
-  it('"Показать слово" (revealed) на вводе возвращает due обоих младших этапов в "сейчас", не трогая их correct/streak', async () => {
+  it('"Показать слово" (revealed) на вводе возвращает due обоих младших этапов в "сейчас", не трогая их correct', async () => {
     const lowerPlRu = await ensureSkill(SKILL_ID, WORD_ID, 'vocab', 'vocab:pl-ru')
     const lowerChoice = await ensureSkill(
       CUED_RECALL_SKILL_ID,
@@ -1026,5 +1027,253 @@ describe('submitAnswer — каскад на младшие этапы вока�
         now: 1_000_000,
       }),
     ).resolves.toBeDefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Task 43 (`spec/tasks/43-reveal-returns-to-recognition.md`): «Показать слово» на вводе
+// возвращает слово к узнаванию — младшие этапы получают `due = now` и `correctStreak = 0`,
+// ввод блокируется флагом `awaitingRecognition`, пока `vocab:ru-pl-choice` не наберёт
+// `RELEARN_RECOGNITION_STREAK` верных подряд.
+// ---------------------------------------------------------------------------
+
+describe('submitAnswer — «Показать слово» возвращает к узнаванию (task 43)', () => {
+  const PL_RU = 'kobieta|NOUN::vocab:pl-ru'
+  const CHOICE = 'kobieta|NOUN::vocab:ru-pl-choice'
+  const INPUT = 'kobieta|NOUN::vocab:ru-pl-input'
+  const FAR_FUTURE = 1_000_000 + 999 * 24 * 60 * 60 * 1000
+
+  /** Ввод, который уже повторяли по расписанию (FSRS-валидная запись `review`). */
+  const REVIEWED_INPUT: Partial<SkillRecord> = {
+    state: 'review',
+    stability: 20,
+    difficulty: 5,
+    reps: 4,
+    lastReviewAt: 900_000,
+    due: FAR_FUTURE,
+  }
+
+  /** Слово на этапе 3: все три навыка есть, младшие далеко в будущем и с высокой серией. */
+  async function seedProductionWord(inputOverrides: Partial<SkillRecord> = {}) {
+    for (const [id, dimension] of [
+      [PL_RU, 'vocab:pl-ru'],
+      [CHOICE, 'vocab:ru-pl-choice'],
+      [INPUT, 'vocab:ru-pl-input'],
+    ] as const) {
+      const fresh = await ensureSkill(id, WORD_ID, 'vocab', dimension)
+      await upsertSkill({
+        ...fresh,
+        due: FAR_FUTURE,
+        correct: 5,
+        correctStreak: dimension === 'vocab:ru-pl-input' ? 0 : 5,
+        ...(dimension === 'vocab:ru-pl-input' ? inputOverrides : {}),
+      })
+    }
+  }
+
+  function reveal(overrides: Partial<Parameters<typeof submitAnswer>[0]> = {}) {
+    return submitAnswer({
+      sessionId: 1,
+      mode: 'learn',
+      exercise: INPUT_EXERCISE,
+      skillId: INPUT,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: 'жен',
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now: 2_000_000,
+      attempt: { mistakes: 0, hintsUsed: 0, revealed: true, letterCount: 7 },
+      ...overrides,
+    })
+  }
+
+  function answerChoice(overrides: Partial<Parameters<typeof submitAnswer>[0]> = {}) {
+    return submitAnswer({
+      sessionId: 1,
+      mode: 'learn',
+      exercise: CHOICE_EXERCISE,
+      skillId: CHOICE,
+      wordId: WORD_ID,
+      kind: 'vocab',
+      answerGiven: 'женщина',
+      isFirstAnswerInSession: true,
+      elapsedMs: 1000,
+      now: 3_000_000,
+      ...overrides,
+    })
+  }
+
+  /** Слово после «Показать слово» в сессии 1 — ввод заблокирован, младшие этапы к повтору. */
+  async function seedRevealedWord() {
+    await seedProductionWord(REVIEWED_INPUT)
+    await reveal()
+  }
+
+  describe('сам «Показать слово» (§1)', () => {
+    it('младшие этапы получают due = now и correctStreak = 0, correct не трогается; ввод получает awaitingRecognition', async () => {
+      await seedProductionWord()
+      const now = 2_000_000
+
+      await reveal({ now })
+
+      for (const id of [PL_RU, CHOICE]) {
+        const lower = (await getSkill(id))!
+        expect(lower.due).toBe(now)
+        expect(lower.correctStreak).toBe(0)
+        expect(lower.correct).toBe(5)
+      }
+      const input = (await getSkill(INPUT))!
+      expect(input.awaitingRecognition).toBe(true)
+      // Собственный SRS-апдейт ввода (Again) остаётся как был: ошибка засчитана, интервал в минуты.
+      expect(input.incorrect).toBe(1)
+      expect(input.due).toBeGreaterThan(now)
+      expect(input.due).toBeLessThan(now + 60 * 60 * 1000)
+    })
+
+    it('флаг ставится и без SRS (mode: mistakes, повтор внутри сессии) — это явный запрос «покажи снова», а не оценка', async () => {
+      await seedProductionWord()
+      await reveal({ mode: 'mistakes' })
+      expect((await getSkill(INPUT))!.awaitingRecognition).toBe(true)
+
+      await seedProductionWord()
+      await reveal({ isFirstAnswerInSession: false, sessionId: 2 })
+      const lower = (await getSkill(CHOICE))!
+      expect(lower.correctStreak).toBe(0)
+      expect((await getSkill(INPUT))!.awaitingRecognition).toBe(true)
+    })
+
+    it('без vocab:ru-pl-choice флаг не ставится — иначе ввод навсегда пропал бы из очереди: разблокировать его было бы нечем', async () => {
+      // Ввод, открытый минуя этапы выбора (Practice/`skill`-scope через `ensureSkill`).
+      await ensureSkill(INPUT, WORD_ID, 'vocab', 'vocab:ru-pl-input')
+      await reveal()
+      expect((await getSkill(INPUT))!.awaitingRecognition).toBeUndefined()
+    })
+
+    it('обычный (не revealed) неверный ответ на вводе флаг не ставит', async () => {
+      await seedProductionWord()
+      await reveal({
+        answerGiven: 'zle',
+        attempt: { mistakes: 3, hintsUsed: 0, revealed: false, letterCount: 7 },
+      })
+      expect((await getSkill(INPUT))!.awaitingRecognition).toBeUndefined()
+      expect((await getSkill(CHOICE))!.correctStreak).toBe(5)
+    })
+  })
+
+  describe('разблокировка серией узнаваний (§3)', () => {
+    it(`${RELEARN_RECOGNITION_STREAK} верных ответа подряд на ru-pl-choice снимают флаг и ставят вводу due = now`, async () => {
+      await seedRevealedWord()
+      const before = (await getSkill(INPUT))!
+      expect(before.awaitingRecognition).toBe(true)
+
+      await answerChoice({ sessionId: 2, now: 3_000_000 })
+      const afterFirst = (await getSkill(INPUT))!
+      expect(afterFirst.awaitingRecognition).toBe(true) // 1 из 2 — ещё рано
+      expect(afterFirst.due).toBe(before.due)
+
+      await answerChoice({ sessionId: 3, now: 4_000_000 })
+      const afterSecond = (await getSkill(INPUT))!
+      expect((await getSkill(CHOICE))!.correctStreak).toBe(RELEARN_RECOGNITION_STREAK)
+      expect('awaitingRecognition' in afterSecond).toBe(false)
+      expect(afterSecond.due).toBe(4_000_000)
+      // Остальное в записи ввода не тронуто: это не оценка, только снятие блокировки.
+      expect(afterSecond.state).toBe(before.state)
+      expect(afterSecond.stability).toBe(before.stability)
+      expect(afterSecond.reps).toBe(before.reps)
+      expect(afterSecond.correct).toBe(before.correct)
+      expect(afterSecond.incorrect).toBe(before.incorrect)
+    })
+
+    it('снятие флага пишется в той же транзакции без собственного reviewLog: в журнале только ответы на ru-pl-choice', async () => {
+      await seedRevealedWord()
+      await answerChoice({ sessionId: 2, now: 3_000_000 })
+      await answerChoice({ sessionId: 3, now: 4_000_000 })
+
+      expect((await getLogsForSession(2)).map((l) => l.skillId)).toEqual([CHOICE])
+      expect((await getLogsForSession(3)).map((l) => l.skillId)).toEqual([CHOICE])
+    })
+
+    it('ошибка между верными ответами обнуляет счёт — флаг остаётся, пока не набраны два подряд заново', async () => {
+      await seedRevealedWord()
+
+      await answerChoice({ sessionId: 2, now: 3_000_000 }) // 1
+      await answerChoice({ sessionId: 3, now: 3_500_000, answerGiven: 'мужчина' }) // сброс
+      expect((await getSkill(CHOICE))!.correctStreak).toBe(0)
+      await answerChoice({ sessionId: 4, now: 4_000_000 }) // 1
+      expect((await getSkill(INPUT))!.awaitingRecognition).toBe(true)
+
+      await answerChoice({ sessionId: 5, now: 4_500_000 }) // 2
+      expect('awaitingRecognition' in (await getSkill(INPUT))!).toBe(false)
+    })
+
+    it('верные ответы на vocab:pl-ru серию ru-pl-choice не наращивают и флаг не снимают', async () => {
+      await seedRevealedWord()
+
+      for (let session = 2; session <= 5; session++) {
+        await submitAnswer({
+          sessionId: session,
+          mode: 'learn',
+          exercise: CHOICE_EXERCISE,
+          skillId: PL_RU,
+          wordId: WORD_ID,
+          kind: 'vocab',
+          answerGiven: 'женщина',
+          isFirstAnswerInSession: true,
+          elapsedMs: 1000,
+          now: 3_000_000 + session * 1000,
+        })
+      }
+
+      expect((await getSkill(CHOICE))!.correctStreak).toBe(0)
+      expect((await getSkill(INPUT))!.awaitingRecognition).toBe(true)
+    })
+
+    it('SRS не применён (mode: mistakes, повтор внутри сессии) — серия не движется, флаг не снимается, даже если серия уже на пороге', async () => {
+      await seedRevealedWord()
+      const choice = (await getSkill(CHOICE))!
+      await upsertSkill({ ...choice, correctStreak: RELEARN_RECOGNITION_STREAK })
+
+      await answerChoice({ sessionId: 2, mode: 'mistakes' })
+      await answerChoice({ sessionId: 3, isFirstAnswerInSession: false })
+
+      expect((await getSkill(INPUT))!.awaitingRecognition).toBe(true)
+    })
+
+    it('Practice тоже разблокирует: там SRS применяется (с демпфингом), серия растёт как в Learn', async () => {
+      await seedRevealedWord()
+      await answerChoice({ sessionId: 2, mode: 'practice', now: 3_000_000 })
+      await answerChoice({ sessionId: 3, mode: 'practice', now: 4_000_000 })
+      expect('awaitingRecognition' in (await getSkill(INPUT))!).toBe(false)
+    })
+
+    it('ввод без флага серия узнаваний не трогает: его due остаётся как был', async () => {
+      await seedProductionWord(REVIEWED_INPUT)
+      const choice = (await getSkill(CHOICE))!
+      await upsertSkill({ ...choice, correctStreak: 0 })
+
+      await answerChoice({ sessionId: 2, now: 3_000_000 })
+      await answerChoice({ sessionId: 3, now: 4_000_000 })
+
+      expect((await getSkill(INPUT))!.due).toBe(FAR_FUTURE)
+    })
+
+    it('skipCascade (сопоставление) серию узнаваний засчитывает так же: разблокировка не часть каскада', async () => {
+      await seedRevealedWord()
+      await answerChoice({ sessionId: 2, now: 3_000_000, skipCascade: true })
+      await answerChoice({ sessionId: 3, now: 4_000_000, skipCascade: true })
+      expect('awaitingRecognition' in (await getSkill(INPUT))!).toBe(false)
+    })
+
+    it('wordProgress.nextDue считается по тем же записям, что попали в БД, включая снятую блокировку ввода', async () => {
+      await seedRevealedWord()
+      await answerChoice({ sessionId: 2, now: 3_000_000 })
+      await answerChoice({ sessionId: 3, now: 4_000_000 })
+
+      const dues = await Promise.all(
+        [PL_RU, CHOICE, INPUT].map(async (id) => (await getSkill(id))!.due),
+      )
+      expect((await getWordProgress(WORD_ID))?.nextDue).toBe(Math.min(...dues))
+    })
   })
 })

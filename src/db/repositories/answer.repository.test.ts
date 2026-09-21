@@ -327,3 +327,23 @@ describe('applyAnswer — cascadeSkills (task 40 §2)', () => {
     expect(await db.skills.get(LOWER_SKILL_ID)).toBeUndefined()
   })
 })
+
+describe('applyAnswer — awaitingRecognition (task 43 §1)', () => {
+  it('awaitingRecognition: true ставит флаг блокировки на самом отвеченном навыке', async () => {
+    await db.skills.add(BASE_SKILL)
+    await applyAnswer(makeInput({ awaitingRecognition: true }))
+    expect((await db.skills.get(SKILL_ID))?.awaitingRecognition).toBe(true)
+  })
+
+  it('без awaitingRecognition поле не появляется', async () => {
+    await db.skills.add(BASE_SKILL)
+    await applyAnswer(makeInput())
+    expect('awaitingRecognition' in ((await db.skills.get(SKILL_ID)) ?? {})).toBe(false)
+  })
+
+  it('уже стоящий флаг обычный ответ не снимает — его снимает только серия узнаваний или «Знаю»', async () => {
+    await db.skills.add({ ...BASE_SKILL, awaitingRecognition: true })
+    await applyAnswer(makeInput())
+    expect((await db.skills.get(SKILL_ID))?.awaitingRecognition).toBe(true)
+  })
+})
