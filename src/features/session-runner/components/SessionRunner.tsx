@@ -47,14 +47,19 @@ import { Button } from '@/components/ui/button.tsx'
 import { getSkill } from '@/db/repositories/skills.repository.ts'
 import { completeSession, deleteSession } from '@/db/repositories/sessions.repository.ts'
 import {
-  areChoiceStagesKnown,
-  CHOICE_STAGE_DIMENSIONS,
+  markWordProductionKnown,
   markWordTranslationKnown,
+  wouldMarkKnownChange,
 } from '@/db/repositories/swipe.repository.ts'
 import type { Exercise, ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import type { GradeResult } from '@/learning/exercises/grade.ts'
-import type { TypedAttemptOutcome } from '@/learning/exercises/letter-attempt.ts'
+import {
+  isFlawlessAttempt,
+  type TypedAttemptOutcome,
+} from '@/learning/exercises/letter-attempt.ts'
+import { VOCAB_STAGE_ORDER } from '@/learning/progress/stage.ts'
 import { AGAIN, HARD } from '@/learning/srs/policy.ts'
+import type { VocabDimension } from '@/learning/skills/dimensions.ts'
 import type { SkillDescriptor } from '@/learning/skills/enumerate.ts'
 import { encodeSkillId, type SkillId } from '@/learning/skills/skill-id.ts'
 import type { SessionMode } from '@/types/progress.ts'
@@ -332,12 +337,14 @@ function ActiveQuestion({
         }
       }
 
-      // "Знаю" only after a correct choice-stage answer, and only when it would change
-      // something — read after `submitAnswer`, so this answer's own SRS update counts.
+      // «Знаю» (задача 41 §1) — на любом из трёх этапов перевода, уже после первого верного
+      // ответа, и только когда нажатие что-то изменит. Читается после `submitAnswer`, так что
+      // SRS-обновление самого этого ответа уже учтено. Условия идут от дешёвого к дорогому:
+      // чтение БД (`wouldMarkKnownChange`) — последним.
       setMarkKnownOffered(
-        result.gradeResult.correct &&
-          CHOICE_STAGES.has(descriptor.dimension) &&
-          !(await areChoiceStagesKnown(descriptor.wordId)),
+        isCleanAnswer(result.gradeResult, attempt) &&
+          isVocabStage(descriptor.dimension) &&
+          (await wouldMarkKnownChange(descriptor.wordId, descriptor.dimension)),
       )
       setTypedAttempt(attempt ?? null)
       setFeedback(result.gradeResult)
@@ -352,21 +359,25 @@ function ActiveQuestion({
 
   const canMarkKnown = feedback !== null && markKnownOffered
 
-  // "Знаю" after a correct PL→RU / RU→PL-choice answer (task 40 §3): the answer itself is
-  // already graded and written by `handleAnswer`; this additionally marks both choice stages
-  // known AND opens `vocab:ru-pl-input` (a self-report, no extra reviewLog — same reasoning
-  // as `swipe.repository.ts`'s header) and moves on. `vocab:ru-pl-input` gets `due: now`, so
-  // it can't show up until the NEXT session (the queue is already built) — no input question
-  // is added here. Later choice questions on this word in the current session are dropped.
+  // «Знаю» после чистого ответа (задача 41 §2, на этапах выбора — задача 40 §3): сам ответ уже
+  // оценён и записан `handleAnswer` — кнопка лишь дополнительно помечает слово известным
+  // (самооценка, без отдельного reviewLog — то же рассуждение, что в шапке
+  // `swipe.repository.ts`) и идёт дальше. На этапах выбора она ставит `review` обоим этапам
+  // выбора И открывает `vocab:ru-pl-input` (`due: now`, так что раньше следующей сессии он не
+  // появится — очередь уже построена, вопрос на ввод сюда не добавляется, FR-81). На вводе
+  // она ставит `review` всем трём этапам. Оставшиеся вопросы по трём vocab-навыкам слова в
+  // этой сессии отбрасываются.
   async function handleMarkKnown() {
     if (submitting || !canMarkKnown) return
     setSubmitting(true)
     try {
-      await markWordTranslationKnown(descriptor.wordId)
+      if (descriptor.dimension === 'vocab:ru-pl-input') {
+        await markWordProductionKnown(descriptor.wordId)
+      } else {
+        await markWordTranslationKnown(descriptor.wordId)
+      }
       const store = useSessionStore.getState()
-      store.dropUpcoming(
-        new Set([...CHOICE_STAGE_DIMENSIONS].map((d) => encodeSkillId(descriptor.wordId, d))),
-      )
+      store.dropUpcoming(new Set(VOCAB_STAGE_ORDER.map((d) => encodeSkillId(descriptor.wordId, d))))
       store.advance()
     } finally {
       setSubmitting(false)
@@ -409,10 +420,25 @@ function ActiveQuestion({
   )
 }
 
-/** The two vocab stages whose questions offer the "Знаю" button — and exactly the two
- *  `swipe.repository.ts#markWordTranslationKnown` marks known (it opens `vocab:ru-pl-input`
- *  too, but that stage never has its own question to offer this button on). */
-const CHOICE_STAGES: ReadonlySet<SkillDescriptor['dimension']> = new Set(CHOICE_STAGE_DIMENSIONS)
+const VOCAB_STAGES: ReadonlySet<SkillDescriptor['dimension']> = new Set(VOCAB_STAGE_ORDER)
+
+/** Навык — один из трёх этапов перевода, на каждом из которых есть «Знаю» (задача 41 §1);
+ *  морфологические навыки кнопки не предлагают. */
+function isVocabStage(dimension: SkillDescriptor['dimension']): dimension is VocabDimension {
+  return VOCAB_STAGES.has(dimension)
+}
+
+/**
+ * Ответ «чистый» — такой, после которого «Знаю» не противоречит панели фидбэка (задача 41
+ * §1): верный, а для побуквенного ввода ещё и безупречный (`isFlawlessAttempt`: ноль ошибок,
+ * ноль подсказок, без «глазка»). После «верно, но с исправлением/подсказкой» панель говорит
+ * «Слово вернётся на повторение», и «Знаю» рядом с этим было бы противоречием. Ответы без
+ * `attempt` (выбор из вариантов) чисты по построению — то же правило, по которому
+ * `ExerciseFeedback` называет их «Верно!».
+ */
+function isCleanAnswer(result: GradeResult, attempt: TypedAttemptOutcome | undefined): boolean {
+  return result.correct && (attempt === undefined || isFlawlessAttempt(attempt))
+}
 
 /** A zeroed-out placeholder `SkillRecord` — only its FSRS-facing fields are read (via
  *  `toSrsState`) when a `self-assess` question happens to render before its own snapshot is

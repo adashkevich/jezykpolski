@@ -41,6 +41,7 @@ import {
 import type { SrsState } from '@/learning/srs/srs.types.ts'
 import { encodeSkillId, type SkillId, type WordId } from '@/learning/skills/skill-id.ts'
 import type { VocabDimension } from '@/learning/skills/dimensions.ts'
+import { VOCAB_STAGE_ORDER } from '@/learning/progress/stage.ts'
 import type { SkillRecord, WordProgressRecord } from '@/types/progress.ts'
 import { getSkillsForWord } from './skills.repository.ts'
 import { computeWordProgress, getWordProgress } from './words-progress.repository.ts'
@@ -164,6 +165,24 @@ export async function markWordTranslationKnown(
   ])
 }
 
+/**
+ * "Знаю" button on a Learn-session `vocab:ru-pl-input` question (`SessionRunner.tsx`), task 41
+ * §2 (`spec/tasks/41-mark-known-all-translation-stages.md`): typing is the LAST stage, so
+ * there is nothing left to "open" — all three stages move to `review` through
+ * `resolveSwipeKnownState` (`due = now + SWIPE_KNOWN_DUE_DAYS`, monotonic per stage), in one
+ * `applyTriage` and one undo snapshot. That is exactly what the `/words` swipe-right does, so
+ * this IS `markWordKnown` under the name the session runner reads: the typed answer itself
+ * was already a real, graded proof of production (`SessionRunner.tsx` offers the button only
+ * after a flawless one), unlike a choice question, where recognizing the word says nothing
+ * about writing it and `markWordTranslationKnown` only opens `vocab:ru-pl-input`.
+ */
+export async function markWordProductionKnown(
+  wordId: WordId,
+  now = Date.now(),
+): Promise<TriageSnapshot> {
+  return markWordKnown(wordId, now)
+}
+
 /** The two vocab stages `markWordTranslationKnown` marks known (`vocab:ru-pl-input` is
  *  handled separately — see that function's own doc comment for why it's `resolveSwipeUnlockedState`,
  *  not `resolveSwipeKnownState`). */
@@ -173,19 +192,32 @@ export const CHOICE_STAGE_DIMENSIONS = [
 ] as const satisfies readonly VocabDimension[]
 
 /**
- * Whether `markWordTranslationKnown` would be a complete no-op: both choice stages already at
- * or above the known floor AND `vocab:ru-pl-input` already materialized (task 40 §3 — once the
- * record exists, `resolveSwipeUnlockedState` never touches it again, so re-pressing the
- * button afterward would change nothing there either). The session hides its "Знаю" button in
- * that case instead of offering one that does nothing.
+ * Whether pressing the session's "Знаю" on a question of `dimension` would change anything —
+ * task 41 §3, replaces task 40's `areChoiceStagesKnown` so the button neither vanishes early
+ * nor is offered as a no-op. The session shows the button only when this is `true`.
+ *
+ *  - On a choice stage (`markWordTranslationKnown`): `false` only when both choice stages are
+ *    already at or above the known floor (`resolveSwipeKnownState` would keep each verbatim)
+ *    AND `vocab:ru-pl-input` already exists (`resolveSwipeUnlockedState` never touches an
+ *    existing record, so re-pressing would change nothing there either). Task 43 extends this
+ *    with the `awaitingRecognition` lock on the input record — the button is the way to lift
+ *    it, so it must stay visible while that lock is set.
+ *  - On `vocab:ru-pl-input` (`markWordProductionKnown`): `false` only when all three stages
+ *    are at or above the floor. Two known choice stages are NOT enough here — the input
+ *    itself may still be below it, and that is exactly what this button raises.
  */
-export async function areChoiceStagesKnown(wordId: WordId): Promise<boolean> {
+export async function wouldMarkKnownChange(
+  wordId: WordId,
+  dimension: VocabDimension,
+): Promise<boolean> {
   const skills = await getSkillsForWord(wordId)
-  const choiceStagesKnown = CHOICE_STAGE_DIMENSIONS.every((dimension) =>
-    isAtOrAboveSwipeKnownFloor(skills.find((s) => s.dimension === dimension)),
-  )
+  const atFloor = (stage: VocabDimension) =>
+    isAtOrAboveSwipeKnownFloor(skills.find((s) => s.dimension === stage))
+
+  if (dimension === 'vocab:ru-pl-input') return !VOCAB_STAGE_ORDER.every(atFloor)
+
   const inputOpened = skills.some((s) => s.dimension === 'vocab:ru-pl-input')
-  return choiceStagesKnown && inputOpened
+  return !(CHOICE_STAGE_DIMENSIONS.every(atFloor) && inputOpened)
 }
 
 /**

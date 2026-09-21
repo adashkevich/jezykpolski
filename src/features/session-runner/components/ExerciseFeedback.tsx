@@ -60,8 +60,9 @@ export interface ExerciseFeedbackProps {
   readonly attempt?: TypedAttemptOutcome
   /** "Далее" was activated (click, or Enter on the auto-focused button). */
   onNext(): void
-  /** When set, a secondary "Знаю" button is shown above "Далее" — the runner passes it only
-   *  after a correct answer on a `vocab:pl-ru` / `vocab:ru-pl-choice` question. */
+  /** When set, a secondary "Знаю" button is shown next to "Далее" — the runner passes it only
+   *  after a clean answer (task 41 §1: correct and, for typing, flawless) on any of the three
+   *  translation stages, and only when pressing it would change something. */
   onMarkKnown?(): void
 }
 
