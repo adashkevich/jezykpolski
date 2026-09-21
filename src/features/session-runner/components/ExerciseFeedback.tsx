@@ -1,6 +1,6 @@
 /**
  * Unified post-answer feedback banner (`spec/tasks/12-vocabulary-exercises.md` §6):
- * верно / с подсказкой / почти / неверно + правильный ответ + кнопка «Далее».
+ * верно / с подсказкой / с исправлением / почти / неверно + правильный ответ + кнопка «Далее».
  *
  * Deliberately NOT part of `ExerciseProps<E>` (`./exercise-props.types.ts`) — the shared
  * exercise contract only carries `onAnswer`, not an "advance to next question" callback, so
@@ -9,9 +9,9 @@
  * in hand. One component, reused across every exercise type, rather than each exercise
  * component growing its own copy of the same banner.
  *
- * NFR-11 ("не полагаться только на цвет"): correct/assisted/near-miss/incorrect each pair a
- * distinct icon shape with a distinct color AND a distinct text label — see `STATUS_META`
- * below.
+ * NFR-11 ("не полагаться только на цвет"): correct/hinted/corrected/near-miss/incorrect each
+ * pair a distinct icon shape with a distinct text label (and, where the colors differ, a
+ * distinct color too) — see `STATUS_META` below.
  *
  * Task 29 (`spec/tasks/29-letter-by-letter-input.md` §4): the per-character "Ты
  * написал / Правильно" comparison this panel used to render for `input`/`form-input`
@@ -22,12 +22,20 @@
  * so the panel says so explicitly rather than looking identical to a flawless answer. A
  * revealed word ("глазок", FR-85) shows the plain "Правильный ответ" line — the slots above
  * already spelled the whole word out, so a diff here would be pure noise.
+ *
+ * **Изменено задачей 42** (`spec/tasks/42-letter-input-width-and-correction-states.md` §3,
+ * FR-84, FR-86): бывший единый статус `assisted` разделён на `hinted` («Верно, но с
+ * подсказкой», был хотя бы один запрос подсказки) и `corrected` («Верно, но с исправлением»,
+ * подсказок не было, но была исправленная ошибка) — раньше ответ с одной лишь исправленной
+ * ошибкой тоже назывался «с подсказкой». Что считать безупречным ответом, решает
+ * `letter-attempt.ts#isFlawlessAttempt` — условие здесь не дублируется.
  */
 import {
   AlertTriangle,
   Check,
   CheckCircle2,
   Lightbulb,
+  PencilLine,
   XCircle,
   type LucideIcon,
 } from 'lucide-react'
@@ -35,7 +43,10 @@ import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button.tsx'
 import { cn } from '@/lib/utils'
 import type { GradeResult } from '@/learning/exercises/grade.ts'
-import type { TypedAttemptOutcome } from '@/learning/exercises/letter-attempt.ts'
+import {
+  isFlawlessAttempt,
+  type TypedAttemptOutcome,
+} from '@/learning/exercises/letter-attempt.ts'
 
 export interface ExerciseFeedbackProps {
   readonly feedback: GradeResult
@@ -44,7 +55,7 @@ export interface ExerciseFeedbackProps {
    *  only renders it. */
   readonly correctAnswer: string
   /** The letter-by-letter attempt's outcome (task 29), only set for `input`/`form-input`.
-   *  Drives the `assisted` status below — a `choice`-family answer has nothing of the sort
+   *  Drives the `hinted`/`corrected` statuses below — a `choice`-family answer has nothing of the sort
    *  and leaves this `undefined`. */
   readonly attempt?: TypedAttemptOutcome
   /** "Далее" was activated (click, or Enter on the auto-focused button). */
@@ -54,7 +65,7 @@ export interface ExerciseFeedbackProps {
   onMarkKnown?(): void
 }
 
-type FeedbackStatus = 'correct' | 'assisted' | 'nearMiss' | 'incorrect'
+type FeedbackStatus = 'correct' | 'hinted' | 'corrected' | 'nearMiss' | 'incorrect'
 
 interface StatusMeta {
   readonly label: string
@@ -70,9 +81,15 @@ const STATUS_META: Readonly<Record<FeedbackStatus, StatusMeta>> = {
     textClassName: 'text-success',
     panelClassName: 'border-success/30 bg-success-soft/60',
   },
-  assisted: {
+  hinted: {
     label: 'Верно, но с подсказкой',
     icon: Lightbulb,
+    textClassName: 'text-warning',
+    panelClassName: 'border-warning/40 bg-warning/10',
+  },
+  corrected: {
+    label: 'Верно, но с исправлением',
+    icon: PencilLine,
     textClassName: 'text-warning',
     panelClassName: 'border-warning/40 bg-warning/10',
   },
@@ -96,8 +113,13 @@ const STATUS_META: Readonly<Record<FeedbackStatus, StatusMeta>> = {
 
 function statusOf(feedback: GradeResult, attempt: TypedAttemptOutcome | undefined): FeedbackStatus {
   if (feedback.correct) {
-    const assisted = attempt !== undefined && (attempt.mistakes > 0 || attempt.hintsUsed > 0)
-    return assisted ? 'assisted' : 'correct'
+    if (attempt === undefined || isFlawlessAttempt(attempt)) return 'correct'
+    // Подсказка — более сильный признак помощи, чем исправленная ошибка (задача 42 §3), так
+    // что при обоих сразу побеждает `hinted`. «Глазок» тоже считаем подсказкой, не «исправлением»:
+    // с `correct: true` он в норме не встречается (раскрытый префикс короче слова), но если
+    // совпадёт с более коротким допустимым вариантом, ошибок в нём нет, и «исправление» было бы
+    // ложью.
+    return attempt.hintsUsed > 0 || attempt.revealed ? 'hinted' : 'corrected'
   }
   if (feedback.nearMiss) return 'nearMiss'
   return 'incorrect'
@@ -146,7 +168,7 @@ export function ExerciseFeedback({
             <span>{meta.label}</span>
           </div>
 
-          {status === 'assisted' && (
+          {(status === 'hinted' || status === 'corrected') && (
             <p className="text-body-md text-foreground">Слово вернётся на повторение.</p>
           )}
 

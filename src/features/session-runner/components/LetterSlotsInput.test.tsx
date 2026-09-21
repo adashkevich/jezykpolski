@@ -42,11 +42,29 @@ describe('LetterSlotsInput — rendering', () => {
     expect(document.querySelectorAll('[data-cell-state]')).toHaveLength(1)
   })
 
-  it('the cell width is fixed regardless of word length, and each cell is a ≥44px touch target', () => {
+  // Задача 42 §1: 12 букв в строке на 360px без уменьшения шрифта — ячейка 24px (32px от
+  // 480px), промежуток 2px, отступ ряда `px-2`. jsdom не считает вёрстку, поэтому проверяем
+  // классы; фактическая ширина проверена в браузере (см. отчёт к задаче).
+  it('the cell geometry is fixed regardless of word length: w-6 (w-8 from 480px), h-11, same 22px font', () => {
     renderInput({ accepted: ['będziemy robić'] })
     const cell = document.querySelector('[data-cell-state]')!
+    expect(cell.className).toMatch(/(^|\s)w-6(\s|$)/)
+    expect(cell.className).toMatch(/min-\[480px\]:w-8/)
     expect(cell.className).toMatch(/\bh-11\b/)
-    expect(cell.className).toMatch(/\bmin-w-11\b/)
+    expect(cell.className).toMatch(/\btext-headline-md\b/)
+    expect(cell.className).not.toMatch(/\bmin-w-11\b/)
+  })
+
+  it('the slot row is gap-0.5 with px-2 padding, and a separator is w-2 wide', async () => {
+    const user = userEvent.setup()
+    const { container } = renderInput({ accepted: ['a b'] })
+    await user.type(screen.getByRole('textbox'), 'a')
+    const row = document.querySelector('[data-cell-state]')!.parentElement!
+    expect(row.className).toMatch(/\bgap-0\.5\b/)
+    expect(row.className).not.toMatch(/\bgap-1\.5\b/)
+    expect(row.parentElement!.className).toMatch(/\bpx-2\b/)
+    const separator = container.querySelector('[data-cell-state]')!.nextElementSibling!
+    expect(separator.className).toMatch(/\bw-2\b/)
   })
 
   it('the hidden field aria-label never names the letter count', () => {
@@ -133,6 +151,71 @@ describe('LetterSlotsInput — typing', () => {
     expect(cells[0]!.getAttribute('data-cell-state')).toBe('corrected')
     expect(cells[0]!.textContent).toBe('k')
     expect(cells[1]!.getAttribute('data-cell-state')).toBe('empty')
+  })
+
+  // Задача 42 §2: бэкспейс — основной путь исправления на телефоне, он не должен терять
+  // подсветку исправления и не должен удваивать счёт ошибки.
+  it('wrong letter, backspace, then the right letter: the slot is corrected, not correct (task 42)', async () => {
+    const user = userEvent.setup()
+    renderInput({ accepted: ['kot'] })
+    await user.type(screen.getByRole('textbox'), 'z{Backspace}k')
+    const cells = document.querySelectorAll('[data-cell-state]')
+    expect(cells[0]!.getAttribute('data-cell-state')).toBe('corrected')
+    expect(cells[0]!.textContent).toBe('k')
+  })
+
+  it('wrong, backspace, wrong again, then right: one mistake, not two (task 42)', async () => {
+    const user = userEvent.setup()
+    const { onComplete } = renderInput({ accepted: ['kot'] })
+    await user.type(screen.getByRole('textbox'), 'z{Backspace}x{Backspace}kot')
+    expect(onComplete).toHaveBeenCalledExactlyOnceWith('kot', {
+      mistakes: 1,
+      hintsUsed: 0,
+      revealed: false,
+      letterCount: 3,
+    })
+  })
+
+  it('corrected and hinted slots differ both in color and in underline style (NFR-11, task 42)', async () => {
+    const user = userEvent.setup()
+    renderInput({ accepted: ['kot'] })
+    // slot 0 — corrected (wrong letter, backspace, right letter); slot 1 — hinted.
+    await user.type(screen.getByRole('textbox'), 'z{Backspace}k')
+    await user.click(screen.getByRole('button', { name: /Подсказка/ }))
+    const cells = document.querySelectorAll('[data-cell-state]')
+    expect(cells[0]!.getAttribute('data-cell-state')).toBe('corrected')
+    expect(cells[1]!.getAttribute('data-cell-state')).toBe('hinted')
+
+    const corrected = cells[0]!.className
+    const hinted = cells[1]!.className
+    expect(corrected).toMatch(/\btext-warning\b/)
+    expect(hinted).toMatch(/\btext-info\b/)
+    expect(corrected).not.toMatch(/\btext-info\b/)
+    expect(hinted).not.toMatch(/\btext-warning\b/)
+    expect(corrected).toMatch(/\bdecoration-solid\b/)
+    expect(hinted).toMatch(/\bdecoration-dashed\b/)
+    expect(corrected).not.toMatch(/\bdecoration-dashed\b/)
+    expect(hinted).not.toMatch(/\bdecoration-solid\b/)
+  })
+
+  it('the five non-empty states are pairwise distinguishable by class string (task 42 §2 table)', async () => {
+    const user = userEvent.setup()
+    renderInput({ accepted: ['kotek'] })
+    // correct, corrected, hinted, wrong — and revealed via «Показать слово» below.
+    await user.type(screen.getByRole('textbox'), 'k')
+    await user.type(screen.getByRole('textbox'), 'z{Backspace}o')
+    await user.click(screen.getByRole('button', { name: /Подсказка/ }))
+    await user.type(screen.getByRole('textbox'), 'x')
+    const classes = new Map<string, string>()
+    for (const cell of document.querySelectorAll('[data-cell-state]')) {
+      classes.set(cell.getAttribute('data-cell-state')!, cell.className)
+    }
+    await user.click(screen.getByRole('button', { name: 'Показать слово' }))
+    for (const cell of document.querySelectorAll('[data-cell-state]')) {
+      classes.set(cell.getAttribute('data-cell-state')!, cell.className)
+    }
+    expect([...classes.keys()].sort()).toEqual(['correct', 'corrected', 'hinted', 'revealed', 'wrong'].sort())
+    expect(new Set(classes.values()).size).toBe(classes.size)
   })
 
   it('typing all letters correctly calls onComplete with the word and a clean outcome, with no submit button ever needed', async () => {

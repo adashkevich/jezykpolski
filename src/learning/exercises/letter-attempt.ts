@@ -36,6 +36,12 @@ export interface LetterCell {
   /** Что рисовать в ячейке; `null` — ещё пусто. */
   readonly shown: string | null
   readonly state: CellState
+  /** В ячейке хоть раз была неверная буква (задача 42 §2). Ставится при неверном наборе и
+   *  НЕ сбрасывается ни `eraseLetter`, ни подсказкой: бэкспейс возвращает ячейку в `empty`, но
+   *  «ошибка здесь уже была» от этого не исчезает — иначе следующая верная буква красилась бы как
+   *  безошибочная `correct` вместо `corrected`, а повторная неверная снова увеличивала бы
+   *  `mistakes`. По этому флагу же ошибка засчитывается ровно один раз на ячейку. */
+  readonly everWrong: boolean
 }
 
 /** Итог попытки — то, что уходит в `policy.ts#mapResultToRating` (задача 29 §2). */
@@ -86,8 +92,8 @@ function nextCursor(cells: readonly LetterCell[], from: number): number {
 function buildCells(canonical: readonly string[]): LetterCell[] {
   return canonical.map((ch) =>
     isSeparator(ch)
-      ? { expected: ch, shown: ch, state: 'separator' as const }
-      : { expected: ch, shown: null, state: 'empty' as const },
+      ? { expected: ch, shown: ch, state: 'separator' as const, everWrong: false }
+      : { expected: ch, shown: null, state: 'empty' as const, everWrong: false },
   )
 }
 
@@ -147,7 +153,9 @@ export function typeLetter(state: LetterAttempt, char: string): LetterAttempt {
     cells[index] = {
       expected: nextExpectedChar,
       shown: nextExpectedChar,
-      state: cell.state === 'wrong' ? 'corrected' : 'correct',
+      // `everWrong`, а не `state === 'wrong'`: после бэкспейса ячейка уже `empty` (задача 42).
+      state: cell.everWrong ? 'corrected' : 'correct',
+      everWrong: cell.everWrong,
     }
     const cursor = nextCursor(cells, index + 1)
     return {
@@ -163,14 +171,17 @@ export function typeLetter(state: LetterAttempt, char: string): LetterAttempt {
 
   // Неверная буква. Ошибка считается один раз на ячейку — повторный неверный набор в той же
   // ячейке (пока не угадал) не увеличивает счётчик, иначе перебор вариантов на одном слоте
-  // штрафовался бы сильнее, чем одна ошибка в другом слоте. Курсор не двигается, значит и
-  // `visibleCount` не растёт (задача 30: неверная буква не должна открывать новый слот).
+  // штрафовался бы сильнее, чем одна ошибка в другом слоте. «Уже была ошибка» — `everWrong`,
+  // а не `state === 'wrong'`: между двумя неверными буквами пользователь мог нажать бэкспейс
+  // (ячейка стала `empty`), и это не должно давать вторую ошибку (задача 42 §2). Курсор не
+  // двигается, значит и `visibleCount` не растёт (задача 30: неверная буква не должна
+  // открывать новый слот).
   const cells = state.cells.slice()
-  cells[index] = { ...cell, shown: char, state: 'wrong' }
+  cells[index] = { ...cell, shown: char, state: 'wrong', everWrong: true }
   return {
     ...state,
     cells,
-    mistakes: state.mistakes + (cell.state === 'wrong' ? 0 : 1),
+    mistakes: state.mistakes + (cell.everWrong ? 0 : 1),
     visibleCount: computeVisibleCount(cells, state.cursor),
   }
 }
@@ -187,8 +198,9 @@ export function typeLetters(state: LetterAttempt, chars: string): LetterAttempt 
 
 /** Backspace. Стирает только ячейку в состоянии `wrong` — подтверждённые буквы (`correct`/
  *  `corrected`) не трогаем: курсор монотонен, а разрешить их стирать значило бы пересчитывать
- *  `candidates` назад, чего не требует ни один из принятых сценариев UI. No-op, если стирать
- *  нечего (курсор на `empty`, попытка завершена/раскрыта). */
+ *  `candidates` назад, чего не требует ни один из принятых сценариев UI. `everWrong` при
+ *  стирании остаётся `true` (задача 42) — ячейка помнит, что ошибка в ней была. No-op, если
+ *  стирать нечего (курсор на `empty`, попытка завершена/раскрыта). */
 export function eraseLetter(state: LetterAttempt): LetterAttempt {
   if (state.complete || state.revealed) return state
   const index = state.cursor
@@ -260,6 +272,17 @@ export function submittedAnswer(state: LetterAttempt): string {
     }
   }
   return prefix
+}
+
+/** «Безупречная» попытка: ноль ошибок, ноль подсказок, без «глазка» (задача 42 §3, задача 41
+ *  §1). Единственное место, где записано это правило — статус фидбэка, кнопка «Знаю» и учёт
+ *  точности берут его отсюда, а не копируют условие. Принимает и `TypedAttemptOutcome`
+ *  (то, что приходит из `LetterSlotsInput#onComplete`), и саму `LetterAttempt` — нужны только
+ *  три общих поля. */
+export function isFlawlessAttempt(
+  attempt: Pick<TypedAttemptOutcome, 'mistakes' | 'hintsUsed' | 'revealed'>,
+): boolean {
+  return attempt.mistakes === 0 && attempt.hintsUsed === 0 && !attempt.revealed
 }
 
 export function outcomeOf(state: LetterAttempt): TypedAttemptOutcome {

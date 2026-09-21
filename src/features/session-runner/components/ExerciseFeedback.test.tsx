@@ -57,10 +57,11 @@ describe('ExerciseFeedback', () => {
 
   // Task 29 (`spec/tasks/29-letter-by-letter-input.md` §4): the old per-character
   // "Ты написал / Правильно" comparison is gone from this panel — that's the letter slots'
-  // job now, live, while typing. A clean-but-assisted attempt (a mistake and/or a hint used)
-  // still reports `feedback.correct: true`, but gets its own "assisted" status instead of
-  // looking identical to a flawless answer.
-  it('assisted: "Верно, но с подсказкой" when the typed attempt had a mistake or a hint', () => {
+  // job now, live, while typing. A correct-but-not-flawless attempt still reports
+  // `feedback.correct: true`, but gets its own status instead of looking identical to a
+  // flawless answer. Task 42 §3 splits that status in two: "с подсказкой" (a hint was used) and
+  // "с исправлением" (only a corrected mistake, no hints).
+  it('corrected: "Верно, но с исправлением" when the attempt had a mistake and no hints (task 42)', () => {
     const feedback = grade(ruPlExercise, 'żółty')
     render(
       <ExerciseFeedback
@@ -71,9 +72,56 @@ describe('ExerciseFeedback', () => {
       />,
     )
 
-    expect(screen.getByText('Верно, но с подсказкой')).toBeInTheDocument()
+    expect(screen.getByText('Верно, но с исправлением')).toBeInTheDocument()
+    expect(screen.queryByText('Верно, но с подсказкой')).not.toBeInTheDocument()
     expect(screen.queryByText('Верно!')).not.toBeInTheDocument()
     expect(screen.queryByText(/Ты написал/)).not.toBeInTheDocument()
+    expect(screen.getByText('Слово вернётся на повторение.')).toBeInTheDocument()
+  })
+
+  it('hinted: "Верно, но с подсказкой" when a hint was used (task 42)', () => {
+    const feedback = grade(ruPlExercise, 'żółty')
+    render(
+      <ExerciseFeedback
+        feedback={feedback}
+        correctAnswer="żółty"
+        attempt={{ mistakes: 0, hintsUsed: 2, revealed: false, letterCount: 5 }}
+        onNext={() => {}}
+      />,
+    )
+
+    expect(screen.getByText('Верно, но с подсказкой')).toBeInTheDocument()
+    expect(screen.queryByText('Верно, но с исправлением')).not.toBeInTheDocument()
+    expect(screen.getByText('Слово вернётся на повторение.')).toBeInTheDocument()
+  })
+
+  it('a hint and a mistake in the same attempt: the hint wins (task 42 §3)', () => {
+    const feedback = grade(ruPlExercise, 'żółty')
+    render(
+      <ExerciseFeedback
+        feedback={feedback}
+        correctAnswer="żółty"
+        attempt={{ mistakes: 3, hintsUsed: 1, revealed: false, letterCount: 5 }}
+        onNext={() => {}}
+      />,
+    )
+
+    expect(screen.getByText('Верно, но с подсказкой')).toBeInTheDocument()
+    expect(screen.queryByText('Верно, но с исправлением')).not.toBeInTheDocument()
+  })
+
+  it('a correct answer that somehow came with a reveal is never labelled "с исправлением" (task 42)', () => {
+    const feedback = grade(ruPlExercise, 'żółty')
+    render(
+      <ExerciseFeedback
+        feedback={feedback}
+        correctAnswer="żółty"
+        attempt={{ mistakes: 0, hintsUsed: 0, revealed: true, letterCount: 5 }}
+        onNext={() => {}}
+      />,
+    )
+    expect(screen.queryByText('Верно, но с исправлением')).not.toBeInTheDocument()
+    expect(screen.getByText('Верно, но с подсказкой')).toBeInTheDocument()
   })
 
   it('a clean typed attempt (no mistakes, no hints) still shows the plain "Верно!"', () => {
@@ -89,12 +137,16 @@ describe('ExerciseFeedback', () => {
     expect(screen.getByText('Верно!')).toBeInTheDocument()
   })
 
-  it('the 3 visible panel states each use a visually distinct icon shape, not just color (NFR-11)', () => {
+  it('the 4 visible panel states each use a visually distinct icon shape, not just color (NFR-11)', () => {
     const cases: [ReturnType<typeof grade>, Parameters<typeof ExerciseFeedback>[0]['attempt']][] =
       [
         [
           grade(ruPlExercise, 'żółty'),
           { mistakes: 1, hintsUsed: 0, revealed: false, letterCount: 5 },
+        ],
+        [
+          grade(ruPlExercise, 'żółty'),
+          { mistakes: 0, hintsUsed: 1, revealed: false, letterCount: 5 },
         ],
         [grade(ruPlExercise, 'zolty'), undefined],
         [grade(plRuExercise, 'иметь'), undefined],

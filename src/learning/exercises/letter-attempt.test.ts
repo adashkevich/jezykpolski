@@ -8,6 +8,7 @@ import {
   computeVisibleCount,
   createLetterAttempt,
   eraseLetter,
+  isFlawlessAttempt,
   outcomeOf,
   revealAll,
   revealCurrentLetter,
@@ -125,6 +126,46 @@ describe('typeLetter — неверная буква', () => {
     expect(attempt.complete).toBe(true)
     expect(attempt.mistakes).toBe(1)
   })
+
+  // Задача 42 §2: бэкспейс — основной путь исправления на телефоне, и он не должен терять
+  // ни цвет исправления, ни счёт ошибок.
+  it('неверная -> бэкспейс -> верная: ячейка corrected, а не correct (задача 42)', () => {
+    let attempt = createLetterAttempt(['kot'])
+    attempt = typeLetter(attempt, 'z')
+    attempt = eraseLetter(attempt)
+    attempt = typeLetter(attempt, 'k')
+    expect(attempt.cells[0]).toMatchObject({ shown: 'k', state: 'corrected' })
+    expect(attempt.mistakes).toBe(1)
+  })
+
+  it('неверная -> бэкспейс -> неверная -> верная: mistakes === 1 (задача 42)', () => {
+    let attempt = createLetterAttempt(['kot'])
+    attempt = typeLetter(attempt, 'z')
+    attempt = eraseLetter(attempt)
+    attempt = typeLetter(attempt, 'x')
+    expect(attempt.mistakes).toBe(1)
+    attempt = typeLetter(attempt, 'k')
+    expect(attempt.mistakes).toBe(1)
+    expect(attempt.cells[0]).toMatchObject({ shown: 'k', state: 'corrected' })
+  })
+
+  it('ошибка в другой ячейке после бэкспейса считается отдельно', () => {
+    let attempt = createLetterAttempt(['kot'])
+    attempt = typeLetter(attempt, 'z')
+    attempt = eraseLetter(attempt)
+    attempt = typeLetters(attempt, 'ko')
+    attempt = typeLetter(attempt, 'x')
+    expect(attempt.mistakes).toBe(2)
+  })
+
+  it('ячейка, не знавшая ошибки, остаётся correct и после соседней ошибки', () => {
+    let attempt = createLetterAttempt(['kot'])
+    attempt = typeLetters(attempt, 'k')
+    attempt = typeLetter(attempt, 'z')
+    attempt = eraseLetter(attempt)
+    attempt = typeLetters(attempt, 'ot')
+    expect(states(attempt)).toEqual(['correct', 'corrected', 'correct'])
+  })
 })
 
 describe('eraseLetter', () => {
@@ -134,6 +175,15 @@ describe('eraseLetter', () => {
     attempt = eraseLetter(attempt)
     expect(attempt.cells[0]).toMatchObject({ shown: null, state: 'empty' })
     expect(attempt.cursor).toBe(0)
+  })
+
+  it('не сбрасывает everWrong — ячейка помнит ошибку после стирания (задача 42)', () => {
+    let attempt = createLetterAttempt(['kot'])
+    expect(attempt.cells[0]!.everWrong).toBe(false)
+    attempt = typeLetter(attempt, 'z')
+    expect(attempt.cells[0]!.everWrong).toBe(true)
+    attempt = eraseLetter(attempt)
+    expect(attempt.cells[0]).toMatchObject({ state: 'empty', everWrong: true })
   })
 
   it('не стирает подтверждённую букву', () => {
@@ -192,6 +242,15 @@ describe('revealCurrentLetter (подсказка)', () => {
     attempt = revealCurrentLetter(attempt)
     expect(attempt.cells[0]).toMatchObject({ shown: 'k', state: 'hinted' })
     expect(attempt.mistakes).toBe(1) // уже засчитанная ошибка не отменяется
+  })
+
+  it('подсказка на ячейке, где уже была ошибка (в том числе стёртая), остаётся hinted (задача 42)', () => {
+    let attempt = createLetterAttempt(['kot'])
+    attempt = typeLetter(attempt, 'z')
+    attempt = eraseLetter(attempt)
+    attempt = revealCurrentLetter(attempt)
+    expect(attempt.cells[0]).toMatchObject({ shown: 'k', state: 'hinted' })
+    expect(attempt.mistakes).toBe(1)
   })
 })
 
@@ -253,6 +312,38 @@ describe('outcomeOf', () => {
     expect(outcome.mistakes).toBe(1)
     expect(outcome.hintsUsed).toBe(1)
     expect(outcome.revealed).toBe(false)
+  })
+})
+
+describe('isFlawlessAttempt (задача 42 §3, единый источник правила «безупречно»)', () => {
+  it('ноль ошибок, ноль подсказок, без глазка — безупречно', () => {
+    expect(isFlawlessAttempt({ mistakes: 0, hintsUsed: 0, revealed: false })).toBe(true)
+  })
+
+  it('любая ошибка — не безупречно', () => {
+    expect(isFlawlessAttempt({ mistakes: 1, hintsUsed: 0, revealed: false })).toBe(false)
+  })
+
+  it('любая подсказка — не безупречно', () => {
+    expect(isFlawlessAttempt({ mistakes: 0, hintsUsed: 1, revealed: false })).toBe(false)
+  })
+
+  it('глазок — не безупречно', () => {
+    expect(isFlawlessAttempt({ mistakes: 0, hintsUsed: 0, revealed: true })).toBe(false)
+  })
+
+  it('принимает и итог (outcomeOf), и саму попытку', () => {
+    let attempt = createLetterAttempt(['kot'])
+    attempt = typeLetters(attempt, 'kot')
+    expect(isFlawlessAttempt(attempt)).toBe(true)
+    expect(isFlawlessAttempt(outcomeOf(attempt))).toBe(true)
+
+    let sloppy = createLetterAttempt(['kot'])
+    sloppy = typeLetter(sloppy, 'z')
+    sloppy = eraseLetter(sloppy)
+    sloppy = typeLetters(sloppy, 'kot')
+    expect(isFlawlessAttempt(sloppy)).toBe(false)
+    expect(isFlawlessAttempt(outcomeOf(sloppy))).toBe(false)
   })
 })
 

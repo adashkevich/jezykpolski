@@ -59,24 +59,36 @@ const POLISH_SPECIAL_CHARS = ['ą', 'ć', 'ę', 'ł', 'ń', 'ó', 'ś', 'ź', '�
  *  `revealed` раньше красился в приглушённый `text-muted-foreground` и курсив — по запросу
  *  пользователя раскрытое кнопкой «Показать слово» слово теперь рисуется обычным цветом текста
  *  (`text-foreground`) и обычным начертанием; единственный оставшийся неcветовой признак —
- *  пунктирное подчёркивание, которого NFR-11 и требует. */
+ *  пунктирное подчёркивание, которого NFR-11 и требует.
+ *
+ *  **Изменено задачей 42** (`spec/tasks/42-letter-input-width-and-correction-states.md` §2,
+ *  FR-84, FR-86): `corrected` и `hinted` раньше были одной и той же строкой классов, и отличить
+ *  исправленную букву от подсказанной было невозможно в принципе. Теперь у каждого состояния
+ *  свой цвет И своя форма подчёркивания: `corrected` — янтарный, сплошное; `hinted` — синий
+ *  (`info`), пунктир (`dashed`); `revealed` — цвет текста, точки (`dotted`); `wrong` — красный,
+ *  заливка и жирный. Цвета — существующие токены `warning`/`info` (тема одна, светлая, см.
+ *  `globals.css`: `#b45309` — 5.0:1 и `#004cca` — 7.3:1 на белом карточки, оба проходят AA). */
 const CELL_CLASS: Readonly<Record<CellState, string>> = {
   empty: 'border-track text-transparent',
   correct: 'border-success text-success',
-  corrected: 'border-warning text-warning underline decoration-warning decoration-dotted decoration-2',
+  corrected: 'border-warning text-warning underline decoration-warning decoration-solid decoration-2',
   wrong: 'border-error bg-error/15 font-bold text-error underline decoration-error decoration-2',
-  hinted: 'border-warning text-warning underline decoration-warning decoration-dotted decoration-2',
+  hinted: 'border-info text-info underline decoration-info decoration-dashed decoration-2',
   revealed: 'border-muted-foreground text-foreground underline decoration-dotted decoration-2',
   separator: 'border-transparent',
 }
 
 /** Фиксированная ширина ячейки (задача 30 §2 п.2) — раньше она вычислялась от количества
  *  букв ради умещения самых длинных форм в 320px, но это прямая утечка длины слова через
- *  вёрстку ещё до первого нажатия. Ширина больше не зависит от слова: тач-таргет ≥44px по
- *  высоте (критерий приёмки MVP №14) держит `h-11`/`min-w-11`, ряд переносится `flex-wrap`, а
- *  контейнер скроллится по горизонтали (`overflow-x-auto`), если много слотов всё равно не
- *  помещается в одну строку — страница на 320px по-прежнему не скроллится вбок. */
-const SLOT_CLASS = 'h-11 min-w-11 text-headline-md'
+ *  вёрстку ещё до первого нажатия. Ширина больше не зависит от слова, ряд переносится
+ *  `flex-wrap`, а контейнер скроллится по горизонтали (`overflow-x-auto`), если много слотов
+ *  всё равно не помещается в одну строку — страница на 320px по-прежнему не скроллится вбок.
+ *
+ *  **Изменено задачей 42** (§1, FR-59): ячейка `w-6` (24px, `w-8` от 480px) вместо `min-w-11`
+ *  (44px), шрифт прежний — `text-headline-md`; на 360px в строку влезает 12 букв. Высота `h-11`
+ *  остаётся: тач-таргет — невидимый `<input>` поверх всего ряда, а не сама ячейка, так что
+ *  критерий приёмки MVP №14 (≥44px) не страдает. */
+const SLOT_CLASS = 'h-11 w-6 min-[480px]:w-8 text-headline-md'
 
 /** Secondary white "chip" controls under the slots (`spec/design/task-input.png`). */
 const TOOL_BUTTON_CLASS =
@@ -220,16 +232,20 @@ export function LetterSlotsInput({
         <p id={descriptionId} className="sr-only">
           Вводите буквы по порядку — неверная буква заменяется следующим нажатием.
         </p>
-        <div aria-hidden="true" className="overflow-x-auto px-3 py-2.5">
+        <div aria-hidden="true" className="overflow-x-auto px-2 py-2.5">
           {/* **Изменено задачей 36** (`spec/tasks/36-practice-screen-restructure.md` §5,
               FR-151) — задача 30 §2.3 требовала выравнивания по левому краю ("уже набранные
               буквы не «прыгали» при добавлении слота"); по прямому запросу пользователя ряд
               теперь центрируется. Контейнер выше остаётся `overflow-x-auto`, так что длинное
               слово по-прежнему скроллится внутри себя, а не растягивает страницу на 320px. */}
-          <div className="flex flex-wrap justify-center gap-1.5">
+          {/* **Изменено задачей 42** (§1): `gap-0.5` вместо `gap-1.5`, разделитель `w-2`
+              вместо `w-3` — иначе 12 ячеек по 24px не помещаются в 310px доступных на 360px.
+              Промежуток остаётся `gap-0.5` и от 480px (`w-8`): 12×32 + 11×2 = 406px против
+              414px доступных на 480px, а с `gap-1` — 428px, и 12-я буква переносилась бы. */}
+          <div className="flex flex-wrap justify-center gap-0.5">
             {visibleCells.map((cell, index) =>
               cell.state === 'separator' ? (
-                <span key={index} className="w-3" />
+                <span key={index} className="w-2" />
               ) : (
                 <span
                   key={index}

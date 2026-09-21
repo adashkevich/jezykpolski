@@ -172,7 +172,7 @@ export async function answerUntilSessionEnds(
  * **«Подсказка»** repeatedly until the word completes — instead of revealing it. This is
  * the only e2e coverage of two things `answerCurrentExercise`'s reveal shortcut can't
  * exercise: auto-submit on the last correct letter (no submit button exists at all) and the
- * `assisted` feedback status ("Верно, но с подсказкой", `ExerciseFeedback.tsx`). Caller must
+ * `hinted` feedback status ("Верно, но с подсказкой", `ExerciseFeedback.tsx`). Caller must
  * already be on a screen showing the letter-slots shape (race against `radiogroup` first if
  * that isn't guaranteed — same pattern as `answerCurrentExercise`).
  */
