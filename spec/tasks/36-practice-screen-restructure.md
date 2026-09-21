@@ -67,6 +67,7 @@ export async function resolveLexicalCandidateWordIds(
   (мулбери32) из `TrainingSetupScreen.tsx` — теперь у него три места вызова (экран,
   «Сопоставление», экран результата), а не одно.
 - `MATCHING_UNGRADED_TAIL = 2` и `shouldGradeMatch(matchIndex, totalPairs)` — см. §4.
+  **Изменено задачей 44:** обе сущности заменены, см. §4.
 
 **`features/training-setup/hooks/useLexicalCandidateWords.ts`** (новый)
 
@@ -141,6 +142,11 @@ export async function resolveLexicalCandidateWordIds(
 `lexical-batch.ts`. Батч из ≤ `MATCHING_UNGRADED_TAIL` пар не засчитывает ничего вовсе —
 вырожденный случай, а не ошибка.
 
+**Изменено задачей 44** (`44-matching-credit-all-but-mistaken.md`, FR-55/FR-152): это правило
+снято. `MATCHING_UNGRADED_TAIL` удалён, `shouldGradeMatch` теперь
+`(wordId, tainted)` — не засчитывается только слово, чья польская или русская плитка
+участвовала в неверной паре; позиция пары в батче ничего не решает.
+
 `MatchingPracticePage.tsx` перестаёт уходить с `/practice/matching` по «Готово» — вместо
 этого показывает `PracticeDrillActions`; «Ещё» пересобирает батч через
 `resolveLexicalCandidateWordIds(filter)` + `sampleWordBatch` и делает
@@ -193,7 +199,8 @@ export async function resolveLexicalCandidateWordIds(
       по-прежнему заканчивается «Разобрать ошибки»/«Закончить»
 - [ ] В «Сопоставлении» с батчем из 5 пар в `reviewLogs` попадают ровно 3 записи, а не 5.
       **Изменено задачей 39**: засчитанная пара пишет 2 записи (по одному навыку на
-      направление), так что 5-парный батч даёт 6 записей, не 3
+      направление), так что 5-парный батч даёт 6 записей, не 3.
+      **Изменено задачей 44**: правило «последние 2» снято — батч без ошибок пишет 10 записей
 - [ ] Ряд слотов побуквенного ввода отцентрирован; «Показать слово» рисует ответ обычным
       цветом текста без курсива
 - [ ] `npm test`, `npm run lint`, `npm run build`, `npx playwright test` проходят

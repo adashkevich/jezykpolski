@@ -21,15 +21,15 @@
  * the "each pair graded independently, same submitAnswer call TableExercise already makes
  * per cell" the task text asks for, just always on the winning attempt.
  *
- * Task 36 (`spec/tasks/36-practice-screen-restructure.md` §4, FR-152) narrows this further:
- * `shouldGradeMatch` (`@/learning/practice/lexical-batch.ts`) excludes the last
- * `MATCHING_UNGRADED_TAIL` (2) pairings of the batch from grading entirely — with only 2 tiles
- * left per column, a correct pairing is a 50/50 guess (or, for the very last pair, forced) and
- * no longer evidence the user actually knew the translation. `completedRef` below counts every
- * *correct* pairing seen this session (0-based `matchIndex` into `shouldGradeMatch`) — a wrong
- * pairing never advances it, matching the header's own "wrong pairings never reach `gradePair`
- * at all" rule above (this hook only ever sees the wordId of a pair that was matched
- * correctly).
+ * Task 44 (`spec/tasks/44-matching-credit-all-but-mistaken.md`, FR-55/FR-152) narrows this
+ * further — replacing task 36's "the last 2 pairings of a batch are never graded" rule: a correct
+ * pairing is graded UNLESS its word is "tainted", i.e. its PL or RU tile took part in an earlier
+ * wrong pairing (A_pl → B_ru taints both A and B; a later correct A_pl → A_ru is matched on
+ * screen but not credited). `MatchingExercise.tsx` keeps that set and hands `gradePair` the
+ * verdict as `{ graded }` (`lexical-batch.ts#shouldGradeMatch`), so this hook has no rule of
+ * its own to keep in sync with `SessionMatchingBlock.tsx` — it just honours the flag. A wrong
+ * pairing still never reaches `gradePair` at all (this hook only ever sees the wordId of a pair
+ * that was matched correctly) and, as before, writes no answer of its own to either word.
  *
  * Task 39 (`spec/tasks/39-practice-current-level.md`, direct user decision): a graded pairing
  * now grades BOTH `vocab:pl-ru` (PL→RU, prompt = the Polish tile) and `vocab:ru-pl-choice`
@@ -49,7 +49,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Exercise, MatchingPairSource } from '@/learning/exercises/exercise.types.ts'
 import type { WordId } from '@/learning/skills/skill-id.ts'
 import { completeSession, createSession, deleteSession } from '@/db/repositories/sessions.repository.ts'
-import { shouldGradeMatch } from '@/learning/practice/lexical-batch.ts'
+import type { MatchedPairInfo } from '../components/MatchingExercise.tsx'
 import { gradeMatchingPair } from '../lib/grade-matching-pair.ts'
 import { SessionContentCache } from '../lib/session-content-context.ts'
 
@@ -72,8 +72,9 @@ export interface MatchingPracticeSession {
   readonly status: MatchingPracticeStatus
   /** Grades exactly one CORRECT pairing (see this module's header for why wrong pairings
    *  never reach this) — `wordId` identifies which pair; elapsed time is measured from when
-   *  the batch was shown to when this resolves. */
-  gradePair(wordId: WordId): Promise<void>
+   *  the batch was shown to when this resolves. `graded: false` (a word tainted by an earlier
+   *  wrong pairing, task 44) writes nothing at all. */
+  gradePair(wordId: WordId, info: MatchedPairInfo): Promise<void>
   finish(): Promise<void>
 }
 
@@ -85,9 +86,6 @@ export function useMatchingPracticeSession(wordIds: readonly WordId[]): Matching
   const aliveRef = useRef(true)
   const cacheRef = useRef<SessionContentCache | null>(null)
   const pairsByWordIdRef = useRef(new Map<WordId, MatchingPairSource>())
-  // Task 36 §4 — 0-based count of correctly-matched pairs seen so far this batch, used as
-  // `shouldGradeMatch`'s `matchIndex`. Reset alongside the other per-mount refs below.
-  const completedCountRef = useRef(0)
   // Set once the batch is shown (inside the effect below, never during render — the
   // `react-hooks/purity` rule this codebase enforces forbids calling `Date.now()` directly
   // in a component's render body, even from a plain helper function it might call; reading
@@ -101,7 +99,6 @@ export function useMatchingPracticeSession(wordIds: readonly WordId[]): Matching
     finishedRef.current = false
     sessionIdRef.current = null
     tallyRef.current = { total: 0, correct: 0, newSkillCount: 0 }
-    completedCountRef.current = 0
 
     ;(async () => {
       try {
@@ -143,19 +140,15 @@ export function useMatchingPracticeSession(wordIds: readonly WordId[]): Matching
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function gradePair(wordId: WordId): Promise<void> {
+  async function gradePair(wordId: WordId, { graded }: MatchedPairInfo): Promise<void> {
     const cache = cacheRef.current
     const sessionId = sessionIdRef.current
     const pair = pairsByWordIdRef.current.get(wordId)
     if (!cache || sessionId === null || !pair) return
 
-    // Task 36 §4 — the last `MATCHING_UNGRADED_TAIL` correct pairings of the batch are a
-    // guess, not knowledge (see this file's header): count this pairing, but stop before
-    // `submitAnswer`/`ensureSkill` if it falls in the ungraded tail. `pairsByWordIdRef.current
-    // .size` is the batch's fixed `totalPairs` (never mutated after the mount effect sets it).
-    const matchIndex = completedCountRef.current
-    completedCountRef.current += 1
-    if (!shouldGradeMatch(matchIndex, pairsByWordIdRef.current.size)) return
+    // Task 44 — a tainted word (see this file's header) is matched on screen but never
+    // credited: stop before `submitAnswer`/`ensureSkill`.
+    if (!graded) return
 
     const elapsedMs = Math.max(0, Date.now() - shownAtRef.current)
     const now = Date.now()

@@ -77,7 +77,7 @@ function MatchingPracticeContent({
       {status.phase === 'ready' && !done && (
         <MatchingExercise
           pairs={status.pairs}
-          onPairMatched={(wordId) => gradePair(wordId)}
+          onPairMatched={(wordId, info) => gradePair(wordId, info)}
           onDone={() => void handleDone()}
         />
       )}

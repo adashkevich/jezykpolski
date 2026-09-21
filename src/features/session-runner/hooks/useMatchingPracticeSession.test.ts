@@ -4,11 +4,13 @@
  * — a real (fake-indexeddb) database, `paradigmShard: -1` throughout (vocab-only grading
  * needs no paradigm fetch) so only the senses-shard fetch needs stubbing.
  *
- * Task 36 (`spec/tasks/36-practice-screen-restructure.md` §4, FR-152) — the last
- * `MATCHING_UNGRADED_TAIL` (2) pairings of a batch are never graded (see
- * `lexical-batch.ts#shouldGradeMatch`'s own header for why). Every test below that exercises
- * *grading* now uses a 5-word batch (`MATCHING_PAIR_COUNT`) rather than 2, so the pairs it
- * grades fall before that tail; a dedicated test covers the tail exclusion itself.
+ * Task 44 (`spec/tasks/44-matching-credit-all-but-mistaken.md`, FR-55/FR-152) — replaced
+ * task 36's "last 2 pairings are never graded" rule: `gradePair(wordId, { graded })` grades
+ * every pairing whose `graded` is true (the flag comes from `MatchingExercise.tsx`, which
+ * marks a word `graded: false` once its PL or RU tile took part in a wrong pairing — see
+ * `lexical-batch.ts#shouldGradeMatch`) and writes nothing for `graded: false`. Position in the
+ * batch no longer matters, so a 5-word batch grades all five pairs and even a 2-word one grades
+ * both; dedicated tests cover both directions of the flag.
  *
  * Task 39 (`spec/tasks/39-practice-current-level.md`, direct user decision) — a graded pairing
  * now grades BOTH `vocab:pl-ru` and `vocab:ru-pl-choice`, so a graded pairing writes 2
@@ -45,8 +47,7 @@ const KOT_ID = encodeWordId('kot', 'NOUN')
 const PIES_ID = encodeWordId('pies', 'NOUN')
 const OKNO_ID = encodeWordId('okno', 'NOUN')
 
-/** A 5-word batch (`MATCHING_PAIR_COUNT`) — the first 3 pairings (`shouldGradeMatch`'s
- *  `totalPairs - MATCHING_UNGRADED_TAIL` = 3) are graded, the last 2 never are. */
+/** A 5-word batch (`MATCHING_PAIR_COUNT`) — the size the screen actually uses. */
 const FIVE_WORD_BATCH = [KOBIETA_ID, DOM_ID, KOT_ID, PIES_ID, OKNO_ID]
 
 function stubEmptySensesFetch() {
@@ -92,9 +93,8 @@ describe('useMatchingPracticeSession', () => {
     const { result } = renderHook(() => useMatchingPracticeSession(FIVE_WORD_BATCH))
     await waitFor(() => expect(result.current.status.phase).toBe('ready'))
 
-    // First pairing of a 5-pair batch (index 0) — well before the ungraded tail.
     await act(async () => {
-      await result.current.gradePair(KOBIETA_ID)
+      await result.current.gradePair(KOBIETA_ID, { graded: true })
     })
 
     const plRu = await getSkill(`${KOBIETA_ID}::vocab:pl-ru`)
@@ -122,11 +122,11 @@ describe('useMatchingPracticeSession', () => {
     if (result.current.status.phase !== 'ready') throw new Error('unreachable')
     const sessionId = result.current.status.sessionId
 
-    // Only the first 2 of 5 pairings — both before the ungraded tail (threshold 3). Each
-    // graded pairing counts as 2 (both vocab skills), so 2 pairings -> totalCount 4.
+    // Only 2 of 5 pairings matched. Each graded pairing counts as 2 (both vocab skills),
+    // so 2 pairings -> totalCount 4.
     await act(async () => {
-      await result.current.gradePair(KOBIETA_ID)
-      await result.current.gradePair(DOM_ID)
+      await result.current.gradePair(KOBIETA_ID, { graded: true })
+      await result.current.gradePair(DOM_ID, { graded: true })
     })
     await act(async () => {
       await result.current.finish()
@@ -153,32 +153,60 @@ describe('useMatchingPracticeSession', () => {
     unmount()
   })
 
-  // Task 36 (`spec/tasks/36-practice-screen-restructure.md` §4, FR-152), counts doubled by
-  // task 39 (2 skills per graded pairing instead of 1).
-  it('never grades the last MATCHING_UNGRADED_TAIL pairings of a batch', async () => {
+  // Task 44 (replaces task 36's tail rule) — no mistakes, so `MatchingExercise` reports every
+  // pairing as graded: all 5 are written, the last two included. 5 pairings × 2 skills each
+  // = 10 log entries (FR-152, updated by tasks 39 and 44).
+  it('grades every pairing of a batch, including the last two', async () => {
     const { result } = renderHook(() => useMatchingPracticeSession(FIVE_WORD_BATCH))
     await waitFor(() => expect(result.current.status.phase).toBe('ready'))
     if (result.current.status.phase !== 'ready') throw new Error('unreachable')
     const sessionId = result.current.status.sessionId
 
-    // All 5 pairings matched correctly, in order — only the first 3 (indices 0,1,2) should
-    // ever reach `submitAnswer`/`reviewLogs`; the last 2 (PIES, OKNO) never do. 3 graded
-    // pairings × 2 skills each = 6 log entries (FR-152, updated by task 39).
     await act(async () => {
-      await result.current.gradePair(KOBIETA_ID)
-      await result.current.gradePair(DOM_ID)
-      await result.current.gradePair(KOT_ID)
-      await result.current.gradePair(PIES_ID)
-      await result.current.gradePair(OKNO_ID)
+      for (const wordId of FIVE_WORD_BATCH) {
+        await result.current.gradePair(wordId, { graded: true })
+      }
     })
 
-    const logs = await getLogsForSession(sessionId)
-    expect(logs).toHaveLength(6)
+    expect(await getLogsForSession(sessionId)).toHaveLength(10)
+    for (const wordId of FIVE_WORD_BATCH) {
+      expect((await getSkill(`${wordId}::vocab:pl-ru`))?.correct).toBe(1)
+      expect((await getSkill(`${wordId}::vocab:ru-pl-choice`))?.correct).toBe(1)
+    }
 
-    expect(await getSkill(`${PIES_ID}::vocab:pl-ru`)).toBeUndefined()
-    expect(await getSkill(`${PIES_ID}::vocab:ru-pl-choice`)).toBeUndefined()
-    expect(await getSkill(`${OKNO_ID}::vocab:pl-ru`)).toBeUndefined()
-    expect(await getSkill(`${OKNO_ID}::vocab:ru-pl-choice`)).toBeUndefined()
+    await act(async () => {
+      await result.current.finish()
+    })
+    const session = await getSession(sessionId)
+    expect(session?.totalCount).toBe(10)
+    expect(session?.correctCount).toBe(10)
+  })
+
+  // A_pl -> B_ru was a mistake, so A and B arrive as `graded: false` even though they are later
+  // matched correctly; C, D, E (untouched) arrive as `graded: true`. Only those three are written.
+  it('writes nothing for a pairing reported as not graded (a tainted word), grades the rest', async () => {
+    const { result } = renderHook(() => useMatchingPracticeSession(FIVE_WORD_BATCH))
+    await waitFor(() => expect(result.current.status.phase).toBe('ready'))
+    if (result.current.status.phase !== 'ready') throw new Error('unreachable')
+    const sessionId = result.current.status.sessionId
+
+    await act(async () => {
+      await result.current.gradePair(KOBIETA_ID, { graded: false })
+      await result.current.gradePair(DOM_ID, { graded: false })
+      await result.current.gradePair(KOT_ID, { graded: true })
+      await result.current.gradePair(PIES_ID, { graded: true })
+      await result.current.gradePair(OKNO_ID, { graded: true })
+    })
+
+    expect(await getLogsForSession(sessionId)).toHaveLength(6)
+    for (const wordId of [KOBIETA_ID, DOM_ID]) {
+      expect(await getSkill(`${wordId}::vocab:pl-ru`)).toBeUndefined()
+      expect(await getSkill(`${wordId}::vocab:ru-pl-choice`)).toBeUndefined()
+    }
+    for (const wordId of [KOT_ID, PIES_ID, OKNO_ID]) {
+      expect((await getSkill(`${wordId}::vocab:pl-ru`))?.correct).toBe(1)
+      expect((await getSkill(`${wordId}::vocab:ru-pl-choice`))?.correct).toBe(1)
+    }
 
     await act(async () => {
       await result.current.finish()
@@ -188,15 +216,15 @@ describe('useMatchingPracticeSession', () => {
     expect(session?.correctCount).toBe(6)
   })
 
-  it('grades nothing at all in a batch no larger than MATCHING_UNGRADED_TAIL', async () => {
+  it('deletes the session when every pairing was reported as not graded', async () => {
     const { result } = renderHook(() => useMatchingPracticeSession([KOBIETA_ID, DOM_ID]))
     await waitFor(() => expect(result.current.status.phase).toBe('ready'))
     if (result.current.status.phase !== 'ready') throw new Error('unreachable')
     const sessionId = result.current.status.sessionId
 
     await act(async () => {
-      await result.current.gradePair(KOBIETA_ID)
-      await result.current.gradePair(DOM_ID)
+      await result.current.gradePair(KOBIETA_ID, { graded: false })
+      await result.current.gradePair(DOM_ID, { graded: false })
     })
 
     expect(await getLogsForSession(sessionId)).toHaveLength(0)
@@ -209,5 +237,18 @@ describe('useMatchingPracticeSession', () => {
     // Nothing was ever graded -> the same "abandoned, delete the session" path as finishing
     // with zero `gradePair` calls at all.
     expect(await getSession(sessionId)).toBeUndefined()
+  })
+
+  it('grades a 2-word batch too — batch size no longer excludes anything', async () => {
+    const { result } = renderHook(() => useMatchingPracticeSession([KOBIETA_ID, DOM_ID]))
+    await waitFor(() => expect(result.current.status.phase).toBe('ready'))
+    if (result.current.status.phase !== 'ready') throw new Error('unreachable')
+
+    await act(async () => {
+      await result.current.gradePair(KOBIETA_ID, { graded: true })
+      await result.current.gradePair(DOM_ID, { graded: true })
+    })
+
+    expect(await getLogsForSession(result.current.status.sessionId)).toHaveLength(4)
   })
 })

@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  MATCHING_UNGRADED_TAIL,
-  sampleWordBatch,
-  shouldGradeMatch,
-} from './lexical-batch.ts'
+import { sampleWordBatch, shouldGradeMatch } from './lexical-batch.ts'
+import { encodeWordId } from '@/learning/skills/skill-id.ts'
 
 describe('sampleWordBatch', () => {
   const items = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
@@ -36,25 +33,17 @@ describe('sampleWordBatch', () => {
 })
 
 describe('shouldGradeMatch', () => {
-  it('grades every pairing except the last MATCHING_UNGRADED_TAIL of a normal 5-pair batch', () => {
-    const total = 5
-    expect(shouldGradeMatch(0, total)).toBe(true)
-    expect(shouldGradeMatch(1, total)).toBe(true)
-    expect(shouldGradeMatch(2, total)).toBe(true)
-    expect(shouldGradeMatch(3, total)).toBe(false)
-    expect(shouldGradeMatch(4, total)).toBe(false)
+  const A = encodeWordId('kobieta', 'NOUN')
+  const B = encodeWordId('dom', 'NOUN')
+
+  it('grades a word that took no part in a wrong pairing', () => {
+    expect(shouldGradeMatch(A, new Set())).toBe(true)
+    // Запятнано другое слово — это слово по-прежнему засчитывается.
+    expect(shouldGradeMatch(A, new Set([B]))).toBe(true)
   })
 
-  it('grades nothing in a batch no larger than MATCHING_UNGRADED_TAIL', () => {
-    expect(shouldGradeMatch(0, MATCHING_UNGRADED_TAIL)).toBe(false)
-    expect(shouldGradeMatch(0, 1)).toBe(false)
-    expect(shouldGradeMatch(0, 2)).toBe(false)
-  })
-
-  it('grades everything up to (but not including) the tail in a larger batch', () => {
-    const total = 10
-    expect(shouldGradeMatch(7, total)).toBe(true)
-    expect(shouldGradeMatch(8, total)).toBe(false)
-    expect(shouldGradeMatch(9, total)).toBe(false)
+  it('does not grade a tainted word', () => {
+    expect(shouldGradeMatch(A, new Set([A]))).toBe(false)
+    expect(shouldGradeMatch(B, new Set([A, B]))).toBe(false)
   })
 })

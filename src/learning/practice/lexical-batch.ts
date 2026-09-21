@@ -10,17 +10,19 @@
  * mulberry32 PRNG every other seeded-sample site in this codebase copies rather than imports
  * (see `learning/session/build-practice-queue.ts`'s own header on why).
  *
- * `MATCHING_UNGRADED_TAIL`/`shouldGradeMatch` are new in task 36 (§4): with only 2 pairs left
- * unmatched in a "Сопоставление" batch, the correct pairing is no longer evidence of
- * knowledge — the second-to-last pair is a 50/50 guess (whichever PL tile is left has exactly
- * one remaining RU tile to try), and the last pair requires no choice at all (both remaining
- * tiles are forced). `useMatchingPracticeSession.ts#gradePair` uses this to skip
- * `submitAnswer`/`reviewLogs`/SRS entirely for the tail, while `MatchingExercise.tsx` keeps
- * showing the same green highlight for every correct pair regardless — the user should never
- * see a difference in feedback, only the review log should reflect one.
+ * `shouldGradeMatch` (task 44, `spec/tasks/44-matching-credit-all-but-mistaken.md`, FR-55)
+ * decides whether a correctly matched "Сопоставление" pair is graded at all: every word of
+ * the batch is credited except one whose PL or RU tile ever took part in a WRONG pairing
+ * (a "tainted" word — with A_pl → B_ru wrong, both A and B are tainted). Replaces task 36's
+ * "last 2 pairs are never graded" rule (`MATCHING_UNGRADED_TAIL`, position-based, removed):
+ * a batch with no mistakes at all is now credited in full, the forced last pair included.
+ * `MatchingExercise.tsx` is the one place that keeps the tainted set and applies this — its
+ * consumers (`useMatchingPracticeSession.ts`, `SessionMatchingBlock.tsx`) only read the
+ * resulting `graded` flag, so the rule cannot drift between them.
  */
 
 /** Pure domain module: no React, no Dexie (architecture.md §3, `src/learning/**` rule). */
+import type { WordId } from '@/learning/skills/skill-id.ts'
 
 /**
  * Deterministic sample of `n` distinct items out of `items`, shuffled by a seeded mulberry32
@@ -53,19 +55,12 @@ export const MATCHING_PAIR_COUNT = 5
  *  current selection has fewer than this many (never padded). */
 export const VOCAB_DRILL_BATCH_SIZE = 10
 
-/** How many of the last pairs in a "Сопоставление" batch are excluded from grading
- *  (task 36 §4) — see this module's header for why 2. */
-export const MATCHING_UNGRADED_TAIL = 2
-
 /**
- * Whether the `matchIndex`-th pairing made (0-based, in the order the user completes them —
- * not the tiles' on-screen position) in a batch of `totalPairs` should be graded at all. The
- * last `MATCHING_UNGRADED_TAIL` pairings of any batch are never graded, regardless of
- * `totalPairs` — a batch with `totalPairs <= MATCHING_UNGRADED_TAIL` (possible when the
- * current lexical filter matches fewer than `MATCHING_PAIR_COUNT` words, though
- * `TrainingSetupScreen` normally disables "Начать" before that happens) grades nothing at
- * all, which is the correct degenerate case: every pairing in a 2-pair batch is a guess.
+ * Whether the correct pairing of `wordId` should be graded: `false` once `wordId` is in
+ * `tainted` (its PL or RU tile took part in a wrong pairing earlier in this batch). `tainted`
+ * is a set, not a counter — a second mistake on an already tainted word changes nothing.
+ * A wrong pairing itself is never graded either way (`useMatchingPracticeSession.ts`'s header).
  */
-export function shouldGradeMatch(matchIndex: number, totalPairs: number): boolean {
-  return matchIndex < totalPairs - MATCHING_UNGRADED_TAIL
+export function shouldGradeMatch(wordId: WordId, tainted: ReadonlySet<WordId>): boolean {
+  return !tainted.has(wordId)
 }

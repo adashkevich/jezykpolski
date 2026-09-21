@@ -4,10 +4,10 @@
  * ordinary Learn queue, built from words OUTSIDE that queue
  * (`session-scope.ts#resolveSessionMatchingWordIds`). Wraps the same `MatchingExercise` grid
  * the standalone `/practice/matching` screen uses, grading each correct pairing via the same
- * `gradeMatchingPair` (task 39's dual-direction grading, task 36's ungraded-tail rule via
- * `shouldGradeMatch`) — the only real difference from the standalone screen is where the
- * graded skills end up: this session's own live `useSessionStore` state, not a screen of its
- * own with its own `completeSession` call.
+ * `gradeMatchingPair` (task 39's dual-direction grading; task 44's "every word but a tainted
+ * one" rule arrives as `MatchingExercise`'s own `graded` flag) — the only real difference from
+ * the standalone screen is where the graded skills end up: this session's own live
+ * `useSessionStore` state, not a screen of its own with its own `completeSession` call.
  *
  * `SessionRunner.tsx` renders this INSTEAD OF `ActiveQuestion` for a `matching`-typed queue
  * item — a matching grid is a whole multi-pair screen with no single "the" answer, not a
@@ -25,11 +25,10 @@
 import { useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import type { Exercise, ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
-import { shouldGradeMatch } from '@/learning/practice/lexical-batch.ts'
 import type { SkillId, WordId } from '@/learning/skills/skill-id.ts'
 import { useSessionStore } from '@/stores/session.store.ts'
 import { gradeMatchingPair } from '../lib/grade-matching-pair.ts'
-import { MatchingExercise } from './MatchingExercise.tsx'
+import { MatchingExercise, type MatchedPairInfo } from './MatchingExercise.tsx'
 
 export interface SessionMatchingBlockProps {
   /** Must have `exercise.type === 'matching'` — checked once, after this component's own
@@ -47,7 +46,6 @@ export function SessionMatchingBlock({ instance, sessionId, newSkillIdsRef }: Se
   // Lazy initializer -> runs exactly once, at mount — same pattern (and same
   // `react-hooks/purity` rationale) as `ActiveQuestion`'s own `questionShownAt`.
   const [shownAt] = useState(() => Date.now())
-  const matchIndexRef = useRef(0)
   const doneRef = useRef(false)
 
   if (instance.exercise.type !== 'matching') {
@@ -57,14 +55,11 @@ export function SessionMatchingBlock({ instance, sessionId, newSkillIdsRef }: Se
   }
   const exercise: Extract<Exercise, { type: 'matching' }> = instance.exercise
 
-  async function handlePairMatched(wordId: WordId) {
-    // Task 36 §4 — the last `MATCHING_UNGRADED_TAIL` correct pairings of the batch are a
-    // guess, not knowledge (`lexical-batch.ts`'s own header): count this pairing, but never
-    // call `gradeMatchingPair` for it. `matchIndexRef` is 0-based, exactly `shouldGradeMatch`'s
-    // `matchIndex` contract.
-    const matchIndex = matchIndexRef.current
-    matchIndexRef.current += 1
-    if (!shouldGradeMatch(matchIndex, exercise.pairs.length)) return
+  async function handlePairMatched(wordId: WordId, { graded }: MatchedPairInfo) {
+    // Task 44 — a word tainted by an earlier wrong pairing (`lexical-batch.ts#shouldGradeMatch`,
+    // applied by `MatchingExercise`) is matched on screen but never credited: no
+    // `gradeMatchingPair`, nothing mirrored into the session store, so it stays out of the summary.
+    if (!graded) return
 
     const pair = exercise.pairs.find((p) => p.wordId === wordId)
     if (!pair) return // defensive — MatchingExercise only ever reports a wordId of its own pairs
@@ -75,8 +70,8 @@ export function SessionMatchingBlock({ instance, sessionId, newSkillIdsRef }: Se
 
     const store = useSessionStore.getState()
     store.seedFirstAnswers(new Map(result.skills.map((s) => [s.skillId, s.rating])))
-    for (const graded of result.skills) {
-      if (graded.isNewSkill) newSkillIdsRef.current?.add(graded.skillId)
+    for (const skill of result.skills) {
+      if (skill.isNewSkill) newSkillIdsRef.current?.add(skill.skillId)
     }
   }
 

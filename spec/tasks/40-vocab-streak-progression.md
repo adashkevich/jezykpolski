@@ -139,7 +139,7 @@ Practice), минус слова уже в очереди сессии, сэмп
 `currentInstance.exercise.type === 'matching'` (та же причина, что у Practice-only `table` —
 это целый многопарный экран, не одна `onAnswer`-задача, `exercise-registry.tsx` его не знает).
 `SessionMatchingBlock` оборачивает существующий `MatchingExercise`, на каждую засчитываемую
-пару (`shouldGradeMatch`, не меняется) вызывает `gradeMatchingPair`, зеркалит результат в
+пару (`shouldGradeMatch`, не меняется; **изменено задачей 44** — решает флаг `graded` от `MatchingExercise`) вызывает `gradeMatchingPair`, зеркалит результат в
 `useSessionStore` (`seedFirstAnswers` + `newSkillIdsRef`) — так пары попадают в сводку сессии
 как обычные ответы, — по «Готово» (`MatchingExercise`'s собственная кнопка) вызывает
 `store.advance()`. `completeSession`/`deleteSession` не вызывает сам — за это отвечает
@@ -157,7 +157,7 @@ Practice), минус слова уже в очереди сессии, сэмп
 - «Один вопрос на слово» — только про **vocab**-этапы перевода; морфологические навыки того же
   слова по-прежнему могут появиться в той же сессии отдельным вопросом.
 - Блок сопоставления не подмешивается в `mistake`/`practice`/`practice-extra` скоупы (см. §4).
-- `MatchingExercise.tsx`, `MATCHING_UNGRADED_TAIL`/`shouldGradeMatch`, правило «неверная пара
+- `MatchingExercise.tsx`, `MATCHING_UNGRADED_TAIL`/`shouldGradeMatch` (**изменено задачей 44** — хвост снят), правило «неверная пара
   не логируется» — не меняются.
 
 ## Acceptance

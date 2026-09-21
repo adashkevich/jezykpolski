@@ -1,15 +1,25 @@
 /**
  * `matching` exercise UI — "Сопоставление" (`spec/tasks/27-context-and-error-analysis.md`
  * §4, FR-55): tap a Polish word, then tap its Russian translation, to form a pair. Two
- * shuffled columns (PL left, RU right); a correct pair locks both tiles green and is graded
- * immediately (`useMatchingPracticeSession.ts#gradePair`); a wrong pair briefly flashes red
- * on both tiles (icon + color, NFR-11) and deselects without being graded (see that hook's
- * own header for why). Large tap targets throughout (`min-h-14`, wider than the usual
- * `min-h-11` — these tiles carry a whole word, not a single digit/icon).
+ * shuffled columns (PL left, RU right); a correct pair locks both tiles green and is reported
+ * at once via `onPairMatched` (graded there — `useMatchingPracticeSession.ts#gradePair`); a
+ * wrong pair briefly flashes red on both tiles (icon + color, NFR-11) and deselects without
+ * being graded itself (see that hook's own header for why). Large tap targets throughout
+ * (`min-h-14`, wider than the usual `min-h-11` — these tiles carry a whole word, not a single
+ * digit/icon).
+ *
+ * Task 44 (`spec/tasks/44-matching-credit-all-but-mistaken.md`, FR-55): a wrong pair taints
+ * BOTH its words (the PL tile's and the RU tile's `wordId`) — `taintedRef` below is a set
+ * kept for the whole batch, so a repeated mistake on an already tainted word changes nothing. A
+ * later correct pair for a tainted word is still locked green on screen, but is reported with
+ * `graded: false` (`lexical-batch.ts#shouldGradeMatch`) so the caller writes nothing for it.
+ * This is the single place the rule is applied; both consumers (`/practice/matching` and the
+ * daily session's `SessionMatchingBlock`) just honour the flag.
  */
 import { CheckCircle2, XCircle } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { shouldGradeMatch } from '@/learning/practice/lexical-batch.ts'
 import type { WordId } from '@/learning/skills/skill-id.ts'
 import type { MatchingPairSource } from '../hooks/useMatchingPracticeSession.ts'
 
@@ -32,9 +42,15 @@ function shuffled<T>(items: readonly T[]): T[] {
   return copy
 }
 
+/** Second argument of `onPairMatched` — `graded: false` for a word tainted by an earlier wrong
+ *  pairing (task 44): the pair is still matched on screen, but the caller must not grade it. */
+export interface MatchedPairInfo {
+  readonly graded: boolean
+}
+
 export interface MatchingExerciseProps {
   readonly pairs: readonly MatchingPairSource[]
-  onPairMatched(wordId: WordId): void | Promise<void>
+  onPairMatched(wordId: WordId, info: MatchedPairInfo): void | Promise<void>
   /** All pairs matched — the caller closes out the session and navigates away. */
   onDone(): void
 }
@@ -53,6 +69,9 @@ export function MatchingExercise({ pairs, onPairMatched, onDone }: MatchingExerc
   const [selectedRu, setSelectedRu] = useState<WordId | null>(null)
   const [matched, setMatched] = useState<ReadonlySet<WordId>>(new Set())
   const [wrongFlash, setWrongFlash] = useState<{ pl: WordId; ru: WordId } | null>(null)
+  // Words whose PL or RU tile ever took part in a wrong pair (task 44) — a ref, not state: it
+  // is only read when a correct pair is reported, never during render.
+  const taintedRef = useRef<Set<WordId>>(new Set())
 
   const allMatched = matched.size === pairs.length
 
@@ -86,8 +105,10 @@ export function MatchingExercise({ pairs, onPairMatched, onDone }: MatchingExerc
       setMatched((prev) => new Set(prev).add(plWordId))
       setSelectedPl(null)
       setSelectedRu(null)
-      void onPairMatched(plWordId)
+      void onPairMatched(plWordId, { graded: shouldGradeMatch(plWordId, taintedRef.current) })
     } else {
+      taintedRef.current.add(plWordId)
+      taintedRef.current.add(ruWordId)
       setWrongFlash({ pl: plWordId, ru: ruWordId })
     }
   }
