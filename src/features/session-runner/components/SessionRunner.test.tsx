@@ -523,6 +523,32 @@ describe('«Показать слово» и блокировка ввода (з
     expect(input.due).toBeGreaterThanOrEqual(before)
     expect(input.due).toBeLessThanOrEqual(after)
   })
+
+  it('финальное ревью (I1): после «Показать слово» безупречный набор на повторе в той же сессии «Знаю» НЕ показывает — блокировка остаётся', async () => {
+    const user = userEvent.setup()
+    await seed(
+      reviewedSkill('vocab:pl-ru', 40, 20),
+      reviewedSkill('vocab:ru-pl-choice', 40, 20),
+      { ...reviewedSkill('vocab:ru-pl-input', 40, -1), due: Date.now() - 1000 },
+    )
+    await startSession({ kind: 'word', wordId: KOBIETA })
+    expect(currentSkillId()).toBe(skillId('vocab:ru-pl-input'))
+
+    await user.click(screen.getByRole('button', { name: /^Показать слово/ }))
+    await user.click(await screen.findByRole('button', { name: 'Далее' }))
+
+    // Повтор той же сессии (SessionRunner ставит в очередь слово, отвеченное «Показать слово»):
+    // тот же ввод, набор без единой ошибки и подсказки.
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'Ответ по-польски' })).toBeInTheDocument(),
+    )
+    expect(currentSkillId()).toBe(skillId('vocab:ru-pl-input'))
+    await user.type(screen.getByRole('textbox', { name: 'Ответ по-польски' }), 'kobieta')
+    await screen.findByRole('button', { name: 'Далее' })
+
+    expect(markKnownButton()).not.toBeInTheDocument()
+    expect((await getSkill(skillId('vocab:ru-pl-input')))!.awaitingRecognition).toBe(true)
+  })
 })
 
 

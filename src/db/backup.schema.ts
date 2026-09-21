@@ -44,6 +44,13 @@ export const BackupSkillRecordSchema = z.object({
   lapses: z.number().int().nonnegative(),
   correct: z.number().int().nonnegative(),
   incorrect: z.number().int().nonnegative(),
+  // Задачи 40 и 43 (закрыто финальным ревью 41–45): опциональные — бэкап со старыми навыками по-
+  // прежнему валиден (версия формата не растёт, см. `CURRENT_BACKUP_SCHEMA_VERSION`), но
+  // zod-объект вырезает неизвестные ключи, так что без них импорт молча терял бы серию верных
+  // ответов и блокировку ввода после «Показать слово». `awaitingRecognition` — только `true`:
+  // поле снимается целиком, а не ставится в `false` (`types/progress.ts`).
+  correctStreak: z.number().int().nonnegative().optional(),
+  awaitingRecognition: z.literal(true).optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })

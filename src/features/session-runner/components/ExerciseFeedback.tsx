@@ -16,7 +16,8 @@
  * Task 29 (`spec/tasks/29-letter-by-letter-input.md` §4): the per-character "Ты
  * написал / Правильно" comparison this panel used to render for `input`/`form-input`
  * (task 28, FR-58) is gone — that proof is now the letter slots themselves, live, while
- * typing. What replaces it is the `assisted` status: a clean-but-not-perfect attempt
+ * typing. What replaces it is the `hinted`/`corrected` statuses (task 42 split the original
+ * single `assisted` one, see below): a correct-but-not-perfect attempt
  * (mistake and/or hint, `LetterSlotsInput`'s `TypedAttemptOutcome`) still shows "Верно!" in
  * `feedback.correct`, but the rating was capped at `Hard` (`policy.ts#mapResultToRating`),
  * so the panel says so explicitly rather than looking identical to a flawless answer. A

@@ -195,3 +195,56 @@ describe('parseBackupJson — поля точности (задача 45)', () =
     ).toThrow(BackupValidationError)
   })
 })
+
+// Финальное ревью 41–45 (I3): `correctStreak` (задача 40) и `awaitingRecognition` (задача 43) у
+// навыка — опциональные поля; без них в схеме zod вырезал бы их при импорте, и серия/блокировка
+// ввода молча пропадали бы после экспорта → импорта.
+describe('parseBackupJson — серия и блокировка ввода у навыка (задачи 40, 43)', () => {
+  const SKILL = {
+    skillId: 'kobieta|NOUN::vocab:ru-pl-input',
+    wordId: 'kobieta|NOUN',
+    kind: 'vocab',
+    dimension: 'vocab:ru-pl-input',
+    state: 'review',
+    stability: 12.5,
+    difficulty: 4,
+    due: 1735689600000,
+    reps: 3,
+    lapses: 0,
+    correct: 3,
+    incorrect: 0,
+    createdAt: 1,
+    updatedAt: 2,
+  }
+
+  it('сохраняет correctStreak и awaitingRecognition', () => {
+    const data = parseBackupJson(
+      validBackup({ skills: [{ ...SKILL, correctStreak: 2, awaitingRecognition: true }] }),
+    )
+    expect(data.skills[0]).toMatchObject({ correctStreak: 2, awaitingRecognition: true })
+  })
+
+  it('бэкап со старыми навыками (без новых полей) по-прежнему валиден и полей не добавляет', () => {
+    const data = parseBackupJson(validBackup({ skills: [SKILL] }))
+    expect('correctStreak' in data.skills[0]!).toBe(false)
+    expect('awaitingRecognition' in data.skills[0]!).toBe(false)
+  })
+
+  it('принимает correctStreak = 0', () => {
+    const data = parseBackupJson(validBackup({ skills: [{ ...SKILL, correctStreak: 0 }] }))
+    expect(data.skills[0]).toMatchObject({ correctStreak: 0 })
+  })
+
+  it.each([
+    [{ correctStreak: -1 }, 'отрицательная серия'],
+    [{ correctStreak: 1.5 }, 'дробная серия'],
+    [{ correctStreak: '2' }, 'серия строкой'],
+    [{ awaitingRecognition: false }, 'awaitingRecognition: false (поле снимается целиком, не ставится в false)'],
+    [{ awaitingRecognition: 'yes' }, 'awaitingRecognition строкой'],
+  ] as const)('отвергает %j (%s)', (bad, description) => {
+    expect(
+      () => parseBackupJson(validBackup({ skills: [{ ...SKILL, ...bad }] })),
+      description,
+    ).toThrow(BackupValidationError)
+  })
+})

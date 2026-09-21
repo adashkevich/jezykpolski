@@ -492,10 +492,22 @@ describe('wouldMarkKnownChange (task 41 §3 — replaces areChoiceStagesKnown)',
       expect(await wouldMarkKnownChange('kobieta|NOUN', 'vocab:ru-pl-input')).toBe(false)
     })
 
-    it('task 43: is true when all three stages are at the floor but the input is still blocked — pressing lifts the lock', async () => {
+    it('финальное ревью (I1): is false while the input is blocked by awaitingRecognition, even with all three stages at the floor — «Знаю» на вводе не отменяет «Не знаю» из «Показать слово»', async () => {
       await markWordKnown('kobieta|NOUN', NOW)
       const input = (await getSkill('kobieta|NOUN::vocab:ru-pl-input'))!
       await db.skills.put({ ...input, awaitingRecognition: true })
+      expect(await wouldMarkKnownChange('kobieta|NOUN', 'vocab:ru-pl-input')).toBe(false)
+    })
+
+    it('финальное ревью (I1): is false while the input is blocked and still below the floor — the retry after «Показать слово» must not offer the button either', async () => {
+      await markWordTranslationKnown('kobieta|NOUN', NOW)
+      await db.skills.put({ ...skillAt('vocab:ru-pl-input', 1), awaitingRecognition: true })
+      expect(await wouldMarkKnownChange('kobieta|NOUN', 'vocab:ru-pl-input')).toBe(false)
+    })
+
+    it('финальное ревью (I1): the same word with the lock lifted offers the button again when a stage is below the floor', async () => {
+      await markWordTranslationKnown('kobieta|NOUN', NOW)
+      await db.skills.put(skillAt('vocab:ru-pl-input', 1))
       expect(await wouldMarkKnownChange('kobieta|NOUN', 'vocab:ru-pl-input')).toBe(true)
     })
   })

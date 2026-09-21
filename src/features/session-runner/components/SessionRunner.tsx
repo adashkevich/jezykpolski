@@ -243,8 +243,8 @@ function ActiveQuestion({
 }: ActiveQuestionProps) {
   const [feedback, setFeedback] = useState<GradeResult | null>(null)
   // The outcome of a letter-by-letter attempt (task 29), kept only so the feedback panel can
-  // show the "assisted" status (mistakes/hints used) — `null` for every non-typed exercise
-  // and reset per question same as `feedback`.
+  // show the `hinted`/`corrected` status (hints used / a mistake corrected) — `null` for every
+  // non-typed exercise and reset per question same as `feedback`.
   const [typedAttempt, setTypedAttempt] = useState<TypedAttemptOutcome | null>(null)
   const [submitting, setSubmitting] = useState(false)
   // Whether this question's feedback offers "Знаю" — decided once, right after the answer is
@@ -318,7 +318,7 @@ function ActiveQuestion({
       // Task 29: a word finished with a mistake or a hint (rating capped at Hard, see
       // `policy.ts#mapResultToRating`) requeues within the session exactly like a plain
       // wrong answer — `!correct` alone would miss it, since `grade()` still reports
-      // `correct: true` for an assisted-but-completed attempt (§3 of the task spec).
+      // `correct: true` for a hinted/corrected-but-completed attempt (§3 of the task spec).
       if (result.rating <= HARD && firstAnswer && !requeuedSkillsRef.current.has(skillId)) {
         requeuedSkillsRef.current.add(skillId)
         const freshSkill = await getSkill(skillId)

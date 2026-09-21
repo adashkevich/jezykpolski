@@ -220,6 +220,36 @@ describe('export -> reset -> import — поля точности (задача 
   })
 })
 
+describe('export -> reset -> import — серия и блокировка ввода у навыка (задачи 40, 43; финальное ревью 41–45)', () => {
+  it('correctStreak и awaitingRecognition у навыка переживают круг экспорт → сброс → импорт', async () => {
+    initIndexStore([entry('kobieta', 1)])
+    await db.skills.bulkAdd([
+      { ...vocabSkill('kobieta|NOUN', 'vocab:ru-pl-choice', 30), correctStreak: 2 },
+      {
+        ...vocabSkill('kobieta|NOUN', 'vocab:ru-pl-input', 30),
+        correctStreak: 0,
+        awaitingRecognition: true,
+      },
+      vocabSkill('kobieta|NOUN', 'vocab:pl-ru', 30),
+    ])
+
+    const backup = await buildBackupExport('content-v1')
+    await resetAllData()
+    const { data } = prepareImport(JSON.parse(JSON.stringify(backup)), 'content-v1')
+    await applyImport(data, 'content-v1')
+
+    const choice = await db.skills.get('kobieta|NOUN::vocab:ru-pl-choice')
+    const input = await db.skills.get('kobieta|NOUN::vocab:ru-pl-input')
+    const plain = await db.skills.get('kobieta|NOUN::vocab:pl-ru')
+    expect(choice?.correctStreak).toBe(2)
+    expect(input?.correctStreak).toBe(0)
+    expect(input?.awaitingRecognition).toBe(true)
+    // Навык без полей остаётся без них — импорт ничего не дописывает.
+    expect('correctStreak' in plain!).toBe(false)
+    expect('awaitingRecognition' in plain!).toBe(false)
+  })
+})
+
 describe('prepareImport / applyImport — validation and edge cases (acceptance points 2-6)', () => {
   it('rejects malformed JSON and leaves the DB untouched (acceptance point 2)', async () => {
     initIndexStore([entry('kobieta', 1)])

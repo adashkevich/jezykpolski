@@ -221,10 +221,14 @@ export const CHOICE_STAGE_DIMENSIONS = [
  *    existing record, so re-pressing would change nothing there either) AND is not blocked
  *    by `awaitingRecognition` (task 43): the button is the way to lift that lock, so it must
  *    stay visible while the lock is set.
- *  - On `vocab:ru-pl-input` (`markWordProductionKnown`): `false` only when all three stages
- *    are at or above the floor (and, for the same task-43 reason, the input is not blocked —
- *    pressing would clear the flag). Two known choice stages are NOT enough here — the input
- *    itself may still be below the floor, and that is exactly what this button raises.
+ *  - On `vocab:ru-pl-input` (`markWordProductionKnown`): `false` when all three stages are at
+ *    or above the floor. Two known choice stages are NOT enough here — the input itself may
+ *    still be below the floor, and that is exactly what this button raises. While the input
+ *    is blocked by `awaitingRecognition` it is `false` regardless (финальное ревью 41–45,
+ *    I1): the only way to answer the input then is the same-session retry after «Показать
+ *    слово», and «Знаю» right after a copy-type of the revealed word would turn "I don't
+ *    know this word" into `known` (all three stages to `review`, lock stripped). The lock is
+ *    lifted by a recognition streak or by «Знаю» on a CHOICE stage (spec 43 §3), never here.
  */
 export async function wouldMarkKnownChange(
   wordId: WordId,
@@ -237,7 +241,7 @@ export async function wouldMarkKnownChange(
   const input = skills.find((s) => s.dimension === 'vocab:ru-pl-input')
   const inputBlocked = isAwaitingRecognition(input)
 
-  if (dimension === 'vocab:ru-pl-input') return !(VOCAB_STAGE_ORDER.every(atFloor) && !inputBlocked)
+  if (dimension === 'vocab:ru-pl-input') return !inputBlocked && !VOCAB_STAGE_ORDER.every(atFloor)
 
   const inputReady = input !== undefined && !inputBlocked
   return !(CHOICE_STAGE_DIMENSIONS.every(atFloor) && inputReady)

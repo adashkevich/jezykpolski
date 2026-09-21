@@ -16,7 +16,7 @@
  *
  * Still true as before: this component never calls `grade()`, never imports `@/db/**` (task
  * rule 2). `feedback` (a `GradeResult` the runner already computed) is only used here to
- * freeze the field once answered — the correct/assisted/incorrect display itself now lives
+ * freeze the field once answered — the correct/hinted/corrected/incorrect display itself now lives
  * entirely in `ExerciseFeedback.tsx`.
  */
 import type { ExerciseOfType, ExerciseProps } from './exercise-props.types.ts'

@@ -183,7 +183,9 @@ export function buildSessionSummary(
 /** The distinct `skillId`s a "Разобрать ошибки" click should start a `mode: 'mistakes'`
  *  session with — exactly `mistakes`' own `skillId`s, in the same order. Exported
  *  separately from `SessionSummaryView.mistakes` so `SessionResultPage` doesn't need to
- *  `.map()` it out itself at every call site. */
+ *  `.map()` it out itself at every call site. Кнопка «Разобрать ошибки» берёт из них только те,
+ *  что сессия действительно зададит (`retryable-mistakes.ts#retryableMistakeSkillIds`, финальное
+ *  ревью 41–45): ввод, заблокированный «Показать слово», в очередь не попадёт (задача 43 §2). */
 export function mistakeSkillIds(summary: SessionSummaryView): SkillId[] {
   return summary.mistakes.map((m) => m.skillId)
 }

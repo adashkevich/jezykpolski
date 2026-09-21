@@ -15,8 +15,9 @@ import { SessionResultPage } from './SessionResultPage.tsx'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
 import { completeSession, createSession } from '@/db/repositories/sessions.repository.ts'
 import { logReview } from '@/db/repositories/reviews.repository.ts'
+import { upsertSkill } from '@/db/repositories/skills.repository.ts'
 import { encodeSkillId, encodeWordId } from '@/learning/skills/skill-id.ts'
-import type { ReviewLogRecord } from '@/types/progress.ts'
+import type { ReviewLogRecord, SkillRecord } from '@/types/progress.ts'
 
 const CZLOWIEK = encodeWordId('człowiek', 'NOUN')
 const KOBIETA = encodeWordId('kobieta', 'NOUN')
@@ -342,6 +343,122 @@ describe('SessionResultPage — ответы с исправлением и по
 
     expect(screen.queryByRole('heading', { name: 'Что снизило процент' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Ошибки' })).not.toBeInTheDocument()
+  })
+})
+
+// Финальное ревью 41–45 (I2): «Показать слово» на вводе — ошибка в итогах (`correct: false`), но
+// сессия «Разобрать ошибки» такой ввод не задаст (`collapseVocabStages` отбрасывает ввод с
+// `awaitingRecognition`, задача 43 §2) — кнопка не должна вести в «Нечего изучать».
+describe('SessionResultPage — «Показать слово» и «Разобрать ошибки» (финальное ревью 41–45, I2)', () => {
+  const KOBIETA_INPUT = encodeSkillId(KOBIETA, 'vocab:ru-pl-input')
+
+  function inputSkill(overrides: Partial<SkillRecord> = {}): SkillRecord {
+    return {
+      skillId: KOBIETA_INPUT,
+      wordId: KOBIETA,
+      kind: 'vocab',
+      dimension: 'vocab:ru-pl-input',
+      state: 'review',
+      stability: 40,
+      difficulty: 5,
+      due: 1500,
+      reps: 3,
+      lapses: 0,
+      correct: 3,
+      incorrect: 0,
+      createdAt: 500,
+      updatedAt: 1500,
+      ...overrides,
+    }
+  }
+
+  /** Сессия, где слово показали кнопкой «Показать слово» (`rating: 1`, `correct: false`), и — по
+   *  желанию — обычная ошибка на человеке. */
+  async function seedRevealSession(withOtherMistake: boolean) {
+    const sessionId = await createSession('learn', 1000)
+    await logReview(
+      reviewLog({
+        sessionId,
+        skillId: KOBIETA_INPUT,
+        reviewedAt: 1100,
+        rating: 1,
+        correct: false,
+        clean: false,
+        firstInSession: true,
+        answerGiven: '',
+        expected: 'kobieta',
+      }),
+    )
+    if (withOtherMistake) {
+      await logReview(
+        reviewLog({
+          sessionId,
+          skillId: CZLOWIEK_LOCATIVE,
+          reviewedAt: 1200,
+          rating: 1,
+          correct: false,
+          clean: false,
+          firstInSession: true,
+          answerGiven: 'człowieka',
+          expected: 'człowieku',
+        }),
+      )
+    }
+    await completeSession(sessionId, 2000, {
+      totalCount: withOtherMistake ? 2 : 1,
+      correctCount: 0,
+      newSkillCount: 0,
+      reviewedSkillCount: withOtherMistake ? 2 : 1,
+    })
+    return sessionId
+  }
+
+  it('единственная ошибка — «Показать слово» на заблокированном вводе: слово в списке «Ошибки» есть, кнопки «Разобрать ошибки» нет', async () => {
+    await upsertSkill(inputSkill({ awaitingRecognition: true, correctStreak: 0 }))
+    const sessionId = await seedRevealSession(false)
+    renderResultPage({ pathname: '/session/result', state: { sessionId } })
+    await screen.findByText('0 / 1')
+
+    expect(screen.getByText('kobieta', { selector: 'span.font-medium' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Ошибки' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /разобрать ошибки/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /закончить/i })).toBeInTheDocument()
+  })
+
+  it('есть и другая ошибка: «Разобрать ошибки» ведёт только на незаблокированный навык', async () => {
+    await upsertSkill(inputSkill({ awaitingRecognition: true, correctStreak: 0 }))
+    const sessionId = await seedRevealSession(true)
+    renderResultPage({ pathname: '/session/result', state: { sessionId } })
+    await screen.findByText('0 / 2')
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /разобрать ошибки/i }))
+    const state = JSON.parse(screen.getByTestId('session-state').textContent ?? 'null')
+    expect(state).toEqual({ skillIds: [CZLOWIEK_LOCATIVE] })
+  })
+
+  it('блокировка уже снята («Знаю» на этапе выбора или серия узнаваний): показанное слово снова разбирается', async () => {
+    await upsertSkill(inputSkill())
+    const sessionId = await seedRevealSession(false)
+    renderResultPage({ pathname: '/session/result', state: { sessionId } })
+    await screen.findByText('0 / 1')
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /разобрать ошибки/i }))
+    const state = JSON.parse(screen.getByTestId('session-state').textContent ?? 'null')
+    expect(state).toEqual({ skillIds: [KOBIETA_INPUT] })
+  })
+
+  it('режим «Практика»: то же правило — кнопка «Разобрать ошибки» над «Ещё» не появляется для заблокированного ввода', async () => {
+    await upsertSkill(inputSkill({ awaitingRecognition: true, correctStreak: 0 }))
+    const sessionId = await seedRevealSession(false)
+    renderResultPage({
+      pathname: '/session/result',
+      state: { sessionId, practiceExtra: { variant: 'vocab-spelling' } },
+    })
+    await screen.findByText('0 / 1')
+
+    expect(screen.queryByRole('button', { name: /разобрать ошибки/i })).not.toBeInTheDocument()
   })
 })
 

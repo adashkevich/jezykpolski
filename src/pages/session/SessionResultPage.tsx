@@ -9,10 +9,13 @@
  * from that summary to markup, plus the two buttons' navigation.
  *
  * "Разобрать ошибки" (FR-102, app-design.md §22): navigates to `/session` with
- * `{ skillIds: mistakeSkillIds(summary) }` as router state — `parseSessionScope`
+ * `{ skillIds: retryableSkillIds }` as router state — `parseSessionScope`
  * (`features/session-runner/lib/session-scope.ts`) recognizes that shape as the `'mistake'`
  * scope, and `useSessionBootstrap.ts#startFresh` maps that scope to `mode: 'mistakes'`. Only
- * rendered when there's at least one mistake to review.
+ * rendered when there's at least one mistake to review. `retryableSkillIds` is
+ * `mistakeSkillIds(summary)` minus a «Показать слово» on a still-locked `vocab:ru-pl-input`
+ * (`lib/retryable-mistakes.ts`, финальное ревью 41–45): such a word stays in the visible
+ * «Ошибки» list, but the session would drop it (task 43 §2) and the button would dead-end.
  *
  * Task 36 (`spec/tasks/36-practice-screen-restructure.md` §4, FR-149) — when this session came
  * from a `{ kind: 'practice-extra' }` scope (`SessionPage.tsx#goToResults` forwards
@@ -35,7 +38,6 @@ import { Card, CardContent } from '@/components/ui/card.tsx'
 import { diffAnswer } from '@/learning/exercises/answer-diff.ts'
 import type { DimensionLabel } from '@/learning/skills/dimensions.ts'
 import {
-  mistakeSkillIds,
   type AssistedEntry,
   type HardestDimensionEntry,
   type MistakeEntry,
@@ -172,8 +174,7 @@ export function SessionResultPage() {
     )
   }
 
-  const { summary } = status
-  const skillIdsForMistakes = mistakeSkillIds(summary)
+  const { summary, retryableSkillIds: skillIdsForMistakes } = status
   const practiceExtra = state?.practiceExtra
 
   async function handleAgain(origin: PracticeExtraOrigin) {

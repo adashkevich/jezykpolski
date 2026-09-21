@@ -21,8 +21,10 @@
 import { useEffect, useState } from 'react'
 import { getLogsForSession } from '@/db/repositories/reviews.repository.ts'
 import { getSession } from '@/db/repositories/sessions.repository.ts'
+import type { SkillId } from '@/learning/skills/skill-id.ts'
 import type { SessionRecord } from '@/types/progress.ts'
 import { buildSessionSummary, type SessionSummaryView } from '../lib/build-session-summary.ts'
+import { retryableMistakeSkillIds } from '../lib/retryable-mistakes.ts'
 
 export type SessionResultStatus =
   | { readonly phase: 'loading' }
@@ -32,6 +34,10 @@ export type SessionResultStatus =
       readonly phase: 'ready'
       readonly session: SessionRecord
       readonly summary: SessionSummaryView
+      /** Ошибки, которые «Разобрать ошибки» действительно зададут (без «Показать слово» на
+       *  ещё заблокированном вводе, задача 43) — по нему кнопка показывается и ведёт в сессию;
+       *  список «Ошибки» на экране по-прежнему строится из `summary.mistakes`. */
+      readonly retryableSkillIds: readonly SkillId[]
     }
 
 function errorMessage(error: unknown): string {
@@ -59,7 +65,9 @@ export function useSessionResult(sessionId: number | undefined): SessionResultSt
           return
         }
         const summary = buildSessionSummary(session, logs)
-        setStatus({ phase: 'ready', session, summary })
+        const retryableSkillIds = await retryableMistakeSkillIds(summary)
+        if (cancelled) return
+        setStatus({ phase: 'ready', session, summary, retryableSkillIds })
       } catch (error: unknown) {
         if (!cancelled) setStatus({ phase: 'error', message: errorMessage(error) })
       }
