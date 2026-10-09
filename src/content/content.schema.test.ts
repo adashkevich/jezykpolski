@@ -3,67 +3,56 @@ import {
   IndexJsonSchema,
   ManifestSchema,
   ParadigmsShardSchema,
-  RawWordSchema,
+  RawChunkWordSchema,
   RawWordV2Schema,
+  SenseDetailsShardSchema,
   SensesShardSchema,
   WordsJsonV2Schema,
 } from './content.schema.ts'
 
-describe('content.schema input validation', () => {
-  it('accepts a well-formed word, including a sense with a null gloss_en (834 real occurrences)', () => {
-    const result = RawWordSchema.safeParse({
-      lemma: 'kobieta',
-      pos: 'NOUN',
-      frequency: { rank: 95, count: 100, per_million: 1, arf: 1, dispersion: 0.5 },
-      introduced_at: 'A1',
-      level_confidence: 0.9,
-      senses: [{ translation_ru: ['женщина'], gloss_en: null, primary: true, source: 'model' }],
-      morph_lemma: 'kobieta',
-    })
-    expect(result.success).toBe(true)
-  })
-
-  it('accepts a word with morph_lemma: null (the 14 real words with no paradigm)', () => {
-    const result = RawWordSchema.safeParse({
-      lemma: 'a',
-      pos: 'NOUN',
-      frequency: { rank: 1, count: 1, per_million: 1, arf: 1, dispersion: 0.5 },
-      introduced_at: 'A1',
-      level_confidence: 0.9,
-      senses: [{ translation_ru: ['а'], gloss_en: 'a', primary: true, source: 'model' }],
-      morph_lemma: null,
-    })
-    expect(result.success).toBe(true)
-  })
-
-  it('rejects a word with an unknown pos', () => {
-    const result = RawWordSchema.safeParse({
-      lemma: 'x',
-      pos: 'PRON',
-      frequency: { rank: 1, count: 1, per_million: 1, arf: 1, dispersion: 0.5 },
-      introduced_at: 'A1',
-      level_confidence: 0.9,
-      senses: [{ translation_ru: ['x'], primary: true, source: 'model' }],
-      morph_lemma: 'x',
-    })
-    expect(result.success).toBe(false)
-  })
-})
-
 describe('content.schema output validation', () => {
-  it('accepts a well-formed index.json row array', () => {
+  it('accepts a well-formed index.json row: three primary-sense levels (ru, by, ua)', () => {
+    const row = ['kobieta|NOUN', 1, 95, 1, 1, 2, 'женщина', 10, 42]
+    expect(IndexJsonSchema.safeParse([row]).success).toBe(true)
+  })
+
+  it('rejects an index row with the wrong arity (the v1 7-tuple included)', () => {
+    expect(IndexJsonSchema.safeParse([['kobieta|NOUN', 1, 95]]).success).toBe(false)
     expect(IndexJsonSchema.safeParse([['kobieta|NOUN', 1, 95, 1, 'женщина', 10, 42]]).success).toBe(
-      true,
+      false,
     )
   })
 
-  it('rejects an index row with the wrong arity', () => {
-    expect(IndexJsonSchema.safeParse([['kobieta|NOUN', 1, 95]]).success).toBe(false)
+  it('accepts a senses shard keyed by wordId', () => {
+    const shard = {
+      'prawo|NOUN': [
+        { id: 'prawo:law', ru: ['право', 'закон'], lv: [2, 2, 2], primary: true },
+        { id: 'prawo:right_side', ru: ['правая сторона'], lv: [1, 1, 1], primary: false },
+      ],
+    }
+    expect(SensesShardSchema.safeParse(shard).success).toBe(true)
   })
 
-  it('accepts a senses shard keyed by wordId', () => {
-    const shard = { 'kobieta|NOUN': [{ ru: ['женщина'], en: 'woman', primary: true }] }
-    expect(SensesShardSchema.safeParse(shard).success).toBe(true)
+  it('rejects a v1 sense entry (no id/lv, English gloss) and a level triple of the wrong length', () => {
+    const v1 = { 'kobieta|NOUN': [{ ru: ['женщина'], en: 'woman', primary: true }] }
+    expect(SensesShardSchema.safeParse(v1).success).toBe(false)
+    const short = {
+      'kobieta|NOUN': [{ id: 'kobieta:woman', ru: ['женщина'], lv: [1, 1], primary: true }],
+    }
+    expect(SensesShardSchema.safeParse(short).success).toBe(false)
+  })
+
+  it('accepts a sense-details shard keyed by sense_id, rejects an empty example', () => {
+    const entry = {
+      gl: 'dorosła osoba płci żeńskiej',
+      ex: 'Ta kobieta jest lekarką.',
+      by: ['жанчына'],
+      ua: ['жінка'],
+    }
+    expect(SenseDetailsShardSchema.safeParse({ 'kobieta:woman': entry }).success).toBe(true)
+    expect(
+      SenseDetailsShardSchema.safeParse({ 'kobieta:woman': { ...entry, ex: '' } }).success,
+    ).toBe(false)
   })
 
   it('accepts a paradigms shard entry with dominantGender', () => {
@@ -85,10 +74,10 @@ describe('content.schema output validation', () => {
     const manifest = {
       contentVersion: 'abcdef123456',
       generatedAt: '2026-09-01T05:18:06+00:00',
-      counts: { words: 7998, paradigms: 7986, forms: 195487 },
-      shards: { senses: 16, paradigms: 64 },
+      counts: { words: 7986, paradigms: 7987, forms: 195518 },
+      shards: { senses: 16, senseDetails: 16, paradigms: 64 },
       codec: {
-        pos: ['NOUN', 'VERB', 'ADJ', 'ADV'],
+        pos: ['NOUN', 'VERB', 'ADJ', 'ADV', 'PRON', 'SCONJ', 'INTJ'],
         level: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'],
         number: ['singular', 'plural'],
         case: ['nominative'],
@@ -108,7 +97,7 @@ describe('content.schema output validation', () => {
       contentVersion: 'short',
       generatedAt: '2026-09-01T05:18:06+00:00',
       counts: { words: 1, paradigms: 1, forms: 1 },
-      shards: { senses: 16, paradigms: 64 },
+      shards: { senses: 16, senseDetails: 16, paradigms: 64 },
       codec: {
         pos: [],
         level: [],
@@ -156,11 +145,16 @@ describe('content.schema input validation, words.json v2', () => {
     expect(RawWordV2Schema.safeParse(withExtras).success).toBe(true)
   })
 
-  it('accepts the parts of speech that appear only in v2 (PRON, SCONJ, DET, INTJ)', () => {
-    for (const pos of ['PRON', 'SCONJ', 'DET', 'INTJ']) {
+  it('accepts the parts of speech that appear only in v2 (PRON, SCONJ, INTJ)', () => {
+    for (const pos of ['PRON', 'SCONJ', 'INTJ']) {
       expect(RawWordV2Schema.safeParse({ ...word, pos }).success).toBe(true)
     }
     expect(RawWordV2Schema.safeParse({ ...word, pos: 'ADP' }).success).toBe(false)
+  })
+
+  it('accepts DET only in a chunk word: the assembled dictionary has no DET (task 46)', () => {
+    expect(RawChunkWordSchema.safeParse({ ...word, pos: 'DET' }).success).toBe(true)
+    expect(RawWordV2Schema.safeParse({ ...word, pos: 'DET' }).success).toBe(false)
   })
 
   it('rejects a v1-style word: string introduced_at, numeric level_confidence', () => {

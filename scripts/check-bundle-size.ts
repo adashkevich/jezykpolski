@@ -53,6 +53,9 @@ const FULL_PRECACHE_BUDGET_BYTES = 500 * 1024
 // never legitimately exceed the app shell's own budget.
 const JS_CSS_BUDGET_BYTES = 500 * 1024
 
+/** `vite.config.ts`'s `globIgnores`: these shards are served from runtime caches. */
+const LAZY_CONTENT_SHARDS = /^content\/(senses|sense-details|paradigms)\//
+
 function fmtKb(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)} KB`
 }
@@ -203,6 +206,13 @@ function main() {
   }
 
   const warnings: string[] = []
+  // Content shards are runtime caches (task 25; `sense-details/` since task 47), never precache.
+  const precachedShards = precacheUrls.filter((u) => LAZY_CONTENT_SHARDS.test(u))
+  if (precachedShards.length > 0) {
+    warnings.push(
+      `${precachedShards.length} content shard(s) precached, expected none: ${precachedShards.join(', ')}`,
+    )
+  }
   if (jsCssGzip > JS_CSS_BUDGET_BYTES) {
     warnings.push(`JS+CSS ${fmtKb(jsCssGzip)} exceeds ${fmtKb(JS_CSS_BUDGET_BYTES)} budget`)
   }

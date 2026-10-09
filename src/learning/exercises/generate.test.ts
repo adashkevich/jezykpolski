@@ -7,6 +7,7 @@ import type { Paradigm, WordIndexEntry } from '@/types/content.ts'
 import type { SkillRecord, SkillState } from '@/types/progress.ts'
 import type { ContentContext } from './exercise.types.ts'
 import { generateExercise } from './generate.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 // ---------------------------------------------------------------------------
 // Fixtures — a tiny word pool (so `pickVocabDistractors`'s naive same-POS sampling has
@@ -23,6 +24,7 @@ function entry(
     primaryRu: `${overrides.lemma}-ru`,
     sensesShard: 0,
     paradigmShard: 0,
+    levels: uniformLevels(overrides.level ?? 'A1'),
     ...overrides,
   }
 }

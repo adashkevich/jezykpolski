@@ -20,14 +20,18 @@ import { fileURLToPath } from 'node:url'
 
 import { z } from 'zod'
 
-import { LEVEL_VALUES, type LevelValue } from '../src/content/codec.ts'
-import { RawWordV2Schema, type RawWordV2, type WordsJsonV2 } from '../src/content/content.schema.ts'
+import { LANG_PROFILES, LEVEL_VALUES, POS_VALUES, type LevelValue } from '../src/content/codec.ts'
+import {
+  RawChunkWordSchema,
+  type RawChunkWord,
+  type RawWordV2,
+  type WordsJsonV2,
+} from '../src/content/content.schema.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = join(__dirname, '..', 'data')
 
 const SOURCE = 'words_parts/output'
-const PROFILES = ['ru', 'by', 'ua'] as const
 const MAX_PRINTED_LINES = 50
 
 // ---------------------------------------------------------------------------
@@ -71,7 +75,7 @@ const PreviousWordsSchema = z.object({
 type PreviousWord = z.infer<typeof PreviousWordsSchema>['words'][number]
 
 export interface DroppedWord {
-  word: RawWordV2
+  word: RawChunkWord
   mergeInto: string
 }
 
@@ -84,7 +88,7 @@ export interface AssembleResult {
 }
 
 interface Entry {
-  word: RawWordV2
+  word: RawChunkWord
   /** `words_007.json #12`, for error messages. */
   at: string
 }
@@ -154,7 +158,7 @@ function readChunks(chunks: ChunkInput[], errors: string[]): Entry[] {
       if (hasGlossEn(raw)) {
         errors.push(`${at} ${describeRaw(raw)}: gloss_en must be replaced by gloss_pl`)
       }
-      const result = RawWordV2Schema.safeParse(raw)
+      const result = RawChunkWordSchema.safeParse(raw)
       if (result.success) {
         entries.push({ word: result.data, at })
         return
@@ -226,7 +230,7 @@ function checkWord({ word, at }: Entry, errors: string[], warnings: string[]): v
     errors.push(`${id} (${at}): expected exactly one primary sense, found ${primaries}`)
   }
 
-  for (const profile of PROFILES) {
+  for (const profile of LANG_PROFILES) {
     const min = earliest(word.senses.map((sense) => sense.introduced_at[profile]))
     if (word.introduced_at[profile] !== min) {
       errors.push(
@@ -275,8 +279,21 @@ export function assemble(chunks: ChunkInput[], fixups: Fixups): AssembleResult {
   )
   for (const entry of kept) checkWord(entry, errors, warnings)
 
-  const words = kept.map((e) => e.word).sort((a, b) => a.frequency.rank - b.frequency.rank)
+  const words: RawWordV2[] = []
+  for (const { word, at } of kept) {
+    if (isDictionaryWord(word)) words.push(word)
+    else
+      errors.push(
+        `${wordId(word)} (${at}): pos ${word.pos} is not a dictionary POS — merge it via dropWords`,
+      )
+  }
+  words.sort((a, b) => a.frequency.rank - b.frequency.rank)
   return { words, dropped, errors, warnings }
+}
+
+/** `DET` is valid in a chunk but must be merged away (`dropWords`) before `words.json`. */
+function isDictionaryWord(word: RawChunkWord): word is RawWordV2 {
+  return (POS_VALUES as readonly string[]).includes(word.pos)
 }
 
 // ---------------------------------------------------------------------------

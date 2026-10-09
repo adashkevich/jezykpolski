@@ -22,6 +22,7 @@ import { encodeSkillId, encodeWordId } from '@/learning/skills/skill-id.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import { TableExercise } from './TableExercise.tsx'
 import type { TableExerciseData } from '../hooks/useTablePracticeSession.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 const KOBIETA_ID = encodeWordId('kobieta', 'NOUN')
 const KOBIETA_ENTRY: WordIndexEntry = {
@@ -29,6 +30,7 @@ const KOBIETA_ENTRY: WordIndexEntry = {
   pos: 'NOUN',
   rank: 3,
   level: 'A1',
+  levels: uniformLevels('A1'),
   primaryRu: 'женщина',
   sensesShard: 0,
   paradigmShard: 0,
@@ -56,6 +58,7 @@ const ABORCJA_ENTRY: WordIndexEntry = {
   pos: 'NOUN',
   rank: 4,
   level: 'B1',
+  levels: uniformLevels('B1'),
   primaryRu: 'аборт',
   sensesShard: 0,
   paradigmShard: 1,

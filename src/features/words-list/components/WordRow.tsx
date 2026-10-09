@@ -86,6 +86,9 @@ const POS_LABEL: Readonly<Record<PosValue, string>> = {
   VERB: 'Гл.',
   ADJ: 'Прил.',
   ADV: 'Нар.',
+  PRON: 'Мест.',
+  SCONJ: 'Союз',
+  INTJ: 'Межд.',
 }
 
 /**
@@ -96,13 +99,17 @@ const POS_LABEL: Readonly<Record<PosValue, string>> = {
  * established Russian word for verb conjugation, same register as "Склонение" for declension).
  * ADJ has no equivalent one-word term anywhere in the spec (FR-45 only says "Формы
  * прилагательного"), so it keeps the pre-task-17 generic "Формы" rather than inventing one.
- * ADV never reaches this map — `showFormsBar` is `false` for it (see `WordsListPage.tsx`).
+ * ADV never reaches this map — `showFormsBar` is `false` for it (see `WordsListPage.tsx`) — and
+ * neither do PRON/SCONJ/INTJ (task 47: no own tab, no paradigm).
  */
 const FORMS_BAR_LABEL: Readonly<Record<PosValue, string>> = {
   NOUN: 'Склонение',
   VERB: 'Спряжение',
   ADJ: 'Формы',
   ADV: 'Формы',
+  PRON: 'Формы',
+  SCONJ: 'Формы',
+  INTJ: 'Формы',
 }
 
 function clamp(value: number, min: number, max: number): number {

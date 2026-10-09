@@ -17,6 +17,7 @@ import { DEFAULT_EXERCISE_TYPES_SETTING_KEY } from '@/learning/exercises/default
 import { encodeSkillId, encodeWordId } from '@/learning/skills/skill-id.ts'
 import { useSessionStore } from '@/stores/session.store.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 const MATCHING_CANDIDATE_LEMMAS = ['kobieta', 'dom', 'kot', 'pies', 'okno'] as const
 const FAR_FUTURE = Date.now() + 30 * 24 * 60 * 60 * 1000
@@ -30,6 +31,7 @@ function entry(
     primaryRu: `${overrides.lemma}-ru`,
     sensesShard: 0,
     paradigmShard: -1,
+    levels: uniformLevels(overrides.level ?? 'A1'),
     ...overrides,
   }
 }

@@ -20,6 +20,7 @@ import type { LearnQueueItem } from '@/learning/session/session.types.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import { generateExtraForWord, generateForSkill, materializeQueueItem } from './build-session-exercises.ts'
 import { SessionContentCache } from './session-content-context.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function entry(
   overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma' | 'rank'>,
@@ -30,6 +31,7 @@ function entry(
     primaryRu: `${overrides.lemma}-ru`,
     sensesShard: 0,
     paradigmShard: -1,
+    levels: uniformLevels(overrides.level ?? 'A1'),
     ...overrides,
   }
 }

@@ -34,6 +34,7 @@ import { endOfTomorrow, in7Days, startOfTomorrow } from '@/lib/dates.ts'
 import { encodeSkillId, encodeWordId } from '@/learning/skills/skill-id.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import type { SkillRecord } from '@/types/progress.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function indexEntry(
   overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma' | 'pos'>,
@@ -44,6 +45,7 @@ function indexEntry(
     primaryRu: 'x',
     sensesShard: 0,
     paradigmShard: -1,
+    levels: uniformLevels(overrides.level ?? 'A1'),
     ...overrides,
   }
 }
@@ -508,7 +510,7 @@ describe('performance: /stats screen data at 20,000 skills rows', () => {
     expect(morphology.hasNounData).toBe(true)
     expect(morphology.hasVerbData).toBe(true)
     expect(levels_).toHaveLength(6)
-    expect(pos_).toHaveLength(4)
+    expect(pos_).toHaveLength(POS_VALUES.length)
 
     // Perf figure belongs in the test run's own output for this task's decision log, not
     // just a silent assertion.

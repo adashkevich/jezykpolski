@@ -24,9 +24,17 @@ import {
   type IndexJson,
   type Manifest,
   type ParadigmsShard,
+  type SenseDetailsShard,
   type SensesShard,
 } from './content.schema.ts'
-import type { Paradigm, Sense, WordIndexEntry } from '@/types/content.ts'
+import type {
+  Paradigm,
+  ProfileLevels,
+  Sense,
+  SenseDetails,
+  SenseId,
+  WordIndexEntry,
+} from '@/types/content.ts'
 import { decodeForm } from './codec.ts'
 import { GENDER } from './codec.ts'
 import { decodeWordId, type WordId } from '@/learning/skills/skill-id.ts'
@@ -117,18 +125,26 @@ export function loadManifest(): Promise<Manifest> {
 
 let indexPromise: Promise<WordIndexEntry[]> | null = null
 
+/** `[ru, by, ua]` `LEVEL` codes (`LANG_PROFILES` order) -> {@link ProfileLevels}. */
+function decodeLevels(codes: readonly [number, number, number], where: string): ProfileLevels {
+  const decode = (code: number) => {
+    const level = LEVEL.valueOf(code)
+    if (!level) throw new Error(`content loader: ${where} has unknown level code ${code}`)
+    return level
+  }
+  return { ru: decode(codes[0]), by: decode(codes[1]), ua: decode(codes[2]) }
+}
+
 function decodeIndexRow(row: IndexJson[number]): WordIndexEntry {
-  const [id, posCode, rank, levelCode, primaryRu, sensesShard, paradigmShard] = row
+  const [id, posCode, rank, levelRu, levelBy, levelUa, primaryRu, sensesShard, paradigmShard] = row
   const pos = POS.valueOf(posCode)
-  const level = LEVEL.valueOf(levelCode)
   if (!pos) {
     throw new Error(`content loader: index row "${id}" has unknown pos code ${posCode}`)
   }
-  if (!level) {
-    throw new Error(`content loader: index row "${id}" has unknown level code ${levelCode}`)
-  }
+  const levels = decodeLevels([levelRu, levelBy, levelUa], `index row "${id}"`)
   const { lemma } = decodeWordId(id)
-  return { lemma, pos, rank, level, primaryRu, sensesShard, paradigmShard }
+  // The active language profile is always `ru` until task 51 makes it switchable.
+  return { lemma, pos, rank, level: levels.ru, levels, primaryRu, sensesShard, paradigmShard }
 }
 
 export function loadIndex(): Promise<WordIndexEntry[]> {
@@ -184,7 +200,12 @@ export function loadSensesShard(n: number): Promise<Map<WordId, Sense[]>> {
         for (const [id, entries] of Object.entries(shard)) {
           map.set(
             id,
-            entries.map((entry) => ({ ru: entry.ru, en: entry.en, primary: entry.primary })),
+            entries.map((entry) => ({
+              id: entry.id,
+              ru: entry.ru,
+              levels: decodeLevels(entry.lv, `sense "${entry.id}"`),
+              primary: entry.primary,
+            })),
           )
         }
         resolvedSensesShards.set(n, map)
@@ -204,6 +225,36 @@ export function loadSensesShard(n: number): Promise<Map<WordId, Sense[]>> {
  *  {@link loadSensesShard}'s cache. See {@link resolvedSensesShards}. */
 export function peekSensesShard(n: number): ReadonlyMap<WordId, Sense[]> | undefined {
   return resolvedSensesShards.get(n)
+}
+
+// ---------------------------------------------------------------------------
+// sense-details/NNN.json shards — lazy, display-only (task 47 §4): same sharding as
+// `senses/` (`senseShardIndex(wordId)`), keyed by sense id. Not prewarmed and not precached;
+// the service worker keeps fetched shards in the `sense-details-<contentVersion>` runtime
+// cache (`cache-names.ts`).
+// ---------------------------------------------------------------------------
+
+const senseDetailsShardCache = new Map<number, Promise<Map<SenseId, SenseDetails>>>()
+
+export function loadSenseDetailsShard(n: number): Promise<Map<SenseId, SenseDetails>> {
+  let promise = senseDetailsShardCache.get(n)
+  if (!promise) {
+    promise = fetchJson(contentUrl(`sense-details/${shardFileStem(n)}.json`))
+      .then((json) => {
+        const shard = json as SenseDetailsShard
+        const map = new Map<SenseId, SenseDetails>()
+        for (const [id, entry] of Object.entries(shard)) {
+          map.set(id, { gloss: entry.gl, example: entry.ex, by: entry.by, ua: entry.ua })
+        }
+        return map
+      })
+      .catch((error: unknown) => {
+        senseDetailsShardCache.delete(n)
+        throw error
+      })
+    senseDetailsShardCache.set(n, promise)
+  }
+  return promise
 }
 
 // ---------------------------------------------------------------------------
@@ -259,6 +310,7 @@ export function __resetLoaderCachesForTest(): void {
   manifestPromise = null
   indexPromise = null
   sensesShardCache.clear()
+  senseDetailsShardCache.clear()
   paradigmShardCache.clear()
   resolvedSensesShards.clear()
   resolvedParadigmShards.clear()

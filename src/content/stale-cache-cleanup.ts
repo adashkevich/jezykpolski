@@ -1,7 +1,7 @@
 /**
- * Deletes orphaned `paradigms-*` / `senses-*` Cache Storage entries left behind by a
- * previous `contentVersion` (`spec/tasks/25-offline-update.md` §2: "старые кэши удаляются в
- * activate").
+ * Deletes orphaned `paradigms-*` / `senses-*` / `sense-details-*` Cache Storage entries left
+ * behind by a previous `contentVersion` (`spec/tasks/25-offline-update.md` §2: "старые кэши
+ * удаляются в activate").
  *
  * DECISION LOG: `vite-plugin-pwa`'s `strategies: 'generateSW'` (`architecture.md` §11,
  * required — not `injectManifest`) only lets `workbox.cleanupOutdatedCaches` clean up its
@@ -20,15 +20,21 @@
  * opening the app with the new build already active), and it can be exercised by a plain
  * unit test instead of a service-worker integration test.
  */
-import { paradigmCacheName, sensesCacheName } from './cache-names.ts'
+import { paradigmCacheName, senseDetailsCacheName, sensesCacheName } from './cache-names.ts'
+
+const CONTENT_CACHE_PREFIXES = ['paradigms-', 'senses-', 'sense-details-']
 
 export async function cleanupStaleContentCaches(contentVersion: string): Promise<void> {
   if (typeof caches === 'undefined') return
 
-  const keep = new Set([paradigmCacheName(contentVersion), sensesCacheName(contentVersion)])
+  const keep = new Set([
+    paradigmCacheName(contentVersion),
+    sensesCacheName(contentVersion),
+    senseDetailsCacheName(contentVersion),
+  ])
   const keys = await caches.keys()
   const stale = keys.filter(
-    (key) => (key.startsWith('paradigms-') || key.startsWith('senses-')) && !keep.has(key),
+    (key) => CONTENT_CACHE_PREFIXES.some((prefix) => key.startsWith(prefix)) && !keep.has(key),
   )
   await Promise.all(stale.map((key) => caches.delete(key)))
 }

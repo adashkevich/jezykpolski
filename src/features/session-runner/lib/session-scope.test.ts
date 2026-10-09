@@ -25,6 +25,7 @@ import {
   resolveSessionCandidates,
   resolveSessionMatchingWordIds,
 } from './session-scope.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function entry(
   overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma' | 'rank'>,
@@ -32,6 +33,7 @@ function entry(
   return {
     pos: 'NOUN',
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu: `${overrides.lemma}-ru`,
     sensesShard: 0,
     paradigmShard: -1, // vocab-only fixtures — no paradigm fetch needed anywhere here.

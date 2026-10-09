@@ -58,6 +58,11 @@ function FormsTables({
       return <AdjFormsTable wordId={wordId} paradigm={paradigm} skills={skills} />
     case 'ADV':
       return <AdvFormsTable wordId={wordId} paradigm={paradigm} skills={skills} />
+    // No paradigm, so `WordDetailPage` never renders this section for them (task 47).
+    case 'PRON':
+    case 'SCONJ':
+    case 'INTJ':
+      return null
   }
 }
 

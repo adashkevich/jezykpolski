@@ -13,6 +13,7 @@ import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.
 import type { MatchingPairSource } from '@/learning/exercises/exercise.types.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import { gradeMatchingPair } from './grade-matching-pair.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 const WORD_ID = 'kobieta|NOUN'
 const PAIR: MatchingPairSource = { wordId: WORD_ID, pl: 'kobieta', ru: 'женщина' }
@@ -27,6 +28,7 @@ function entry(overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma'
     // -1 = "no paradigm" (task 02 §6) — sidesteps any network fetch, same trick
     // `answer-pipeline.test.ts` uses for vocab-only tests.
     paradigmShard: -1,
+    levels: uniformLevels(overrides.level ?? 'A1'),
     ...overrides,
   }
 }

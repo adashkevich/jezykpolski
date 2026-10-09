@@ -21,9 +21,19 @@ import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.
 import type { PosValue } from '@/content/codec.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import type { SkillRecord } from '@/types/progress.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function entry(lemma: string, pos: PosValue, rank: number): WordIndexEntry {
-  return { lemma, pos, rank, level: 'A1', primaryRu: 'x', sensesShard: 0, paradigmShard: -1 }
+  return {
+    lemma,
+    pos,
+    rank,
+    level: 'A1',
+    levels: uniformLevels('A1'),
+    primaryRu: 'x',
+    sensesShard: 0,
+    paradigmShard: -1,
+  }
 }
 
 function vocabSkill(

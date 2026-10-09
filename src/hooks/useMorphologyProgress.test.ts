@@ -14,6 +14,7 @@ import { upsertSkill } from '@/db/repositories/skills.repository.ts'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
 import type { SkillRecord } from '@/types/progress.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function skill(overrides: Partial<SkillRecord> & Pick<SkillRecord, 'skillId' | 'wordId'>): SkillRecord {
   return {
@@ -58,7 +59,16 @@ describe('useMorphologyProgress', () => {
 
   it('is live: the noun block appears after the first noun skill is materialized', async () => {
     initIndexStore([
-      { lemma: 'kot', pos: 'NOUN', rank: 1, level: 'A1', primaryRu: 'x', sensesShard: 0, paradigmShard: -1 },
+      {
+        lemma: 'kot',
+        pos: 'NOUN',
+        rank: 1,
+        level: 'A1',
+        levels: uniformLevels('A1'),
+        primaryRu: 'x',
+        sensesShard: 0,
+        paradigmShard: -1,
+      },
     ])
     await openDatabase()
 

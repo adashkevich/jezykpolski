@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { paradigmCacheName, sensesCacheName } from './cache-names.ts'
+import { paradigmCacheName, senseDetailsCacheName, sensesCacheName } from './cache-names.ts'
 
 describe('cache-names', () => {
   it('paradigmCacheName is "paradigms-<contentVersion>"', () => {
@@ -10,8 +10,17 @@ describe('cache-names', () => {
     expect(sensesCacheName('a1b2c3d4e5f6')).toBe('senses-a1b2c3d4e5f6')
   })
 
-  it('the two names never collide for the same contentVersion', () => {
+  it('senseDetailsCacheName is "sense-details-<contentVersion>"', () => {
+    expect(senseDetailsCacheName('a1b2c3d4e5f6')).toBe('sense-details-a1b2c3d4e5f6')
+  })
+
+  it('the names never collide for the same contentVersion', () => {
     const version = 'x'
-    expect(paradigmCacheName(version)).not.toBe(sensesCacheName(version))
+    const names = [
+      paradigmCacheName(version),
+      sensesCacheName(version),
+      senseDetailsCacheName(version),
+    ]
+    expect(new Set(names).size).toBe(3)
   })
 })

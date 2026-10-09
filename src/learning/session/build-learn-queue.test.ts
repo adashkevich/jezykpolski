@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { SkillRecord } from '@/types/progress.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import { buildLearnQueue, collapseVocabStages } from './build-learn-queue.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function skill(
   overrides: Partial<SkillRecord> & Pick<SkillRecord, 'skillId' | 'due'>,
@@ -32,6 +33,7 @@ function word(
     primaryRu: `${overrides.lemma}-ru`,
     sensesShard: 0,
     paradigmShard: 0,
+    levels: uniformLevels(overrides.level ?? 'A1'),
     ...overrides,
   }
 }

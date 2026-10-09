@@ -20,6 +20,7 @@ import { __resetLoaderCachesForTest } from '@/content/loader.ts'
 import { encodeSkillId, encodeWordId } from '@/learning/skills/skill-id.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import type { ReviewLogRecord } from '@/types/progress.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function indexEntry(
   overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma' | 'pos'>,
@@ -30,6 +31,7 @@ function indexEntry(
     primaryRu: 'x',
     sensesShard: 0,
     paradigmShard: -1,
+    levels: uniformLevels(overrides.level ?? 'A1'),
     ...overrides,
   }
 }

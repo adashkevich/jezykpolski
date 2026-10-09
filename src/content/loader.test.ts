@@ -6,6 +6,7 @@ import {
   loadIndex,
   loadManifest,
   loadParadigmShard,
+  loadSenseDetailsShard,
   loadSensesShard,
 } from './loader.ts'
 import type { Manifest } from './content.schema.ts'
@@ -15,7 +16,7 @@ import type { Manifest } from './content.schema.ts'
 // literal here (not imported from `codec.ts`) so a test bug can't silently cancel out a
 // real bug in the same dictionary the assertion is supposed to be protecting.
 const REAL_CODEC = {
-  pos: ['NOUN', 'VERB', 'ADJ', 'ADV'],
+  pos: ['NOUN', 'VERB', 'ADJ', 'ADV', 'PRON', 'SCONJ', 'INTJ'],
   level: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'],
   number: ['singular', 'plural'],
   case: ['nominative', 'genitive', 'dative', 'accusative', 'instrumental', 'locative', 'vocative'],
@@ -43,7 +44,7 @@ function makeManifest(codecOverrides: Partial<typeof REAL_CODEC> = {}): Manifest
     contentVersion: 'abcdef123456',
     generatedAt: '2026-09-01T05:18:06+00:00',
     counts: { words: 2, paradigms: 1, forms: 14 },
-    shards: { senses: 16, paradigms: 64 },
+    shards: { senses: 16, senseDetails: 16, paradigms: 64 },
     codec: { ...REAL_CODEC, ...codecOverrides },
   }
 }
@@ -129,12 +130,15 @@ describe('loadManifest', () => {
 })
 
 describe('loadIndex', () => {
+  // `[wordId, posCode, rank, levelRu, levelBy, levelUa, primaryRu, sensesShard, paradigmShard]`
   const rawRows = [
-    ['kobieta|NOUN', 1, 95, 1, 'женщина', 10, 42],
-    ['powinien|VERB', 2, 75, 2, 'должен', 11, -1],
+    ['kobieta|NOUN', 1, 95, 1, 1, 1, 'женщина', 10, 42],
+    ['prawo|NOUN', 1, 105, 2, 2, 1, 'право', 3, 17],
+    ['spocić się|VERB', 2, 7351, 4, 4, 3, 'вспотеть', 11, 5],
+    ['to|PRON', 5, 4, 1, 1, 1, 'это', 7, -1],
   ]
 
-  it('decodes IndexRow tuples into WordIndexEntry using the codec (posCode/levelCode -> values)', async () => {
+  it('decodes IndexRow tuples into WordIndexEntry: posCode, the three profile levels, level = ru', async () => {
     vi.stubGlobal('fetch', makeFetchMock({ 'index.json': rawRows }))
     const entries = await loadIndex()
     expect(entries).toEqual([
@@ -143,20 +147,58 @@ describe('loadIndex', () => {
         pos: 'NOUN',
         rank: 95,
         level: 'A1',
+        levels: { ru: 'A1', by: 'A1', ua: 'A1' },
         primaryRu: 'женщина',
         sensesShard: 10,
         paradigmShard: 42,
       },
       {
-        lemma: 'powinien',
-        pos: 'VERB',
-        rank: 75,
+        lemma: 'prawo',
+        pos: 'NOUN',
+        rank: 105,
         level: 'A2',
-        primaryRu: 'должен',
+        levels: { ru: 'A2', by: 'A2', ua: 'A1' },
+        primaryRu: 'право',
+        sensesShard: 3,
+        paradigmShard: 17,
+      },
+      {
+        lemma: 'spocić się',
+        pos: 'VERB',
+        rank: 7351,
+        level: 'B2',
+        levels: { ru: 'B2', by: 'B2', ua: 'B1' },
+        primaryRu: 'вспотеть',
         sensesShard: 11,
+        paradigmShard: 5,
+      },
+      {
+        lemma: 'to',
+        pos: 'PRON',
+        rank: 4,
+        level: 'A1',
+        levels: { ru: 'A1', by: 'A1', ua: 'A1' },
+        primaryRu: 'это',
+        sensesShard: 7,
         paradigmShard: -1,
       },
     ])
+  })
+
+  it('rejects a row with an unknown level code in any profile column', async () => {
+    vi.stubGlobal(
+      'fetch',
+      makeFetchMock({ 'index.json': [['kobieta|NOUN', 1, 95, 1, 1, 9, 'женщина', 10, 42]] }),
+    )
+    await expect(loadIndex()).rejects.toThrow(/kobieta\|NOUN.*unknown level code 9/)
+  })
+
+  it('rejects a v1-shaped row (7-tuple) instead of decoding garbage', async () => {
+    vi.stubGlobal(
+      'fetch',
+      makeFetchMock({ 'index.json': [['kobieta|NOUN', 1, 95, 1, 'женщина', 10, 42]] }),
+    )
+    await expect(loadIndex()).rejects.toThrow(/unknown level code/)
   })
 
   it('memoizes across calls (a second loadIndex() does not refetch)', async () => {
@@ -171,7 +213,8 @@ describe('loadIndex', () => {
     // 7998 synthetic rows — the real corpus size — to exercise the decode loop at scale.
     const rows: unknown[] = []
     for (let i = 0; i < 7998; i++) {
-      rows.push([`word${i}|NOUN`, 1, i + 1, (i % 6) + 1, `перевод${i}`, i % 16, i % 64])
+      const level = (i % 6) + 1
+      rows.push([`word${i}|NOUN`, 1, i + 1, level, level, level, `перевод${i}`, i % 16, i % 64])
     }
     vi.stubGlobal('fetch', makeFetchMock({ 'index.json': rows }))
 
@@ -189,14 +232,37 @@ describe('loadIndex', () => {
 
 describe('loadSensesShard', () => {
   const shard = {
-    'kobieta|NOUN': [{ ru: ['женщина'], en: 'dorosły człowiek płci żeńskiej', primary: true }],
+    'kobieta|NOUN': [{ id: 'kobieta:woman', ru: ['женщина'], lv: [1, 1, 1], primary: true }],
+    'być|VERB': [
+      { id: 'być:copula', ru: ['быть', 'являться'], lv: [1, 1, 1], primary: true },
+      { id: 'być:exist', ru: ['существовать'], lv: [2, 3, 2], primary: false },
+    ],
   }
 
-  it('fetches and decodes a senses shard, keyed by wordId', async () => {
+  it('fetches and decodes a senses shard, keyed by wordId: id, ru, the lv codes as levels', async () => {
     vi.stubGlobal('fetch', makeFetchMock({ 'senses/010.json': shard }))
     const result = await loadSensesShard(10)
     expect(result.get('kobieta|NOUN')).toEqual([
-      { ru: ['женщина'], en: 'dorosły człowiek płci żeńskiej', primary: true },
+      {
+        id: 'kobieta:woman',
+        ru: ['женщина'],
+        levels: { ru: 'A1', by: 'A1', ua: 'A1' },
+        primary: true,
+      },
+    ])
+    expect(result.get('być|VERB')).toEqual([
+      {
+        id: 'być:copula',
+        ru: ['быть', 'являться'],
+        levels: { ru: 'A1', by: 'A1', ua: 'A1' },
+        primary: true,
+      },
+      {
+        id: 'być:exist',
+        ru: ['существовать'],
+        levels: { ru: 'A2', by: 'B1', ua: 'A2' },
+        primary: false,
+      },
     ])
   })
 
@@ -206,6 +272,61 @@ describe('loadSensesShard', () => {
     const [a, b] = await Promise.all([loadSensesShard(10), loadSensesShard(10)])
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(a).toBe(b) // same in-memory Map instance, not just equal content
+  })
+})
+
+describe('loadSenseDetailsShard', () => {
+  const shard = {
+    'być:copula': {
+      gl: 'łącznik w orzeczeniu imiennym',
+      ex: 'Anna jest lekarką.',
+      by: ['быць'],
+      ua: ['бути'],
+    },
+    'być:exist': {
+      gl: 'istnieć, znajdować się',
+      ex: 'Czy na Marsie jest życie?',
+      by: ['існаваць'],
+      ua: ['існувати'],
+    },
+  }
+
+  it('fetches sense-details/NNN.json and decodes it, keyed by sense id', async () => {
+    const fetchMock = makeFetchMock({ 'sense-details/003.json': shard })
+    vi.stubGlobal('fetch', fetchMock)
+    const result = await loadSenseDetailsShard(3)
+    expect(String(fetchMock.mock.calls[0]?.[0])).toMatch(/\/content\/sense-details\/003\.json$/)
+    expect(result.get('być:copula')).toEqual({
+      gloss: 'łącznik w orzeczeniu imiennym',
+      example: 'Anna jest lekarką.',
+      by: ['быць'],
+      ua: ['бути'],
+    })
+    expect(result.get('być:exist')?.example).toBe('Czy na Marsie jest życie?')
+    expect(result.size).toBe(2)
+  })
+
+  it('memoizes: parallel and repeat calls share one fetch', async () => {
+    const fetchMock = makeFetchMock({ 'sense-details/003.json': shard })
+    vi.stubGlobal('fetch', fetchMock)
+    const [a, b] = await Promise.all([loadSenseDetailsShard(3), loadSenseDetailsShard(3)])
+    await loadSenseDetailsShard(3)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(a).toBe(b)
+  })
+
+  it('lets a failed fetch be retried (e.g. offline, then back online)', async () => {
+    let attempt = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        attempt += 1
+        if (attempt === 1) throw new TypeError('Failed to fetch')
+        return { ok: true, json: async () => shard } as Response
+      }),
+    )
+    await expect(loadSenseDetailsShard(3)).rejects.toThrow('Failed to fetch')
+    expect((await loadSenseDetailsShard(3)).size).toBe(2)
   })
 })
 

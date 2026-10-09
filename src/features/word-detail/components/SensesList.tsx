@@ -1,9 +1,8 @@
 /**
  * "Значения" — `spec/tasks/08-word-detail.md` §2, FR-41: every sense listed, primary first
  * (already the order `content/senses.ts#getSenses` returns them in — this component doesn't
- * re-sort), Russian translations as the main text and the English gloss (when present) as a
- * small secondary line — "он полезен для снятия неоднозначности, но пользователь учит
- * русский↔польский" (task text), so `en` is never the primary line.
+ * re-sort), Russian translations only. The v2 dictionary has no English gloss any more (task
+ * 47); its Polish gloss and example come with task 50's redesign of this list.
  */
 import type { Sense } from '@/types/content.ts'
 import type { SensesStatus } from '../hooks/useSenses.ts'
@@ -47,7 +46,6 @@ export function SensesList({
               <span className="text-headline-sm font-medium text-foreground">
                 {sense.ru.join(', ')}
               </span>
-              {sense.en && <p className="text-body-sm text-muted-foreground">{sense.en}</p>}
             </div>
           </li>
         ))}

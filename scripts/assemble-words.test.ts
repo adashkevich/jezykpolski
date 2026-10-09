@@ -275,6 +275,25 @@ describe('assemble', () => {
       ).errors
       expect(errors).toEqual([expect.stringContaining('inny|ADJ merges into inny|ADJ')])
     })
+
+    it('accepts a DET word in a chunk only to merge it away: a surviving DET word fails', () => {
+      const det = {
+        ...word('niektóry', 'ADJ', 4822, { senses: [sense('niektóry:x')] }),
+        pos: 'DET',
+      }
+      const words = [word('niektóry', 'ADJ', 195), det]
+      expect(errorsOf(words)).toEqual([
+        expect.stringContaining(
+          'niektóry|DET (words_001.json #1): pos DET is not a dictionary POS',
+        ),
+      ])
+
+      const merged = assemble(chunksOf(words), {
+        dropWords: [{ rank: 4822, lemma: 'niektóry', pos: 'DET', mergeInto: 'niektóry|ADJ' }],
+      })
+      expect(merged.errors).toEqual([])
+      expect(merged.words.map((w) => `${w.lemma}|${w.pos}`)).toEqual(['niektóry|ADJ'])
+    })
   })
 })
 

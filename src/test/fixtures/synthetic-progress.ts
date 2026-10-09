@@ -26,6 +26,7 @@ import { encodeSkillId, encodeWordId } from '@/learning/skills/skill-id.ts'
 import type { Dimension } from '@/learning/skills/dimensions.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import type { ReviewLogRecord, SkillRecord, WordProgressRecord } from '@/types/progress.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const
 const CASES: readonly CaseValue[] = [
@@ -46,11 +47,13 @@ const TENSES = ['present', 'past', 'future'] as const
 export function generateSyntheticIndexEntries(wordCount = 8000): WordIndexEntry[] {
   const entries: WordIndexEntry[] = []
   for (let i = 0; i < wordCount; i++) {
+    const level = LEVELS[i % LEVELS.length]!
     entries.push({
       lemma: `synthword${i}`,
       pos: POS_VALUES[i % POS_VALUES.length]!,
       rank: i,
-      level: LEVELS[i % LEVELS.length]!,
+      level,
+      levels: uniformLevels(level),
       primaryRu: `перевод ${i}`,
       sensesShard: i % 16,
       paradigmShard: -1, // no network fetch — see stats.repository.test.ts's own header

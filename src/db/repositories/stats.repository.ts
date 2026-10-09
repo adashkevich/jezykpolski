@@ -121,7 +121,8 @@ export function levelProgress(summary: WordProgressSummary): LevelBucketProgress
   })
 }
 
-/** "Части речи" — one row per `POS_VALUES` entry (NOUN/VERB/ADJ/ADV). Denominator is
+/** "Части речи" — one row per `POS_VALUES` entry (NOUN/VERB/ADJ/ADV, and since task 47
+ *  PRON/SCONJ/INTJ). Denominator is
  *  `getIndexStore().byPos`'s bucket size directly (already grouped, task 04) — no extra
  *  pass needed, unlike `levelProgress` (`byLevel` is a flat rank-ordered array, not grouped). */
 export function posProgress(summary: WordProgressSummary): BucketProgress<PosValue>[] {

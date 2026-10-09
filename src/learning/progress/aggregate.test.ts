@@ -18,6 +18,7 @@ import {
   TARGET_STABILITY_DAYS,
   type WordAggregate,
 } from './aggregate.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function record(overrides: Partial<SkillRecord> = {}): SkillRecord {
   return {
@@ -65,6 +66,7 @@ describe('aggregateWord', () => {
     pos: 'NOUN',
     rank: 1,
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu: 'женщина',
     sensesShard: 0,
     paradigmShard: 0,
@@ -236,6 +238,7 @@ describe('aggregateWord — stage', () => {
     pos: 'NOUN',
     rank: 1,
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu: 'женщина',
     sensesShard: 0,
     paradigmShard: 0,
@@ -327,6 +330,7 @@ describe('aggregateByDimension', () => {
     pos: 'NOUN',
     rank: 1,
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu: 'женщина',
     sensesShard: 0,
     paradigmShard: 0,
@@ -396,6 +400,7 @@ describe('aggregateByDimension — VERB and ADJ key extractors', () => {
     pos: 'VERB',
     rank: 1,
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu: 'иметь',
     sensesShard: 0,
     paradigmShard: 0,
@@ -452,6 +457,7 @@ describe('aggregateByDimension — VERB and ADJ key extractors', () => {
     pos: 'ADJ',
     rank: 1,
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu: 'хороший',
     sensesShard: 0,
     paradigmShard: 0,

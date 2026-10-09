@@ -3,6 +3,7 @@ import { __resetIndexStoreForTest, getIndexStore, initIndexStore } from './index
 import { encodeWordId } from '@/learning/skills/skill-id.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import { CONFUSABLE_GROUPS } from './confusable-words.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 /**
  * Verifies `CONFUSABLE_GROUPS` against a hand-copied real-data fixture — same convention
@@ -21,6 +22,7 @@ function entry(overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma'
     primaryRu: `${overrides.lemma}-ru`,
     sensesShard: 0,
     paradigmShard: 0,
+    levels: uniformLevels(overrides.level ?? 'A1'),
     ...overrides,
   }
 }

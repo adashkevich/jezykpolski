@@ -26,6 +26,7 @@ import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.reposi
 import { get as settingsGet } from '@/db/repositories/settings.repository.ts'
 import { useFiltersStore } from '@/stores/filters.store.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 const FIXTURE_WORDS: readonly WordIndexEntry[] = [
   {
@@ -33,6 +34,7 @@ const FIXTURE_WORDS: readonly WordIndexEntry[] = [
     pos: 'VERB',
     rank: 1,
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu: 'быть',
     sensesShard: 0,
     paradigmShard: 0,
@@ -42,6 +44,7 @@ const FIXTURE_WORDS: readonly WordIndexEntry[] = [
     pos: 'VERB',
     rank: 5,
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu: 'иметь',
     sensesShard: 0,
     paradigmShard: 0,
@@ -51,6 +54,7 @@ const FIXTURE_WORDS: readonly WordIndexEntry[] = [
     pos: 'NOUN',
     rank: 2,
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu: 'кот',
     sensesShard: 0,
     paradigmShard: 0,
@@ -60,6 +64,7 @@ const FIXTURE_WORDS: readonly WordIndexEntry[] = [
     pos: 'NOUN',
     rank: 10,
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu: 'человек',
     sensesShard: 0,
     paradigmShard: 0,
@@ -69,6 +74,7 @@ const FIXTURE_WORDS: readonly WordIndexEntry[] = [
     pos: 'ADJ',
     rank: 20,
     level: 'A2',
+    levels: uniformLevels('A2'),
     primaryRu: 'хороший',
     sensesShard: 0,
     paradigmShard: 0,
@@ -78,6 +84,7 @@ const FIXTURE_WORDS: readonly WordIndexEntry[] = [
     pos: 'ADJ',
     rank: 300,
     level: 'B1',
+    levels: uniformLevels('B1'),
     primaryRu: 'жёлтый',
     sensesShard: 0,
     paradigmShard: 0,
@@ -87,6 +94,7 @@ const FIXTURE_WORDS: readonly WordIndexEntry[] = [
     pos: 'ADV',
     rank: 150,
     level: 'B1',
+    levels: uniformLevels('B1'),
     primaryRu: 'быстро',
     sensesShard: 0,
     paradigmShard: 0,
@@ -96,6 +104,7 @@ const FIXTURE_WORDS: readonly WordIndexEntry[] = [
     pos: 'ADV',
     rank: 4000,
     level: 'B2',
+    levels: uniformLevels('B2'),
     primaryRu: 'хотя',
     sensesShard: 0,
     paradigmShard: 0,
@@ -105,6 +114,7 @@ const FIXTURE_WORDS: readonly WordIndexEntry[] = [
     pos: 'NOUN',
     rank: 6000,
     level: 'C1',
+    levels: uniformLevels('C1'),
     primaryRu: 'импликация',
     sensesShard: 0,
     paradigmShard: 0,
@@ -114,6 +124,7 @@ const FIXTURE_WORDS: readonly WordIndexEntry[] = [
     pos: 'ADV',
     rank: 7500,
     level: 'C2',
+    levels: uniformLevels('C2'),
     primaryRu: 'воистину',
     sensesShard: 0,
     paradigmShard: 0,

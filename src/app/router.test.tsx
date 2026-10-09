@@ -23,6 +23,7 @@ import { encodeWordId } from '@/learning/skills/skill-id.ts'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
 import { __resetLoaderCachesForTest } from '@/content/loader.ts'
 import { ContentProvider } from './providers/ContentProvider.tsx'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function renderAt(path: string) {
   window.history.pushState({}, '', path)
@@ -103,9 +104,9 @@ describe('AppRouter', () => {
               contentVersion: 'abcdef123456',
               generatedAt: '2026-09-01T05:18:06+00:00',
               counts: { words: 1, paradigms: 1, forms: 1 },
-              shards: { senses: 16, paradigms: 64 },
+              shards: { senses: 16, senseDetails: 16, paradigms: 64 },
               codec: {
-                pos: ['NOUN', 'VERB', 'ADJ', 'ADV'],
+                pos: ['NOUN', 'VERB', 'ADJ', 'ADV', 'PRON', 'SCONJ', 'INTJ'],
                 level: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'],
                 number: ['singular', 'plural'],
                 case: [
@@ -139,7 +140,10 @@ describe('AppRouter', () => {
           } as Response
         }
         if (href.includes('index.json')) {
-          return { ok: true, json: async () => [['kobieta|NOUN', 1, 95, 1, 'женщина', 10, 42]] } as Response
+          return {
+            ok: true,
+            json: async () => [['kobieta|NOUN', 1, 95, 1, 1, 1, 'женщина', 10, 42]],
+          } as Response
         }
         // Anything else (including a stray, un-cancelled paradigm-shard fetch a *previous*
         // test in this same file's `/practice` route may still have in flight — `useEffect`
@@ -183,6 +187,7 @@ describe('AppRouter', () => {
         pos: 'NOUN',
         rank: 95,
         level: 'A1',
+        levels: uniformLevels('A1'),
         primaryRu: 'женщина',
         sensesShard: 0,
         paradigmShard: -1,
@@ -202,6 +207,7 @@ describe('AppRouter', () => {
         pos: 'ADJ',
         rank: 300,
         level: 'B1',
+        levels: uniformLevels('B1'),
         primaryRu: 'жёлтый',
         sensesShard: 0,
         paradigmShard: -1,
@@ -240,6 +246,7 @@ describe('AppRouter', () => {
         pos: 'NOUN',
         rank: 95,
         level: 'A1',
+        levels: uniformLevels('A1'),
         primaryRu: 'женщина',
         sensesShard: 0,
         paradigmShard: 0,

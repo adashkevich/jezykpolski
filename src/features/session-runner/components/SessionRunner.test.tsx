@@ -34,6 +34,7 @@ import { encodeSkillId, encodeWordId, type SkillId } from '@/learning/skills/ski
 import { useSessionStore } from '@/stores/session.store.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import type { SkillRecord } from '@/types/progress.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -49,7 +50,16 @@ const WORDS = [
 const KOBIETA = encodeWordId('kobieta', 'NOUN')
 
 function entry(lemma: string, primaryRu: string, rank: number): WordIndexEntry {
-  return { lemma, pos: 'NOUN', rank, level: 'A1', primaryRu, sensesShard: 0, paradigmShard: -1 }
+  return {
+    lemma,
+    pos: 'NOUN',
+    rank,
+    level: 'A1',
+    levels: uniformLevels('A1'),
+    primaryRu,
+    sensesShard: 0,
+    paradigmShard: -1,
+  }
 }
 
 function skillId(dimension: VocabDimension): SkillId {

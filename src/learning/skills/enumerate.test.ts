@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { DecodedForm } from '@/content/codec.ts'
 import type { Paradigm, WordIndexEntry } from '@/types/content.ts'
 import { enumerateSkills } from './enumerate.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function word(
   overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma' | 'pos'>,
@@ -12,6 +13,7 @@ function word(
     primaryRu: '',
     sensesShard: 0,
     paradigmShard: 0,
+    levels: uniformLevels(overrides.level ?? 'A1'),
     ...overrides,
   }
 }
@@ -124,6 +126,30 @@ describe('enumerateSkills — word without a paradigm (one of the 14 real words 
   it('treats an explicit undefined paradigm the same as an omitted one', () => {
     const w = word({ lemma: 'powinien', pos: 'VERB', paradigmShard: -1 })
     expect(enumerateSkills(w, undefined)).toEqual(enumerateSkills(w))
+  })
+})
+
+describe('enumerateSkills — the v2 parts of speech PRON / SCONJ / INTJ (task 47)', () => {
+  it('only the 3 vocab skills, even if case forms were passed in (no grammar dimensions)', () => {
+    // The v1 "noun paradigm" of `to` — exactly what the content build no longer ships for PRON.
+    const caseForms: Paradigm = {
+      forms: [
+        { form: 'to', number: 'singular', case: 'nominative', analytic: false },
+        { form: 'tego', number: 'singular', case: 'genitive', analytic: false },
+      ],
+    }
+    for (const [lemma, pos] of [
+      ['to', 'PRON'],
+      ['gdy', 'SCONJ'],
+      ['dzięki', 'INTJ'],
+    ] as const) {
+      const skills = enumerateSkills(word({ lemma, pos, paradigmShard: -1 }), caseForms)
+      expect(skills.map((s) => s.skillId)).toEqual([
+        `${lemma}|${pos}::vocab:pl-ru`,
+        `${lemma}|${pos}::vocab:ru-pl-choice`,
+        `${lemma}|${pos}::vocab:ru-pl-input`,
+      ])
+    }
   })
 })
 

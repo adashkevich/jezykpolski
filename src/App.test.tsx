@@ -13,7 +13,7 @@ import { __resetIndexStoreForTest } from '@/content/index-store.ts'
 import * as lifecycle from '@/db/repositories/lifecycle.repository.ts'
 
 const REAL_CODEC = {
-  pos: ['NOUN', 'VERB', 'ADJ', 'ADV'],
+  pos: ['NOUN', 'VERB', 'ADJ', 'ADV', 'PRON', 'SCONJ', 'INTJ'],
   level: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'],
   number: ['singular', 'plural'],
   case: ['nominative', 'genitive', 'dative', 'accusative', 'instrumental', 'locative', 'vocative'],
@@ -41,10 +41,10 @@ function stubContentFetch() {
     contentVersion: 'abcdef123456',
     generatedAt: '2026-09-01T05:18:06+00:00',
     counts: { words: 1, paradigms: 1, forms: 1 },
-    shards: { senses: 16, paradigms: 64 },
+    shards: { senses: 16, senseDetails: 16, paradigms: 64 },
     codec: REAL_CODEC,
   }
-  const rawIndexRows = [['kobieta|NOUN', 1, 95, 1, 'женщина', 10, 42]]
+  const rawIndexRows = [['kobieta|NOUN', 1, 95, 1, 1, 1, 'женщина', 10, 42]]
 
   vi.stubGlobal(
     'fetch',

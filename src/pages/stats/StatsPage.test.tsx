@@ -21,9 +21,19 @@ import { __resetLoaderCachesForTest } from '@/content/loader.ts'
 import { encodeForm, type PosValue } from '@/content/codec.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import type { SkillRecord } from '@/types/progress.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function entry(lemma: string, pos: PosValue, rank: number, paradigmShard = -1): WordIndexEntry {
-  return { lemma, pos, rank, level: 'A1', primaryRu: 'x', sensesShard: 0, paradigmShard }
+  return {
+    lemma,
+    pos,
+    rank,
+    level: 'A1',
+    levels: uniformLevels('A1'),
+    primaryRu: 'x',
+    sensesShard: 0,
+    paradigmShard,
+  }
 }
 
 /** Matches an element whose full (deep) text content is exactly `text` — the "По уровням"

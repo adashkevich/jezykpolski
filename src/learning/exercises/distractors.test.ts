@@ -5,6 +5,7 @@ import { decodeForm } from '@/content/codec.ts'
 import type { DecodedForm, EncodedForm } from '@/content/codec.ts'
 import type { Paradigm, WordIndexEntry } from '@/types/content.ts'
 import { pickFormDistractors, pickVocabDistractors } from './distractors.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 // ---------------------------------------------------------------------------
 // This file originally tested task 09's naive placeholder body (determinism and
@@ -28,6 +29,7 @@ function entry(
     primaryRu: `${overrides.lemma}-ru`,
     sensesShard: 0,
     paradigmShard: 0,
+    levels: uniformLevels(overrides.level ?? 'A1'),
     ...overrides,
   }
 }
@@ -333,11 +335,11 @@ describe('task 10 acceptance — translation-overlap exclusion (FR-92)', () => {
   ]
 
   const WIEDZIEC_SENSES = {
-    'wiedzieć|VERB': [{ ru: ['знать', 'ведать'], primary: true }],
+    'wiedzieć|VERB': [{ id: 'wiedzieć:s1', ru: ['знать', 'ведать'], lv: [1, 1, 1], primary: true }],
     'znać|VERB': [
-      { ru: ['знать', 'быть знакомым с'], primary: true },
-      { ru: ['знать'], primary: false },
-      { ru: ['знать'], primary: false },
+      { id: 'znać:s1', ru: ['знать', 'быть знакомым с'], lv: [1, 1, 1], primary: true },
+      { id: 'znać:s2', ru: ['знать'], lv: [1, 1, 1], primary: false },
+      { id: 'znać:s3', ru: ['знать'], lv: [1, 1, 1], primary: false },
     ],
   }
 
@@ -397,10 +399,12 @@ describe('task 10 acceptance — translation-overlap exclusion (FR-92)', () => {
   ]
 
   const ZOSTAC_SENSES = {
-    'zostać|VERB': [{ ru: ['остаться', 'стать'], primary: true }],
+    'zostać|VERB': [{ id: 'zostać:s1', ru: ['остаться', 'стать'], lv: [1, 1, 1], primary: true }],
     // Trimmed real excerpt of powstać|VERB's actual (much longer) sense list — keeps the one
     // overlapping translation ("стать") plus two others, drops the rest for readability.
-    'powstać|VERB': [{ ru: ['привстать', 'встать', 'стать'], primary: true }],
+    'powstać|VERB': [
+      { id: 'powstać:s1', ru: ['привстать', 'встать', 'стать'], lv: [1, 1, 1], primary: true },
+    ],
   }
 
   it('excludes a candidate that overlaps only in a SECONDARY sense (zostać/powstać share "стать", not their primaries)', async () => {
@@ -607,9 +611,15 @@ describe('pickVocabDistractors — CONFUSABLE_GROUPS preference (task 27, FR-94)
 
   it("prefers wielki (duży's real CONFUSABLE_GROUPS sibling) over an in-window word, even though wielki's rank/level are far outside duży's window", async () => {
     stubContentFetch({
-      'senses/040.json': { 'duży|ADJ': [{ ru: ['большой-test'], primary: true }] },
-      'senses/041.json': { 'wielki|ADJ': [{ ru: ['великий-test'], primary: true }] },
-      'senses/042.json': { 'mały|ADJ': [{ ru: ['маленький-test'], primary: true }] },
+      'senses/040.json': {
+        'duży|ADJ': [{ id: 'duży:s1', ru: ['большой-test'], lv: [1, 1, 1], primary: true }],
+      },
+      'senses/041.json': {
+        'wielki|ADJ': [{ id: 'wielki:s1', ru: ['великий-test'], lv: [1, 1, 1], primary: true }],
+      },
+      'senses/042.json': {
+        'mały|ADJ': [{ id: 'mały:s1', ru: ['маленький-test'], lv: [1, 1, 1], primary: true }],
+      },
     })
     await loadSensesShard(40)
     await loadSensesShard(41)
@@ -621,9 +631,15 @@ describe('pickVocabDistractors — CONFUSABLE_GROUPS preference (task 27, FR-94)
 
   it('fills remaining slots from the general heuristic once the group is exhausted', async () => {
     stubContentFetch({
-      'senses/040.json': { 'duży|ADJ': [{ ru: ['большой-test'], primary: true }] },
-      'senses/041.json': { 'wielki|ADJ': [{ ru: ['великий-test'], primary: true }] },
-      'senses/042.json': { 'mały|ADJ': [{ ru: ['маленький-test'], primary: true }] },
+      'senses/040.json': {
+        'duży|ADJ': [{ id: 'duży:s1', ru: ['большой-test'], lv: [1, 1, 1], primary: true }],
+      },
+      'senses/041.json': {
+        'wielki|ADJ': [{ id: 'wielki:s1', ru: ['великий-test'], lv: [1, 1, 1], primary: true }],
+      },
+      'senses/042.json': {
+        'mały|ADJ': [{ id: 'mały:s1', ru: ['маленький-test'], lv: [1, 1, 1], primary: true }],
+      },
     })
     await loadSensesShard(40)
     await loadSensesShard(41)
@@ -647,8 +663,12 @@ describe('pickVocabDistractors — CONFUSABLE_GROUPS preference (task 27, FR-94)
     __resetIndexStoreForTest()
     initIndexStore([plain, NEARBY])
     stubContentFetch({
-      'senses/043.json': { 'zielony|ADJ': [{ ru: ['зелёный-test'], primary: true }] },
-      'senses/042.json': { 'mały|ADJ': [{ ru: ['маленький-test'], primary: true }] },
+      'senses/043.json': {
+        'zielony|ADJ': [{ id: 'zielony:s1', ru: ['зелёный-test'], lv: [1, 1, 1], primary: true }],
+      },
+      'senses/042.json': {
+        'mały|ADJ': [{ id: 'mały:s1', ru: ['маленький-test'], lv: [1, 1, 1], primary: true }],
+      },
     })
     await loadSensesShard(43)
     await loadSensesShard(42)

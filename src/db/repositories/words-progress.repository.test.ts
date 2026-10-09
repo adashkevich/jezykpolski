@@ -22,6 +22,7 @@ import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.
 import type { LevelValue, PosValue } from '@/content/codec.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import type { SkillRecord, SkillState, WordProgressRecord } from '@/types/progress.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function entry(lemma: string, rank: number): WordIndexEntry {
   return {
@@ -29,6 +30,7 @@ function entry(lemma: string, rank: number): WordIndexEntry {
     pos: 'NOUN',
     rank,
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu: 'x',
     sensesShard: 0,
     paradigmShard: -1, // no paradigm — vocab-only skills, no network fetch involved
@@ -39,7 +41,16 @@ function entry(lemma: string, rank: number): WordIndexEntry {
  *  `learnedByLevel` test below (task 23) needs words spread across several levels, not
  *  `entry`'s fixed NOUN/A1. */
 function indexEntry(lemma: string, pos: PosValue, level: LevelValue): WordIndexEntry {
-  return { lemma, pos, rank: 1, level, primaryRu: 'x', sensesShard: 0, paradigmShard: -1 }
+  return {
+    lemma,
+    pos,
+    rank: 1,
+    level,
+    levels: uniformLevels(level),
+    primaryRu: 'x',
+    sensesShard: 0,
+    paradigmShard: -1,
+  }
 }
 
 function vocabSkill(

@@ -28,6 +28,7 @@ import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.
 import { __resetLoaderCachesForTest } from '@/content/loader.ts'
 import { encodeWordId } from '@/learning/skills/skill-id.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function entry(lemma: string, primaryRu: string): WordIndexEntry {
   return {
@@ -35,6 +36,7 @@ function entry(lemma: string, primaryRu: string): WordIndexEntry {
     pos: 'NOUN',
     rank: 1,
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu,
     sensesShard: 0,
     paradigmShard: -1,

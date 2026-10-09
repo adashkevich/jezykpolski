@@ -7,6 +7,7 @@ import {
   normalizeSearchText,
 } from './index-store.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function entry(
   overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma' | 'rank'>,
@@ -17,6 +18,7 @@ function entry(
     primaryRu: 'x',
     sensesShard: 0,
     paradigmShard: 0,
+    levels: uniformLevels(overrides.level ?? 'A1'),
     ...overrides,
   }
 }

@@ -23,6 +23,9 @@ const POS_FULL_LABEL: Readonly<Record<PosValue, string>> = {
   VERB: 'Глагол',
   ADJ: 'Прилагательное',
   ADV: 'Наречие',
+  PRON: 'Местоимение',
+  SCONJ: 'Союз',
+  INTJ: 'Междометие',
 }
 
 /**

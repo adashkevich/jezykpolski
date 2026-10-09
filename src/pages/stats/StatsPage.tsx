@@ -54,6 +54,9 @@ const POS_LABELS: Readonly<Record<PosValue, { ru: string; pl: string }>> = {
   VERB: { ru: 'Глаголы', pl: 'Czasowniki' },
   ADJ: { ru: 'Прилагательные', pl: 'Przymiotniki' },
   ADV: { ru: 'Наречия', pl: 'Przysłówki' },
+  PRON: { ru: 'Местоимения', pl: 'Zaimki' },
+  SCONJ: { ru: 'Союзы', pl: 'Spójniki' },
+  INTJ: { ru: 'Междометия', pl: 'Wykrzykniki' },
 }
 
 function Headline({ label, value, unit, caption, accent = false }: {

@@ -9,6 +9,7 @@ import {
   unlockedLevels,
 } from './level-gate.ts'
 import type { LevelPoolCounts } from './level-gate.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function counts(overrides?: { unstartedByLevel?: Partial<Record<LevelValue, number>> }): LevelPoolCounts {
   // Default every level to "far from exhausted" (9999 unstarted) unless a test explicitly
@@ -32,6 +33,7 @@ function entry(overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma'
     primaryRu: `${overrides.lemma}-ru`,
     sensesShard: 0,
     paradigmShard: -1,
+    levels: uniformLevels(overrides.level ?? 'A1'),
     ...overrides,
   }
 }

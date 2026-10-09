@@ -16,6 +16,7 @@ import { decodeForm, type EncodedForm } from '@/content/codec.ts'
 import type { Paradigm, WordIndexEntry } from '@/types/content.ts'
 import type { ContentContext } from './exercise.types.ts'
 import { generateTableExercise } from './generate.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function entry(overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma' | 'pos'>): WordIndexEntry {
   return {
@@ -24,6 +25,7 @@ function entry(overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma'
     primaryRu: `${overrides.lemma}-ru`,
     sensesShard: 0,
     paradigmShard: 0,
+    levels: uniformLevels(overrides.level ?? 'A1'),
     ...overrides,
   }
 }

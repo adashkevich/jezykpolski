@@ -100,6 +100,15 @@ describe('dictionaries', () => {
     expect([...codes].sort((a, b) => a - b)).toEqual(values.map((_, i) => i + 1))
   })
 
+  it('POS codes of NOUN/VERB/ADJ/ADV are unchanged by the v2 parts of speech, which are appended (task 47)', () => {
+    // Literal codes, as shipped in every content build before task 47.
+    expect([POS.codeOf('NOUN'), POS.codeOf('VERB'), POS.codeOf('ADJ'), POS.codeOf('ADV')]).toEqual([
+      1, 2, 3, 4,
+    ])
+    expect([POS.codeOf('PRON'), POS.codeOf('SCONJ'), POS.codeOf('INTJ')]).toEqual([5, 6, 7])
+    expect(POS_VALUES).not.toContain('DET')
+  })
+
   it('GENDER dictionary is the exact 10-value union observed in the real data (NOUN 5 + VERB 5 + ADJ 9, deduplicated)', () => {
     expect(new Set(GENDER_VALUES).size).toBe(10)
     expect(GENDER_VALUES).toHaveLength(10)

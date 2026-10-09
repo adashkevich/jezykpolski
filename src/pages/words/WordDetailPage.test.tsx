@@ -30,6 +30,7 @@ import { recomputeWordProgress } from '@/db/repositories/words-progress.reposito
 import type { EncodedForm } from '@/content/codec.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import type { SkillRecord } from '@/types/progress.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 // ---------------------------------------------------------------------------
 // Fixture content — real forms copied from the built `public/content/**` shards (task 08's
@@ -189,6 +190,7 @@ const ROBIC_ID = encodeWordId('robić', 'VERB')
 const DOBRY_ID = encodeWordId('dobry', 'ADJ')
 const CHLODNO_ID = encodeWordId('chłodno', 'ADV')
 const POWINIEN_ID = encodeWordId('powinien', 'VERB')
+const TO_ID = encodeWordId('to', 'PRON')
 
 const FIXTURE_ENTRIES: readonly WordIndexEntry[] = [
   {
@@ -196,6 +198,7 @@ const FIXTURE_ENTRIES: readonly WordIndexEntry[] = [
     pos: 'NOUN',
     rank: 95,
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu: 'женщина',
     sensesShard: 0,
     paradigmShard: 1,
@@ -205,6 +208,7 @@ const FIXTURE_ENTRIES: readonly WordIndexEntry[] = [
     pos: 'VERB',
     rank: 69,
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu: 'делать',
     sensesShard: 0,
     paradigmShard: 2,
@@ -214,6 +218,7 @@ const FIXTURE_ENTRIES: readonly WordIndexEntry[] = [
     pos: 'ADJ',
     rank: 37,
     level: 'A2',
+    levels: uniformLevels('A2'),
     primaryRu: 'хороший',
     sensesShard: 0,
     paradigmShard: 3,
@@ -223,6 +228,7 @@ const FIXTURE_ENTRIES: readonly WordIndexEntry[] = [
     pos: 'ADV',
     rank: 120,
     level: 'B1',
+    levels: uniformLevels('B1'),
     primaryRu: 'холодно',
     sensesShard: 0,
     paradigmShard: 4,
@@ -232,7 +238,18 @@ const FIXTURE_ENTRIES: readonly WordIndexEntry[] = [
     pos: 'VERB',
     rank: 75,
     level: 'A2',
+    levels: uniformLevels('A2'),
     primaryRu: 'должен',
+    sensesShard: 0,
+    paradigmShard: -1,
+  },
+  {
+    lemma: 'to',
+    pos: 'PRON',
+    rank: 4,
+    level: 'A1',
+    levels: uniformLevels('A1'),
+    primaryRu: 'это',
     sensesShard: 0,
     paradigmShard: -1,
   },
@@ -240,13 +257,14 @@ const FIXTURE_ENTRIES: readonly WordIndexEntry[] = [
 
 const SENSES_SHARD = {
   'kobieta|NOUN': [
-    { ru: ['женщина'], en: 'woman', primary: true },
-    { ru: ['жена'], primary: false },
+    { id: 'kobieta:woman', ru: ['женщина'], lv: [1, 1, 1], primary: true },
+    { id: 'kobieta:wife', ru: ['жена'], lv: [2, 2, 2], primary: false },
   ],
-  'robić|VERB': [{ ru: ['делать'], primary: true }],
-  'dobry|ADJ': [{ ru: ['хороший'], primary: true }],
-  'chłodno|ADV': [{ ru: ['холодно'], primary: true }],
-  'powinien|VERB': [{ ru: ['должен'], primary: true }],
+  'robić|VERB': [{ id: 'robić:do', ru: ['делать'], lv: [1, 1, 1], primary: true }],
+  'dobry|ADJ': [{ id: 'dobry:good', ru: ['хороший'], lv: [1, 1, 1], primary: true }],
+  'chłodno|ADV': [{ id: 'chłodno:cold', ru: ['холодно'], lv: [3, 3, 3], primary: true }],
+  'powinien|VERB': [{ id: 'powinien:should', ru: ['должен'], lv: [2, 2, 2], primary: true }],
+  'to|PRON': [{ id: 'to:this', ru: ['это'], lv: [1, 1, 1], primary: true }],
 }
 
 function makeFetchMock() {
@@ -326,13 +344,12 @@ describe('header, senses (FR-40/FR-41)', () => {
     expect(screen.getByText('женщина')).toBeInTheDocument()
   })
 
-  it('lists every sense, primary marked, with the English gloss as secondary text', async () => {
+  it('lists every sense, primary first, Russian translations only (the v2 dictionary has no English gloss)', async () => {
     renderWordDetail(KOBIETA_ID)
     await waitFor(() => expect(screen.getByText('Значения')).toBeInTheDocument())
     // "женщина" appears twice — once as the header's primary translation, once as sense #1.
     expect(screen.getAllByText('женщина').length).toBe(2)
     expect(screen.getByText('жена')).toBeInTheDocument()
-    expect(screen.getByText('woman')).toBeInTheDocument()
   })
 })
 
@@ -521,6 +538,16 @@ describe('acceptance 6 — a paradigm-less word opens without errors and has no 
     expect(screen.getByText('Интервальное повторение')).toBeInTheDocument()
     // No "Формы" bar either — nothing to track for a word with no morphology at all.
     expect(screen.queryByText('Формы')).not.toBeInTheDocument()
+  })
+
+  it('to|PRON (a v2 part of speech, no paradigm) opens labelled «Местоимение», without a forms block', async () => {
+    renderWordDetail(TO_ID)
+    await waitFor(() => expect(screen.getByText('Значения')).toBeInTheDocument())
+    expect(screen.getByRole('heading', { name: 'to' })).toBeInTheDocument()
+    expect(screen.getByText(/Местоимение/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /формы/i })).not.toBeInTheDocument()
+    expect(screen.queryByText('Формы')).not.toBeInTheDocument()
+    expect(fetchedUrlsContaining('paradigms/')).toBe(0)
   })
 })
 

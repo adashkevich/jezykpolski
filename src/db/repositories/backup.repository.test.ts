@@ -20,6 +20,7 @@ import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.
 import type { WordIndexEntry } from '@/types/content.ts'
 import type { ReviewLogRecord, SessionRecord, SkillRecord } from '@/types/progress.ts'
 import { CURRENT_BACKUP_SCHEMA_VERSION } from '../backup.schema.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function entry(lemma: string, rank: number): WordIndexEntry {
   return {
@@ -27,6 +28,7 @@ function entry(lemma: string, rank: number): WordIndexEntry {
     pos: 'NOUN',
     rank,
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu: 'x',
     sensesShard: 0,
     paradigmShard: -1,

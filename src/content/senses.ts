@@ -8,8 +8,8 @@
  * senses), fetched through `loader.ts`'s deduplicated per-shard cache.
  */
 import type { WordId } from '@/learning/skills/skill-id.ts'
-import type { Sense } from '@/types/content.ts'
-import { loadSensesShard } from './loader.ts'
+import type { Sense, SenseDetails, SenseId } from '@/types/content.ts'
+import { loadSenseDetailsShard, loadSensesShard } from './loader.ts'
 import { getIndexStore } from './index-store.ts'
 
 function requireEntry(wordId: WordId) {
@@ -27,7 +27,7 @@ export function getPrimaryTranslation(wordId: WordId): string {
 }
 
 /** Every sense (meaning) of `wordId`, in the order the content pipeline emitted them
- *  (primary sense first — see `scripts/build-content.ts`). */
+ *  (primary sense first, the rest in source order — see `scripts/build-content.ts`). */
 export async function getSenses(wordId: WordId): Promise<Sense[]> {
   const entry = requireEntry(wordId)
   const shard = await loadSensesShard(entry.sensesShard)
@@ -48,6 +48,26 @@ export async function getAllTranslations(wordId: WordId): Promise<string[]> {
         result.push(translation)
       }
     }
+  }
+  return result
+}
+
+/**
+ * Display-only details (Polish gloss and example, Belarusian/Ukrainian translations) of every
+ * sense of `wordId`, keyed by sense id — from the lazy `sense-details/` shard (task 47 §4).
+ * Rejects when that shard cannot be fetched (e.g. offline and never cached before). A sense
+ * missing from the shard is simply absent from the map.
+ */
+export async function getSenseDetails(wordId: WordId): Promise<Map<SenseId, SenseDetails>> {
+  const entry = requireEntry(wordId)
+  const [senses, shard] = await Promise.all([
+    getSenses(wordId),
+    loadSenseDetailsShard(entry.sensesShard),
+  ])
+  const result = new Map<SenseId, SenseDetails>()
+  for (const sense of senses) {
+    const details = shard.get(sense.id)
+    if (details) result.set(sense.id, details)
   }
   return result
 }

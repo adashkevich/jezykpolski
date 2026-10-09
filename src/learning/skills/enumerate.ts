@@ -150,6 +150,13 @@ function dimensionsForForm(pos: WordIndexEntry['pos'], form: DecodedForm): Dimen
       }
       return []
     }
+
+    // Task 47: no paradigm (`scripts/paradigm-aliases.ts`), so no grammar dimensions — only
+    // the three vocab skills, like any other paradigm-less word.
+    case 'PRON':
+    case 'SCONJ':
+    case 'INTJ':
+      return []
   }
 }
 

@@ -1,10 +1,10 @@
 /**
- * Cache Storage naming convention for the two content-shard runtime caches
+ * Cache Storage naming convention for the content-shard runtime caches
  * (`spec/tasks/25-offline-update.md` §2 for paradigms, §1's "перевести в runtime-кэш с
  * прогревом" fallback for senses — see `senses-prewarm.ts`'s header for why senses ended up
- * here too).
+ * here too; `spec/tasks/47-content-pipeline-v2.md` §4 for the lazy sense details).
  *
- * Both names are `<kind>-${contentVersion}` — `contentVersion` baked into the cache name is
+ * All names are `<kind>-${contentVersion}` — `contentVersion` baked into the cache name is
  * what gives "rebuild content with different data → old cache silently orphaned, new cache
  * starts empty and gets repopulated" for free, without any explicit migration
  * (`vite.config.ts`'s workbox `CacheFirst` rules use these same names; the client-side
@@ -25,4 +25,8 @@ export function paradigmCacheName(contentVersion: string): string {
 
 export function sensesCacheName(contentVersion: string): string {
   return `senses-${contentVersion}`
+}
+
+export function senseDetailsCacheName(contentVersion: string): string {
+  return `sense-details-${contentVersion}`
 }

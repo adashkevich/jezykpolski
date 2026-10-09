@@ -24,9 +24,19 @@ import type { Exercise, ExerciseInstance, MatchingPairSource } from '@/learning/
 import { encodeWordId, type SkillId } from '@/learning/skills/skill-id.ts'
 import { useSessionStore } from '@/stores/session.store.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function entry(lemma: string, primaryRu: string): WordIndexEntry {
-  return { lemma, pos: 'NOUN', rank: 1, level: 'A1', primaryRu, sensesShard: 0, paradigmShard: -1 }
+  return {
+    lemma,
+    pos: 'NOUN',
+    rank: 1,
+    level: 'A1',
+    levels: uniformLevels('A1'),
+    primaryRu,
+    sensesShard: 0,
+    paradigmShard: -1,
+  }
 }
 
 const WORDS = [

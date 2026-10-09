@@ -30,6 +30,16 @@ primary (задача 49). У 520 слов они расходятся: напр
 | `senses/NNN.json` | `id`, `ru`, `by`, `ua`, уровни, `primary` | ~410 KB | как сейчас (prewarm) |
 | `sense-details/NNN.json` | `gloss_pl`, `example_pl` по `id` | ~590 KB | лениво, только карточка слова и фидбэк (задача 50) |
 
+**Изменено при реализации** (журнал решений `00-progress.md`, задача 47): оценка ~410 KB не
+учитывала `id` — с ним шарды в форме таблицы весят 568 KB gzip (без `id` — 417 KB). Белорусские и
+украинские переводы только показываются (в ответах не принимаются, задача 51 §3), поэтому они
+перенесены в ленивый шард:
+
+| Артефакт | Содержимое | gzip (факт) |
+|---|---|---|
+| `senses/NNN.json` | `id`, `ru`, `lv: [ru, by, ua]`, `primary` | 336 KB |
+| `sense-details/NNN.json` | `gl`, `ex`, `by`, `ua` по `sense_id` | 860 KB |
+
 ---
 
 ## 1. `content.schema.ts`
@@ -43,6 +53,9 @@ primary (задача 49). У 520 слов они расходятся: напр
   Уровни — коды `LEVEL` primary-значения.
 - `SenseEntrySchema`: `{ id, ru, by, ua, lv: [ru, by, ua] /* коды LEVEL */, primary }`. `en` удаляется.
 - Новый `SenseDetailsShardSchema`: `Record<senseId, { gl: string, ex: string }>`.
+  **Изменено при реализации** (см. «Бюджет»): `SenseEntry` = `{ id, ru, lv, primary }`,
+  `SenseDetailsShard` = `Record<senseId, { gl, ex, by, ua }>`. `RawWordV2Schema.pos` — `POS_VALUES`
+  кодека; `DET` допускает только схема чанка `RawChunkWordSchema` (для `assemble-words.ts`).
 - `ManifestSchema.shards` получает `senseDetails`.
 
 `level_confidence` в рантайм не идёт — используется только редактором словаря.
@@ -91,6 +104,9 @@ TypeScript заставит пройти все `Record<PosValue, …>` (`POS_LA
 - `types/content.ts`: `WordIndexEntry.level` остаётся — это уровень **активного профиля**
   (задача 51; до неё — всегда `ru`), плюс `levels: Readonly<Record<LangProfile, LevelValue>>`.
   `Sense` → `{ id, ru, by, ua, levels, primary }`.
+  **Изменено при реализации:** `Sense` = `{ id, ru, levels, primary }`; `by`/`ua` — в
+  `SenseDetails` = `{ gloss, example, by, ua }`, которые возвращает `getSenseDetails`. `LangProfile`
+  и порядок колонок `LANG_PROFILES` — в `codec.ts` (их читает и скрипт сборки).
 - `loader.ts` декодирует новую строку; `loadSenseDetailsShard(n)` — по образцу
   `loadParadigmShard` (runtime-кэш `sense-details`, `cache-names.ts`).
 - `content/senses.ts`: `getSenseDetails(wordId): Promise<Map<senseId, {gloss, example}>>`.
@@ -103,10 +119,11 @@ TypeScript заставит пройти все `Record<PosValue, …>` (`POS_LA
 
 ## Acceptance
 
-- [ ] `npm run build` проходит; отчёт пайплайна: 7986 слов, 0 дублей, список псевдонимов парадигм
-- [ ] Коды `NOUN`/`VERB`/`ADJ`/`ADV` в `manifest.codec.pos` те же, что до задачи
-- [ ] `spocić się|VERB` открывается в карточке с таблицей спряжения; `to|PRON` — без таблицы форм
-- [ ] `prawo|NOUN` в индексе имеет уровень A2 (по primary), а не A1
-- [ ] Шарды `senses` в сумме ≤ 450 KB gzip; `sense-details` не попадают в precache
+- [x] `npm run build` проходит; отчёт пайплайна: 7986 слов, 0 дублей, список псевдонимов парадигм
+- [x] Коды `NOUN`/`VERB`/`ADJ`/`ADV` в `manifest.codec.pos` те же, что до задачи
+- [x] `spocić się|VERB` открывается в карточке с таблицей спряжения; `to|PRON` — без таблицы форм
+      (проверено по `public/content` и тестами; в живом приложении — за основной сессией)
+- [x] `prawo|NOUN` в индексе имеет уровень A2 (по primary), а не A1
+- [x] Шарды `senses` в сумме ≤ 450 KB gzip; `sense-details` не попадают в precache
       (`npm run build` → `check-bundle-size` зелёный)
-- [ ] Тесты лоадера на новую строку индекса и на шард деталей; `npm test`, `npm run lint` проходят
+- [x] Тесты лоадера на новую строку индекса и на шард деталей; `npm test`, `npm run lint` проходят

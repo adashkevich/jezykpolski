@@ -17,6 +17,7 @@ import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.reposi
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import type { SkillRecord } from '@/types/progress.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function entry(lemma: string, rank: number): WordIndexEntry {
   return {
@@ -24,6 +25,7 @@ function entry(lemma: string, rank: number): WordIndexEntry {
     pos: 'NOUN',
     rank,
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu: 'x',
     sensesShard: 0,
     paradigmShard: -1,

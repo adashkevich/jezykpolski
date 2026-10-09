@@ -15,12 +15,14 @@ import type { Paradigm, WordIndexEntry } from '@/types/content.ts'
 import type { SkillRecord } from '@/types/progress.ts'
 import type { ContentContext } from './exercise.types.ts'
 import { generateExercise } from './generate.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 const ROBIC_ENTRY: WordIndexEntry = {
   lemma: 'robić',
   pos: 'VERB',
   rank: 69,
   level: 'A1',
+  levels: uniformLevels('A1'),
   primaryRu: 'делать',
   sensesShard: 9,
   paradigmShard: 57,

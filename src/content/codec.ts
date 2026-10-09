@@ -20,11 +20,25 @@
 // existing entries without a content-version bump — it would change encoded output).
 // ---------------------------------------------------------------------------
 
-export const POS_VALUES = ['NOUN', 'VERB', 'ADJ', 'ADV'] as const
+/**
+ * `PRON`/`SCONJ`/`INTJ` arrived with the v2 dictionary (task 47): appended at the END only —
+ * the codes are positional, so `NOUN`..`ADV` keep codes 1..4. Words of the new parts of speech
+ * have no paradigm (`scripts/paradigm-aliases.ts`) and only the three vocab skills.
+ */
+export const POS_VALUES = ['NOUN', 'VERB', 'ADJ', 'ADV', 'PRON', 'SCONJ', 'INTJ'] as const
 export type PosValue = (typeof POS_VALUES)[number]
 
 export const LEVEL_VALUES = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const
 export type LevelValue = (typeof LEVEL_VALUES)[number]
+
+/**
+ * Learner language profiles of the v2 dictionary (task 47): knows Russian only (`ru`),
+ * + Belarusian (`by`), + Ukrainian (`ua`). Every word and sense carries one level per
+ * profile; this order is the order of the level columns in `index.json` rows and of a sense's
+ * `lv` triple. Not a codec dictionary (never encoded as a number on its own).
+ */
+export const LANG_PROFILES = ['ru', 'by', 'ua'] as const
+export type LangProfile = (typeof LANG_PROFILES)[number]
 
 export const NUMBER_VALUES = ['singular', 'plural'] as const
 export type NumberValue = (typeof NUMBER_VALUES)[number]

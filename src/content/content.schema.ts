@@ -8,6 +8,10 @@
  *
  * At runtime, only `ManifestSchema` is ever used (task 04) — validating all 195,487
  * forms with Zod on a mobile device is out of budget (architecture.md §4.6).
+ *
+ * `data/words.json` is schema_version 2 since task 46 (senses with ru/by/ua translations, a
+ * Polish gloss and example, and one level per language profile); the v1 schemas were removed
+ * by task 47, which switched the pipeline over.
  */
 import { z } from 'zod'
 import {
@@ -23,7 +27,7 @@ import {
 } from './codec.ts'
 
 // ---------------------------------------------------------------------------
-// Input: data/words.json
+// Input: data/words.json, schema_version 2 (spec/tasks/46, 47 §1)
 // ---------------------------------------------------------------------------
 
 export const RawFrequencySchema = z.object({
@@ -34,60 +38,6 @@ export const RawFrequencySchema = z.object({
   dispersion: z.number(),
 })
 
-export const RawSenseSchema = z.object({
-  translation_ru: z.array(z.string()).min(1),
-  // 834 senses carry an explicit `null` here rather than omitting the key.
-  gloss_en: z.string().nullable().optional(),
-  primary: z.boolean(),
-  source: z.string(),
-})
-
-export const RawWordSchema = z.object({
-  lemma: z.string().min(1),
-  pos: z.enum(POS_VALUES),
-  frequency: RawFrequencySchema,
-  introduced_at: z.enum(LEVEL_VALUES),
-  level_confidence: z.number(),
-  senses: z.array(RawSenseSchema).min(1),
-  // `null` for exactly the 14 words that have no paradigm in inflections.json (spec §6).
-  morph_lemma: z.string().nullable(),
-})
-
-export const WordsJsonSchema = z.object({
-  schema_version: z.number(),
-  generated_at: z.string(),
-  source: z.string(),
-  counts: z.record(z.string(), z.number()),
-  words: z.array(RawWordSchema),
-})
-
-export type RawWord = z.infer<typeof RawWordSchema>
-export type WordsJson = z.infer<typeof WordsJsonSchema>
-
-// ---------------------------------------------------------------------------
-// Input: data/words.json, schema_version 2 (spec/tasks/46, 47 §1)
-//
-// Added next to the v1 schemas above, which stay until task 47 switches the content
-// pipeline over to v2 and deletes them.
-// ---------------------------------------------------------------------------
-
-/**
- * Every `pos` the edited chunks (`data/words_parts/output`) can carry. A superset of the
- * codec's `POS_VALUES` on purpose: `scripts/assemble-words.ts` validates the chunks BEFORE
- * it drops the one `DET` word (`niektóry|DET`, merged into `niektóry|ADJ`), and the codec
- * only learns `PRON`/`SCONJ`/`INTJ` in task 47.
- */
-export const RAW_POS_V2_VALUES = [
-  'NOUN',
-  'VERB',
-  'ADJ',
-  'ADV',
-  'PRON',
-  'SCONJ',
-  'DET',
-  'INTJ',
-] as const
-
 /** One level per learner profile: Russian only (`ru`), + Belarusian (`by`), + Ukrainian (`ua`). */
 export const LevelTripleSchema = z.object({
   ru: z.enum(LEVEL_VALUES),
@@ -97,6 +47,7 @@ export const LevelTripleSchema = z.object({
 
 const ConfidenceSchema = z.number().min(0).max(1)
 
+/** Editor-only (`data/words_parts/AGENTS.md`): never shipped to the runtime. */
 export const ConfidenceTripleSchema = z.object({
   ru: ConfidenceSchema,
   by: ConfidenceSchema,
@@ -124,9 +75,10 @@ export const RawSenseV2Schema = z.object({
   pos: z.string().optional(),
 })
 
+/** One word of the assembled dictionary (`data/words.json`). */
 export const RawWordV2Schema = z.object({
   lemma: z.string().min(1),
-  pos: z.enum(RAW_POS_V2_VALUES),
+  pos: z.enum(POS_VALUES),
   frequency: RawFrequencySchema,
   /** Earliest level over the word's senses, per profile. */
   introduced_at: LevelTripleSchema,
@@ -136,6 +88,17 @@ export const RawWordV2Schema = z.object({
   // `null` for the words that have no paradigm in inflections.json.
   morph_lemma: z.string().nullable(),
 })
+
+/**
+ * Every `pos` the editor's chunks (`data/words_parts/output`) may carry: the codec's
+ * `POS_VALUES` plus `DET`. `scripts/assemble-words.ts` validates the chunks BEFORE it merges the
+ * one `DET` word (`niektóry|DET` into `niektóry|ADJ`, `data/words-fixups.json`), and refuses to
+ * write a word whose `pos` is not a codec value into `data/words.json`.
+ */
+export const CHUNK_POS_VALUES = [...POS_VALUES, 'DET'] as const
+
+/** One word as the editor's chunks carry it — {@link RawWordV2Schema} with a wider `pos`. */
+export const RawChunkWordSchema = RawWordV2Schema.extend({ pos: z.enum(CHUNK_POS_VALUES) })
 
 export const WordsJsonV2Schema = z.object({
   schema_version: z.literal(2),
@@ -149,10 +112,14 @@ export type LevelTriple = z.infer<typeof LevelTripleSchema>
 export type ConfidenceTriple = z.infer<typeof ConfidenceTripleSchema>
 export type RawSenseV2 = z.infer<typeof RawSenseV2Schema>
 export type RawWordV2 = z.infer<typeof RawWordV2Schema>
+export type RawChunkWord = z.infer<typeof RawChunkWordSchema>
 export type WordsJsonV2 = z.infer<typeof WordsJsonV2Schema>
 
 // ---------------------------------------------------------------------------
 // Input: data/inflections.json
+//
+// Still keyed by the v1 `wordId`s: a word whose id changed in v2 finds its paradigm through
+// `scripts/paradigm-aliases.ts` (task 47 §3).
 // ---------------------------------------------------------------------------
 
 export const RawInflectedFormSchema = z.object({
@@ -190,9 +157,16 @@ export type InflectionsJson = z.infer<typeof InflectionsJsonSchema>
 // Output: public/content/index.json
 // ---------------------------------------------------------------------------
 
-/** `[lemma, posCode, rank, levelCode, primaryRu, sensesShard, paradigmShard]` */
+/**
+ * `[wordId, posCode, rank, levelRu, levelBy, levelUa, primaryRu, sensesShard, paradigmShard]`.
+ * The three levels are `LEVEL` codes of the word's PRIMARY sense, one per language profile
+ * (`LANG_PROFILES` order) — not the word-level `introduced_at`, which is the minimum over all
+ * senses (task 47, «Зачем»).
+ */
 export const IndexRowSchema = z.tuple([
   z.string(),
+  z.number().int(),
+  z.number().int(),
   z.number().int(),
   z.number().int(),
   z.number().int(),
@@ -210,16 +184,47 @@ export type IndexJson = z.infer<typeof IndexJsonSchema>
 // Output: public/content/senses/NNN.json
 // ---------------------------------------------------------------------------
 
+/**
+ * What the runtime needs synchronously (distractors, answer checking, the level gate): `id`,
+ * Russian translations, `lv` = `[ru, by, ua]` `LEVEL` codes of this sense (`LANG_PROFILES`
+ * order) and `primary`. The Belarusian/Ukrainian translations are display-only and live in
+ * `sense-details/` — with them here the shards would be 568 KB gzip against the 450 KB budget
+ * (task 47, «Журнал решений»).
+ */
 export const SenseEntrySchema = z.object({
+  id: z.string().min(1),
   ru: z.array(z.string()).min(1),
-  en: z.string().optional(),
+  lv: z.tuple([z.number().int(), z.number().int(), z.number().int()]),
   primary: z.boolean(),
 })
 
+/** Keyed by `wordId`; the primary sense comes first, the rest in source order. */
 export const SensesShardSchema = z.record(z.string(), z.array(SenseEntrySchema).min(1))
 
 export type SenseEntry = z.infer<typeof SenseEntrySchema>
 export type SensesShard = z.infer<typeof SensesShardSchema>
+
+// ---------------------------------------------------------------------------
+// Output: public/content/sense-details/NNN.json — lazy (word card, exercise feedback), never
+// precached or prewarmed. Same sharding as `senses/` (`senseShardIndex(wordId)`), keyed by
+// `sense_id`.
+// ---------------------------------------------------------------------------
+
+export const SenseDetailsEntrySchema = z.object({
+  /** `gloss_pl` */
+  gl: z.string().min(1),
+  /** `example_pl` */
+  ex: z.string().min(1),
+  /** `translation_by` */
+  by: z.array(z.string()).min(1),
+  /** `translation_ua` */
+  ua: z.array(z.string()).min(1),
+})
+
+export const SenseDetailsShardSchema = z.record(z.string(), SenseDetailsEntrySchema)
+
+export type SenseDetailsEntry = z.infer<typeof SenseDetailsEntrySchema>
+export type SenseDetailsShard = z.infer<typeof SenseDetailsShardSchema>
 
 // ---------------------------------------------------------------------------
 // Output: public/content/paradigms/NNN.json
@@ -276,6 +281,7 @@ export const ManifestSchema = z.object({
   }),
   shards: z.object({
     senses: z.number().int().positive(),
+    senseDetails: z.number().int().positive(),
     paradigms: z.number().int().positive(),
   }),
   codec: ManifestCodecSchema,

@@ -21,6 +21,7 @@ import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.
 import { SWIPE_KNOWN_DUE_DAYS, SWIPE_KNOWN_INITIAL_STABILITY } from '@/learning/srs/policy.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import type { SkillRecord } from '@/types/progress.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 const NOW = Date.UTC(2026, 8, 1, 12, 0, 0)
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -31,6 +32,7 @@ function entry(lemma: string): WordIndexEntry {
     pos: 'NOUN',
     rank: 1,
     level: 'A1',
+    levels: uniformLevels('A1'),
     primaryRu: 'x',
     sensesShard: 0,
     paradigmShard: -1,

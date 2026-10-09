@@ -28,6 +28,7 @@ import type { WordIndexEntry } from '@/types/content.ts'
 import type { Exercise } from '@/learning/exercises/exercise.types.ts'
 import type { SkillRecord } from '@/types/progress.ts'
 import { correctAnswerOf, submitAnswer, toSrsState } from './answer-pipeline.ts'
+import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function entry(
   overrides: Partial<WordIndexEntry> & Pick<WordIndexEntry, 'lemma' | 'rank'>,
@@ -40,6 +41,7 @@ function entry(
     // -1 = "no paradigm" (task 02 §6) — sidesteps any network fetch for these vocab-only
     // tests, exactly like `paradigms.test.ts`'s own `getParadigm` "14 real words" case.
     paradigmShard: -1,
+    levels: uniformLevels(overrides.level ?? 'A1'),
     ...overrides,
   }
 }

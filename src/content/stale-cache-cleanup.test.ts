@@ -32,16 +32,22 @@ afterEach(() => {
 })
 
 describe('cleanupStaleContentCaches', () => {
-  it('deletes old paradigms-*/senses-* caches, keeps the current contentVersion', async () => {
+  it('deletes old paradigms-*/senses-*/sense-details-* caches, keeps the current contentVersion', async () => {
     await fakeCaches.open('paradigms-old1')
     await fakeCaches.open('paradigms-old2')
     await fakeCaches.open('paradigms-new')
     await fakeCaches.open('senses-old1')
     await fakeCaches.open('senses-new')
+    await fakeCaches.open('sense-details-old1')
+    await fakeCaches.open('sense-details-new')
 
     await cleanupStaleContentCaches('new')
 
-    expect([...fakeCaches.names].sort()).toEqual(['paradigms-new', 'senses-new'])
+    expect([...fakeCaches.names].sort()).toEqual([
+      'paradigms-new',
+      'sense-details-new',
+      'senses-new',
+    ])
   })
 
   it('leaves unrelated cache names untouched', async () => {

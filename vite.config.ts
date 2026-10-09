@@ -5,7 +5,11 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { paradigmCacheName, sensesCacheName } from './src/content/cache-names.ts'
+import {
+  paradigmCacheName,
+  senseDetailsCacheName,
+  sensesCacheName,
+} from './src/content/cache-names.ts'
 
 /**
  * `contentVersion` for the two runtime-caching cache names below (task 25, §2 for paradigms,
@@ -93,12 +97,16 @@ export default defineConfig({
         // initial precache — but paradigms are lazy (loaded on-demand only when a word's
         // forms are actually expanded, task 24's own prefetch toggle is opt-in), not
         // eagerly warmed like senses.
+        //
+        // `content/sense-details/*.json` (task 47: Polish gloss/example, by/ua translations,
+        // ~860 KB gz) is excluded too — lazy like paradigms, fetched only by the word card and
+        // exercise feedback, never prewarmed.
         globPatterns: [
           '**/*.{js,css,html,svg,png,ico,woff,woff2}',
           'content/manifest.json',
           'content/index.json',
         ],
-        globIgnores: ['content/paradigms/**', 'content/senses/**'],
+        globIgnores: ['content/paradigms/**', 'content/senses/**', 'content/sense-details/**'],
         navigateFallbackDenylist: [/^\/content\//],
         runtimeCaching: [
           {
@@ -127,6 +135,20 @@ export default defineConfig({
             handler: 'CacheFirst',
             options: {
               cacheName: sensesCacheName(contentVersion),
+              expiration: {
+                maxEntries: 16,
+                maxAgeSeconds: 31536000, // 1 year
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // `content/sense-details/NNN.json` shards (task 47 §4) — loaded on demand by
+            // `content/loader.ts#loadSenseDetailsShard`; same 16-way sharding as senses.
+            urlPattern: /\/content\/sense-details\/.*\.json$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: senseDetailsCacheName(contentVersion),
               expiration: {
                 maxEntries: 16,
                 maxAgeSeconds: 31536000, // 1 year

@@ -17,39 +17,73 @@
  * `Sense` was added by task 04 (`src/content/senses.ts`): task 03 only defined
  * `WordIndexEntry`/`Paradigm`, but `spec/architecture.md` §7.1's future `Exercise` union
  * (task 09+) is expected to reference decoded `Paradigm`/`Sense` shapes side by side, so the
- * decoded sense view is declared here rather than as a `content/**`-local type. Decoding is
- * trivial (no numeric codec involved, unlike `Paradigm`) — it just types the JSON shape of
- * one `public/content/senses/NNN.json` entry (`SenseEntry` in `content.schema.ts`).
+ * decoded sense view is declared here rather than as a `content/**`-local type. Decoding only
+ * turns the `lv` level codes of one `public/content/senses/NNN.json` entry (`SenseEntry` in
+ * `content.schema.ts`) into {@link ProfileLevels}.
  */
-import type { DecodedForm, GenderValue, LevelValue, PosValue } from '@/content/codec.ts'
+import type {
+  DecodedForm,
+  GenderValue,
+  LangProfile,
+  LevelValue,
+  PosValue,
+} from '@/content/codec.ts'
+
+/** One level per language profile (task 47): knows Russian only / + Belarusian / + Ukrainian. */
+export type ProfileLevels = Readonly<Record<LangProfile, LevelValue>>
 
 /**
- * Decoded view of one `public/content/index.json` row
- * (`IndexRow = [lemma, posCode, rank, levelCode, primaryRu, sensesShard, paradigmShard]`).
+ * Decoded view of one `public/content/index.json` row (`IndexRow = [wordId, posCode, rank,
+ * levelRu, levelBy, levelUa, primaryRu, sensesShard, paradigmShard]`).
  */
 export interface WordIndexEntry {
   readonly lemma: string
   readonly pos: PosValue
   readonly rank: number
+  /**
+   * Level of the word's PRIMARY sense in the active language profile — what the level gate,
+   * filters and `/stats` use. Always `levels.ru` until task 51 makes the profile switchable.
+   */
   readonly level: LevelValue
-  /** First translation of the primary sense (full sense list lives in the senses shard). */
+  /** Level of the primary sense per profile (task 47) — not the minimum over all senses. */
+  readonly levels: ProfileLevels
+  /** First Russian translation of the primary sense (full sense list lives in the senses shard). */
   readonly primaryRu: string
   readonly sensesShard: number
-  /** `-1` when the word has no paradigm (14 words in the real corpus, see task 02 §6). */
+  /** `-1` when the word has no paradigm (27 words of the v2 corpus, task 47 §3). */
   readonly paradigmShard: number
 }
 
+/** `sense_id` from `data/words.json` — `"<lemma>:<slug>"`, permanent and globally unique. */
+export type SenseId = string
+
 /**
  * Decoded view of one meaning of a word (one entry of `public/content/senses/NNN.json`'s
- * per-word array).
+ * per-word array). Primary sense first, the rest in source order.
  */
 export interface Sense {
+  readonly id: SenseId
   /** Russian translation(s) for this sense; always at least one. */
   readonly ru: readonly string[]
-  /** English-language gloss, when the source dictionary provided one. */
-  readonly en?: string
-  /** Whether this is the word's primary/most common sense. */
+  /** This sense's own level per profile. */
+  readonly levels: ProfileLevels
+  /** Whether this is the word's primary sense — the one being taught (task 49). */
   readonly primary: boolean
+}
+
+/**
+ * Display-only part of a sense, from the lazy `public/content/sense-details/NNN.json` shard
+ * (word card, exercise feedback — tasks 50/51). Never needed synchronously.
+ */
+export interface SenseDetails {
+  /** Polish explanation of the sense (`gloss_pl`). */
+  readonly gloss: string
+  /** Polish usage example of this sense (`example_pl`). */
+  readonly example: string
+  /** Belarusian translation(s); always at least one. */
+  readonly by: readonly string[]
+  /** Ukrainian translation(s); always at least one. */
+  readonly ua: readonly string[]
 }
 
 /**

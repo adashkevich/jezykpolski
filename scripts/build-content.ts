@@ -6,13 +6,19 @@
  * Pass `--dev` to additionally emit `public/content/dev/raw-tags.json` (not deployed,
  * `public/content/` is gitignored wholesale).
  *
- * See `spec/tasks/02-content-pipeline.md` for the full spec this implements.
+ * See `spec/tasks/02-content-pipeline.md` for the original spec and
+ * `spec/tasks/47-content-pipeline-v2.md` for the v2 dictionary (senses with ru/by/ua
+ * translations and levels, lazy `sense-details/` shards, paradigm aliases).
+ *
+ * `buildWordArtifacts` is pure and exported for tests; `main` does the file I/O.
  */
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
+
+import { z } from 'zod'
 
 import {
   CODEC_DICTIONARIES,
@@ -33,15 +39,20 @@ import {
   InflectionsJsonSchema,
   ManifestSchema,
   ParadigmsShardSchema,
+  SenseDetailsShardSchema,
   SensesShardSchema,
-  WordsJsonSchema,
+  WordsJsonV2Schema,
   type IndexRow,
+  type LevelTriple,
   type Manifest,
   type ParadigmEntry,
   type RawParadigm,
-  type RawWord,
+  type RawSenseV2,
+  type RawWordV2,
+  type SenseDetailsEntry,
   type SenseEntry,
 } from '../src/content/content.schema.ts'
+import { createParadigmResolver, type ParadigmVia } from './paradigm-aliases.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, '..')
@@ -50,10 +61,18 @@ const OUT_DIR = join(ROOT, 'public', 'content')
 
 const DEV_MODE = process.argv.includes('--dev')
 
-// Budgets from spec §9.
+// Budgets from spec 02 §9 and 47 «Бюджет».
 const INDEX_GZIP_WARN_BYTES = 150 * 1024
+// What the service worker precaches from `content/`: manifest.json + index.json (task 25 moved
+// `senses/` to a prewarmed runtime cache).
 const PRECACHE_WARN_BYTES = 500 * 1024
+const SENSES_GZIP_BUDGET_BYTES = 450 * 1024
 const PARADIGMS_GZIP_BUDGET_BYTES = 1.2 * 1024 * 1024
+
+const RenamesJsonSchema = z.object({
+  fromContent: z.string(),
+  renames: z.record(z.string(), z.string()),
+})
 
 interface Discrepancy {
   kind: string
@@ -76,6 +95,96 @@ function writeJson(path: string, value: unknown, pretty: boolean): { raw: number
   return { raw: buf.length, gzip }
 }
 
+/** Shards as plain objects with sorted keys: byte output never depends on Map insertion order. */
+function writeShards<T>(
+  dir: string,
+  shards: ReadonlyArray<ReadonlyMap<string, T>>,
+): { raw: number; gzip: number } {
+  mkdirSync(join(OUT_DIR, dir), { recursive: true })
+  const total = { raw: 0, gzip: 0 }
+  shards.forEach((shard, i) => {
+    const obj = Object.fromEntries([...shard.entries()].sort(([a], [b]) => a.localeCompare(b)))
+    const { raw, gzip } = writeJson(join(OUT_DIR, dir, `${shardFileStem(i)}.json`), obj, false)
+    total.raw += raw
+    total.gzip += gzip
+  })
+  return total
+}
+
+function emptyShards<T>(count: number): Array<Map<string, T>> {
+  return Array.from({ length: count }, () => new Map<string, T>())
+}
+
+// ---------------------------------------------------------------------------
+// One word -> its index row, senses-shard entry and sense details (pure).
+// ---------------------------------------------------------------------------
+
+/** `LEVEL` codes in `LANG_PROFILES` order: `[ru, by, ua]`. */
+function levelCodes(levels: LevelTriple): [number, number, number] {
+  return [LEVEL.codeOf(levels.ru), LEVEL.codeOf(levels.by), LEVEL.codeOf(levels.ua)]
+}
+
+export interface WordArtifacts {
+  readonly row: IndexRow
+  /** The primary sense first, the rest in source order (`być:copula` is second in the file). */
+  readonly senses: SenseEntry[]
+  /** `sense_id` -> Polish gloss and example, by/ua translations, for `sense-details/`. */
+  readonly details: ReadonlyArray<readonly [string, SenseDetailsEntry]>
+}
+
+/** @param paradigmShard the word's paradigm shard, `-1` when it has no paradigm */
+export function buildWordArtifacts(word: RawWordV2, paradigmShard: number): WordArtifacts {
+  const id = wordId(word.lemma, word.pos)
+  const primary = word.senses.find((s) => s.primary)
+  if (!primary) throw new Error(`build-content: ${id} has no primary sense`)
+  const ordered: RawSenseV2[] = [primary, ...word.senses.filter((s) => s !== primary)]
+
+  const [levelRu, levelBy, levelUa] = levelCodes(primary.introduced_at)
+  const row: IndexRow = [
+    id,
+    POS.codeOf(word.pos),
+    word.frequency.rank,
+    levelRu,
+    levelBy,
+    levelUa,
+    primary.translation_ru[0]!,
+    senseShardIndex(id),
+    paradigmShard,
+  ]
+  const senses = ordered.map((s): SenseEntry => ({
+    id: s.sense_id,
+    ru: s.translation_ru,
+    lv: levelCodes(s.introduced_at),
+    primary: s.primary,
+  }))
+  const details = ordered.map(
+    (s) =>
+      [
+        s.sense_id,
+        { gl: s.gloss_pl, ex: s.example_pl, by: s.translation_by, ua: s.translation_ua },
+      ] as const,
+  )
+  return { row, senses, details }
+}
+
+// ---------------------------------------------------------------------------
+// Paradigm encoding.
+// ---------------------------------------------------------------------------
+
+function encodeParadigm(paradigm: RawParadigm): { entry: ParadigmEntry; multiGender: boolean } {
+  const forms = paradigm.forms.map((f) => encodeForm(f))
+  if (paradigm.pos !== 'NOUN') return { entry: { forms }, multiGender: false }
+
+  const genders = paradigm.forms
+    .map((f) => f.gender)
+    .filter((g): g is GenderValue => g !== undefined)
+  const dominant = computeDominantGender(genders)
+  return {
+    entry: dominant === undefined ? { forms } : { forms, dominantGender: GENDER.codeOf(dominant) },
+    multiGender: new Set(genders).size > 1,
+  }
+}
+
 function main(): void {
   const startedAt = Date.now()
   console.log('Content pipeline: reading data/**...')
@@ -83,10 +192,13 @@ function main(): void {
   const wordsRaw = readFileSync(join(DATA_DIR, 'words.json'))
   const inflectionsRaw = readFileSync(join(DATA_DIR, 'inflections.json'))
 
-  const wordsJson = WordsJsonSchema.parse(JSON.parse(wordsRaw.toString('utf8')))
+  const wordsJson = WordsJsonV2Schema.parse(JSON.parse(wordsRaw.toString('utf8')))
   const inflectionsJson = InflectionsJsonSchema.parse(JSON.parse(inflectionsRaw.toString('utf8')))
+  const { renames } = RenamesJsonSchema.parse(
+    JSON.parse(readFileSync(join(DATA_DIR, 'word-id-renames.json'), 'utf8')),
+  )
 
-  console.log(`  words.json: ${wordsJson.words.length} words`)
+  console.log(`  words.json: ${wordsJson.words.length} words (schema_version 2)`)
   console.log(`  inflections.json: ${Object.keys(inflectionsJson.paradigms).length} paradigms`)
 
   // contentVersion = sha256(words.json bytes ++ inflections.json bytes), first 12 hex chars.
@@ -99,35 +211,106 @@ function main(): void {
   const discrepancies: Discrepancy[] = []
 
   // -------------------------------------------------------------------------
-  // Join words <-> paradigms, tolerant of mismatches (spec §6).
+  // Duplicates would silently overwrite each other in the index and the shards.
   // -------------------------------------------------------------------------
 
-  const paradigmsByWordId = new Map<string, RawParadigm>(Object.entries(inflectionsJson.paradigms))
-  const wordIds = new Set(wordsJson.words.map((w) => wordId(w.lemma, w.pos)))
-
-  const wordsWithoutParadigm: RawWord[] = []
+  const duplicates: string[] = []
+  const seenWordIds = new Set<string>()
+  const seenSenseIds = new Set<string>()
   for (const w of wordsJson.words) {
-    if (!paradigmsByWordId.has(wordId(w.lemma, w.pos))) {
-      wordsWithoutParadigm.push(w)
+    const id = wordId(w.lemma, w.pos)
+    if (seenWordIds.has(id)) duplicates.push(`wordId ${id}`)
+    seenWordIds.add(id)
+    for (const s of w.senses) {
+      if (seenSenseIds.has(s.sense_id)) duplicates.push(`sense_id ${s.sense_id}`)
+      seenSenseIds.add(s.sense_id)
     }
   }
-  const orphanParadigmIds: string[] = []
-  for (const id of paradigmsByWordId.keys()) {
-    if (!wordIds.has(id)) orphanParadigmIds.push(id)
+  if (duplicates.length > 0) {
+    throw new Error(`build-content: duplicates in words.json: ${duplicates.join(', ')}`)
   }
-  orphanParadigmIds.sort()
 
-  if (wordsWithoutParadigm.length > 0) {
-    const byPos = new Map<string, number>()
-    for (const w of wordsWithoutParadigm) byPos.set(w.pos, (byPos.get(w.pos) ?? 0) + 1)
-    const breakdown = [...byPos.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([pos, n]) => `${pos} ${n}`)
-      .join(', ')
+  // -------------------------------------------------------------------------
+  // Join words <-> paradigms through the aliases (task 47 §3), tolerant of mismatches.
+  // -------------------------------------------------------------------------
+
+  const paradigmsById = new Map<string, RawParadigm>(Object.entries(inflectionsJson.paradigms))
+  const resolveParadigm = createParadigmResolver(new Set(paradigmsById.keys()), renames)
+
+  const paradigmsShards = emptyShards<ParadigmEntry>(PARADIGMS_SHARD_COUNT)
+  let totalForms = 0
+  let multiGenderNounCount = 0
+  const devRawTags: Record<string, string[]> = {}
+
+  /** Writes `paradigm` under `key` — the word's own id, so the runtime finds it by `wordId`. */
+  function writeParadigm(key: string, paradigm: RawParadigm): number {
+    const { entry, multiGender } = encodeParadigm(paradigm)
+    const shard = paradigmShardIndex(key)
+    paradigmsShards[shard]!.set(key, entry)
+    totalForms += entry.forms.length
+    if (multiGender) multiGenderNounCount++
+    if (DEV_MODE) devRawTags[key] = paradigm.forms.map((f) => f.raw_tag)
+    return shard
+  }
+
+  // Sorted by frequency.rank per spec 02 §3.
+  const sortedWords = [...wordsJson.words].sort((a, b) => a.frequency.rank - b.frequency.rank)
+
+  const indexRows: IndexRow[] = []
+  const sensesShards = emptyShards<SenseEntry[]>(SENSES_SHARD_COUNT)
+  const senseDetailsShards = emptyShards<SenseDetailsEntry>(SENSES_SHARD_COUNT)
+  const usedParadigmIds = new Set<string>()
+  const aliases: string[] = []
+  const withoutParadigm: Array<{ id: string; pos: string; via: ParadigmVia }> = []
+
+  for (const w of sortedWords) {
+    const id = wordId(w.lemma, w.pos)
+    const { paradigmId, via } = resolveParadigm(id, w.pos)
+    let paradigmShard = -1
+    if (paradigmId === null) {
+      withoutParadigm.push({ id, pos: w.pos, via })
+    } else {
+      paradigmShard = writeParadigm(id, paradigmsById.get(paradigmId)!)
+      usedParadigmIds.add(paradigmId)
+      if (paradigmId !== id) aliases.push(`${id} <- ${paradigmId} (${via})`)
+    }
+
+    const { row, senses, details } = buildWordArtifacts(w, paradigmShard)
+    indexRows.push(row)
+    const shard = senseShardIndex(id)
+    sensesShards[shard]!.set(id, senses)
+    for (const [senseId, entry] of details) senseDetailsShards[shard]!.set(senseId, entry)
+  }
+
+  // Orphan paradigms (used by no word, not even through an alias) are still written under
+  // their own key — dropping real inflection data would be wasteful — but nothing in
+  // index.json points at them. A key that is some word's own id is not written: that word
+  // deliberately has another paradigm or none (an override / a POS without paradigms).
+  const orphanParadigmIds = [...paradigmsById.keys()].filter((id) => !usedParadigmIds.has(id))
+  orphanParadigmIds.sort()
+  for (const id of orphanParadigmIds) {
+    if (!seenWordIds.has(id)) writeParadigm(id, paradigmsById.get(id)!)
+  }
+
+  if (aliases.length > 0) {
+    discrepancies.push({
+      kind: 'paradigm-alias',
+      detail: `${aliases.length} words use the paradigm of their v1 wordId (scripts/paradigm-aliases.ts): ${aliases.join(', ')}`,
+    })
+  }
+  if (withoutParadigm.length > 0) {
+    const breakdown = (key: 'pos' | 'via') => {
+      const counts = new Map<string, number>()
+      for (const w of withoutParadigm) counts.set(w[key], (counts.get(w[key]) ?? 0) + 1)
+      return [...counts.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, n]) => `${k} ${n}`)
+        .join(', ')
+    }
     discrepancies.push({
       kind: 'words-without-paradigm',
-      detail: `${wordsWithoutParadigm.length} words have no paradigm (${breakdown}): ${wordsWithoutParadigm
-        .map((w) => wordId(w.lemma, w.pos))
+      detail: `${withoutParadigm.length} words have no paradigm (${breakdown('pos')}; reason: ${breakdown('via')}): ${withoutParadigm
+        .map((w) => w.id)
         .sort()
         .join(', ')}`,
     })
@@ -135,97 +318,9 @@ function main(): void {
   if (orphanParadigmIds.length > 0) {
     discrepancies.push({
       kind: 'orphan-paradigms',
-      detail: `${orphanParadigmIds.length} paradigms have no matching word, excluded from index.json (still written to their paradigm shard, unreachable from the index): ${orphanParadigmIds.join(', ')}`,
+      detail: `${orphanParadigmIds.length} paradigms are used by no word, excluded from index.json (still written to their paradigm shard unless the key is a word's own id, unreachable from the index): ${orphanParadigmIds.join(', ')}`,
     })
   }
-
-  // -------------------------------------------------------------------------
-  // Build senses shards + index rows.
-  // -------------------------------------------------------------------------
-
-  const sensesShards: Array<Map<string, SenseEntry[]>> = Array.from(
-    { length: SENSES_SHARD_COUNT },
-    () => new Map<string, SenseEntry[]>(),
-  )
-
-  const indexRows: IndexRow[] = []
-
-  // Sorted by frequency.rank per spec §3.
-  const sortedWords = [...wordsJson.words].sort((a, b) => a.frequency.rank - b.frequency.rank)
-
-  for (const w of sortedWords) {
-    const id = wordId(w.lemma, w.pos)
-
-    const senseEntries: SenseEntry[] = w.senses.map((s) => ({
-      ru: s.translation_ru,
-      en: s.gloss_en ?? undefined,
-      primary: s.primary,
-    }))
-    const sShard = senseShardIndex(id)
-    sensesShards[sShard]!.set(id, senseEntries)
-
-    const primarySense = w.senses.find((s) => s.primary) ?? w.senses[0]!
-    const primaryRu = primarySense.translation_ru[0]!
-
-    const hasParadigm = paradigmsByWordId.has(id)
-    const paradigmShard = hasParadigm ? paradigmShardIndex(id) : -1
-
-    indexRows.push([
-      id,
-      POS.codeOf(w.pos),
-      w.frequency.rank,
-      LEVEL.codeOf(w.introduced_at),
-      primaryRu,
-      sShard,
-      paradigmShard,
-    ])
-  }
-
-  // -------------------------------------------------------------------------
-  // Build paradigms shards.
-  // -------------------------------------------------------------------------
-
-  const paradigmsShards: Array<Map<string, ParadigmEntry>> = Array.from(
-    { length: PARADIGMS_SHARD_COUNT },
-    () => new Map<string, ParadigmEntry>(),
-  )
-
-  let totalForms = 0
-  let multiGenderNounCount = 0
-  const devRawTags: Record<string, string[]> = {}
-
-  for (const [id, paradigm] of paradigmsByWordId) {
-    // Orphan paradigms (no matching word, reported above) are still written to their
-    // shard: dropping real inflection data would be wasteful, and no acceptance
-    // criterion asks for it to be removed — only that no word is indexed for it. They
-    // simply end up unreachable from index.json (nothing points at their shard entry).
-    const encodedForms = paradigm.forms.map((f) => encodeForm(f))
-    totalForms += encodedForms.length
-
-    let dominantGender: number | undefined
-    if (paradigm.pos === 'NOUN') {
-      const genders = paradigm.forms
-        .map((f) => f.gender)
-        .filter((g): g is GenderValue => g !== undefined)
-      const distinct = new Set(genders)
-      if (distinct.size > 1) multiGenderNounCount++
-      const dominant = computeDominantGender(genders)
-      dominantGender = dominant === undefined ? undefined : GENDER.codeOf(dominant)
-    }
-
-    const entry: ParadigmEntry =
-      dominantGender === undefined
-        ? { forms: encodedForms }
-        : { forms: encodedForms, dominantGender }
-
-    const shard = paradigmShardIndex(id)
-    paradigmsShards[shard]!.set(id, entry)
-
-    if (DEV_MODE) {
-      devRawTags[id] = paradigm.forms.map((f) => f.raw_tag)
-    }
-  }
-
   if (multiGenderNounCount > 0) {
     discrepancies.push({
       kind: 'multi-gender-nouns',
@@ -239,12 +334,9 @@ function main(): void {
 
   console.log('Validating output artifacts...')
   IndexJsonSchema.parse(indexRows)
-  for (const shard of sensesShards) {
-    SensesShardSchema.parse(Object.fromEntries(shard))
-  }
-  for (const shard of paradigmsShards) {
-    ParadigmsShardSchema.parse(Object.fromEntries(shard))
-  }
+  for (const shard of sensesShards) SensesShardSchema.parse(Object.fromEntries(shard))
+  for (const shard of senseDetailsShards) SenseDetailsShardSchema.parse(Object.fromEntries(shard))
+  for (const shard of paradigmsShards) ParadigmsShardSchema.parse(Object.fromEntries(shard))
 
   // -------------------------------------------------------------------------
   // Write artifacts. Fresh output dir each run for determinism (no stale files).
@@ -252,34 +344,12 @@ function main(): void {
 
   if (existsSync(OUT_DIR)) rmSync(OUT_DIR, { recursive: true, force: true })
   mkdirSync(OUT_DIR, { recursive: true })
-  mkdirSync(join(OUT_DIR, 'senses'), { recursive: true })
-  mkdirSync(join(OUT_DIR, 'paradigms'), { recursive: true })
 
   const indexSize = writeJson(join(OUT_DIR, 'index.json'), indexRows, false)
-
-  let sensesRaw = 0
-  let sensesGzip = 0
-  sensesShards.forEach((shard, i) => {
-    // Deterministic key order: sort wordIds so byte output never depends on Map
-    // insertion order (which itself depends on sortedWords / iteration order).
-    const obj = Object.fromEntries([...shard.entries()].sort(([a], [b]) => a.localeCompare(b)))
-    const { raw, gzip } = writeJson(join(OUT_DIR, 'senses', `${shardFileStem(i)}.json`), obj, false)
-    sensesRaw += raw
-    sensesGzip += gzip
-  })
-
-  let paradigmsRaw = 0
-  let paradigmsGzip = 0
-  paradigmsShards.forEach((shard, i) => {
-    const obj = Object.fromEntries([...shard.entries()].sort(([a], [b]) => a.localeCompare(b)))
-    const { raw, gzip } = writeJson(
-      join(OUT_DIR, 'paradigms', `${shardFileStem(i)}.json`),
-      obj,
-      false,
-    )
-    paradigmsRaw += raw
-    paradigmsGzip += gzip
-  })
+  const sensesSize = writeShards('senses', sensesShards)
+  const senseDetailsSize = writeShards('sense-details', senseDetailsShards)
+  const paradigmsSize = writeShards('paradigms', paradigmsShards)
+  const paradigmEntries = paradigmsShards.reduce((n, shard) => n + shard.size, 0)
 
   const manifest: Manifest = {
     contentVersion,
@@ -289,11 +359,12 @@ function main(): void {
     generatedAt: [wordsJson.generated_at, inflectionsJson.generated_at].sort().at(-1)!,
     counts: {
       words: wordsJson.words.length,
-      paradigms: paradigmsByWordId.size,
+      paradigms: paradigmEntries,
       forms: totalForms,
     },
     shards: {
       senses: SENSES_SHARD_COUNT,
+      senseDetails: SENSES_SHARD_COUNT,
       paradigms: PARADIGMS_SHARD_COUNT,
     },
     codec: {
@@ -321,32 +392,31 @@ function main(): void {
   // Report.
   // -------------------------------------------------------------------------
 
-  const precacheTotal = indexSize.gzip + sensesGzip + manifestSize.gzip
+  const precacheTotal = indexSize.gzip + manifestSize.gzip
   const elapsedMs = Date.now() - startedAt
+  const sizeLine = (label: string, size: { raw: number; gzip: number }) =>
+    console.log(
+      `  ${label.padEnd(34)} ${fmtBytes(size.raw).padStart(10)} / ${fmtBytes(size.gzip).padStart(10)}`,
+    )
 
   console.log('')
   console.log('=== Content pipeline report ===')
-  console.log(`words:     ${wordsJson.words.length}`)
+  console.log(`words:     ${wordsJson.words.length} (0 duplicate wordIds / sense_ids)`)
+  console.log(`senses:    ${seenSenseIds.size}`)
   console.log(
-    `paradigms: ${paradigmsByWordId.size} (of which ${orphanParadigmIds.length} orphan, unreferenced by any word)`,
+    `paradigms: ${paradigmEntries} written (${usedParadigmIds.size} of ${paradigmsById.size} in inflections.json used by words, ${aliases.length} through an alias; ${orphanParadigmIds.length} orphan)`,
   )
+  console.log(`words without paradigm: ${withoutParadigm.length}`)
   console.log(`forms:     ${totalForms}`)
   console.log(`contentVersion: ${contentVersion}`)
   console.log('')
   console.log('Artifact sizes (raw / gzip):')
-  console.log(
-    `  index.json              ${fmtBytes(indexSize.raw).padStart(10)} / ${fmtBytes(indexSize.gzip).padStart(10)}`,
-  )
-  console.log(
-    `  senses/*.json  (${String(SENSES_SHARD_COUNT).padStart(2)} shards) ${fmtBytes(sensesRaw).padStart(10)} / ${fmtBytes(sensesGzip).padStart(10)}`,
-  )
-  console.log(
-    `  paradigms/*.json (${PARADIGMS_SHARD_COUNT} shards) ${fmtBytes(paradigmsRaw).padStart(10)} / ${fmtBytes(paradigmsGzip).padStart(10)}`,
-  )
-  console.log(
-    `  manifest.json            ${fmtBytes(manifestSize.raw).padStart(10)} / ${fmtBytes(manifestSize.gzip).padStart(10)}`,
-  )
-  console.log(`  precache total (index+senses+manifest): ${fmtBytes(precacheTotal)}`)
+  sizeLine('index.json', indexSize)
+  sizeLine(`senses/*.json (${SENSES_SHARD_COUNT} shards)`, sensesSize)
+  sizeLine(`sense-details/*.json (${SENSES_SHARD_COUNT} shards, lazy)`, senseDetailsSize)
+  sizeLine(`paradigms/*.json (${PARADIGMS_SHARD_COUNT} shards)`, paradigmsSize)
+  sizeLine('manifest.json', manifestSize)
+  console.log(`  precache total (index+manifest): ${fmtBytes(precacheTotal)}`)
   console.log('')
 
   if (discrepancies.length > 0) {
@@ -360,21 +430,14 @@ function main(): void {
   console.log('')
 
   const warnings: string[] = []
-  if (indexSize.gzip > INDEX_GZIP_WARN_BYTES) {
-    warnings.push(
-      `index.json gzip ${fmtBytes(indexSize.gzip)} exceeds ${fmtBytes(INDEX_GZIP_WARN_BYTES)} budget`,
-    )
+  const budget = (label: string, actual: number, limit: number) => {
+    if (actual > limit)
+      warnings.push(`${label} ${fmtBytes(actual)} exceeds ${fmtBytes(limit)} budget`)
   }
-  if (precacheTotal > PRECACHE_WARN_BYTES) {
-    warnings.push(
-      `precache total ${fmtBytes(precacheTotal)} exceeds ${fmtBytes(PRECACHE_WARN_BYTES)} budget`,
-    )
-  }
-  if (paradigmsGzip > PARADIGMS_GZIP_BUDGET_BYTES) {
-    warnings.push(
-      `paradigms gzip total ${fmtBytes(paradigmsGzip)} exceeds ${fmtBytes(PARADIGMS_GZIP_BUDGET_BYTES)} budget`,
-    )
-  }
+  budget('index.json gzip', indexSize.gzip, INDEX_GZIP_WARN_BYTES)
+  budget('precache total', precacheTotal, PRECACHE_WARN_BYTES)
+  budget('senses gzip total', sensesSize.gzip, SENSES_GZIP_BUDGET_BYTES)
+  budget('paradigms gzip total', paradigmsSize.gzip, PARADIGMS_GZIP_BUDGET_BYTES)
   if (warnings.length > 0) {
     console.warn('WARNINGS:')
     for (const w of warnings) console.warn(`  - ${w}`)
@@ -386,4 +449,6 @@ function main(): void {
   console.log(`Done in ${elapsedMs}ms. Wrote ${OUT_DIR}`)
 }
 
-main()
+if (import.meta.main) {
+  main()
+}
