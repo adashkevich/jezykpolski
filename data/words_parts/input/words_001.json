@@ -1,0 +1,3161 @@
+{
+  "part": 1,
+  "range": [
+    1,
+    100
+  ],
+  "words": [
+    {
+      "lemma": "być",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 1,
+        "count": 2417498,
+        "per_million": 29583.399,
+        "arf": 1163420.11,
+        "dispersion": 0.7468
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.99,
+      "senses": [
+        {
+          "translation_ru": [
+            "быть"
+          ],
+          "gloss_en": "istnieć; trwać",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "być"
+    },
+    {
+      "lemma": "ten",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 2,
+        "count": 724343,
+        "per_million": 8863.928,
+        "arf": 442392.66,
+        "dispersion": 0.9011
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.97,
+      "senses": [
+        {
+          "translation_ru": [
+            "этот"
+          ],
+          "gloss_en": "this (demonstrative)",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "этот",
+            "это самое"
+          ],
+          "gloss_en": "filler/discourse marker",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "ten"
+    },
+    {
+      "lemma": "który",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3,
+        "count": 668609,
+        "per_million": 8181.9,
+        "arf": 408897.76,
+        "dispersion": 0.884
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.85,
+      "senses": [
+        {
+          "translation_ru": [
+            "который"
+          ],
+          "gloss_en": "relative pronoun: that, which, who",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "какой",
+            "который"
+          ],
+          "gloss_en": "interrogative: which one",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "który"
+    },
+    {
+      "lemma": "to",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 4,
+        "count": 606374,
+        "per_million": 7420.318,
+        "arf": 351918.58,
+        "dispersion": 0.8636
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.96,
+      "senses": [
+        {
+          "translation_ru": [
+            "это"
+          ],
+          "gloss_en": "demonstrative pronoun this/it",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "то"
+          ],
+          "gloss_en": "correlative 'then' in if-then clauses",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "to:S"
+    },
+    {
+      "lemma": "mieć",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 5,
+        "count": 564950,
+        "per_million": 6913.404,
+        "arf": 312146.89,
+        "dispersion": 0.8144
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.99,
+      "senses": [
+        {
+          "translation_ru": [
+            "иметь"
+          ],
+          "gloss_en": "być w posiadaniu czegoś, posiadać coś",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "иметь"
+          ],
+          "gloss_en": "dążyć do oddania czegoś komuś",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "иметь"
+          ],
+          "gloss_en": "dysponować środkami na wykonanie czegoś",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "mieć"
+    },
+    {
+      "lemma": "jak",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 6,
+        "count": 343343,
+        "per_million": 4201.556,
+        "arf": 199165.81,
+        "dispersion": 0.8362
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.95,
+      "senses": [
+        {
+          "translation_ru": [
+            "как"
+          ],
+          "gloss_en": "how / as / like",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "если"
+          ],
+          "gloss_en": "conditional: if",
+          "primary": false,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "когда"
+          ],
+          "gloss_en": "temporal: when",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "jak:D"
+    },
+    {
+      "lemma": "co",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 7,
+        "count": 319186,
+        "per_million": 3905.942,
+        "arf": 179371.71,
+        "dispersion": 0.8118
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.96,
+      "senses": [
+        {
+          "translation_ru": [
+            "что"
+          ],
+          "gloss_en": "what (interrogative/relative pronoun)",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "почему",
+            "зачем"
+          ],
+          "gloss_en": "why",
+          "primary": false,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "каждый"
+          ],
+          "gloss_en": "every (frequency)",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "co:S"
+    },
+    {
+      "lemma": "móc",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 8,
+        "count": 300560,
+        "per_million": 3678.012,
+        "arf": 165012.4,
+        "dispersion": 0.7983
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.92,
+      "senses": [
+        {
+          "translation_ru": [
+            "мочь"
+          ],
+          "gloss_en": "być w stanie coś wykonać, zrobić",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "мочь"
+          ],
+          "gloss_en": "mieć zezwolenie lub uprawnienie do wykonania czegoś",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "мочь"
+          ],
+          "gloss_en": "mieć szansę zaistnieć, wydarzyć się",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "móc"
+    },
+    {
+      "lemma": "rok",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 9,
+        "count": 315258,
+        "per_million": 3857.874,
+        "arf": 152129.98,
+        "dispersion": 0.7372
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.9,
+      "senses": [
+        {
+          "translation_ru": [
+            "год"
+          ],
+          "gloss_en": "czas, jaki w przybliżeniu zajmuje Ziemi obiegnięcie Słońca, równy 365 lub 366 dni",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "rok:Sm3~lata"
+    },
+    {
+      "lemma": "swój",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 10,
+        "count": 227387,
+        "per_million": 2782.579,
+        "arf": 130612.1,
+        "dispersion": 0.8432
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.7,
+      "senses": [
+        {
+          "translation_ru": [
+            "свой"
+          ],
+          "gloss_en": "reflexive possessive: one's own",
+          "primary": true,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "swój"
+    },
+    {
+      "lemma": "tak",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 11,
+        "count": 208949,
+        "per_million": 2556.95,
+        "arf": 119750.69,
+        "dispersion": 0.8173
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.97,
+      "senses": [
+        {
+          "translation_ru": [
+            "так"
+          ],
+          "gloss_en": "używany do podkreślania cechy przysłówka",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "так"
+          ],
+          "gloss_en": "używany do podkreślania cechy przymiotnika",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "так"
+          ],
+          "gloss_en": "w ten sposób",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "tak:D"
+    },
+    {
+      "lemma": "taki",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 12,
+        "count": 201612,
+        "per_million": 2467.166,
+        "arf": 115924.61,
+        "dispersion": 0.8555
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.75,
+      "senses": [
+        {
+          "translation_ru": [
+            "такой"
+          ],
+          "gloss_en": "such, of that kind / so (intensifier)",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "какой-то"
+          ],
+          "gloss_en": "some, a certain kind of",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "taki:A"
+    },
+    {
+      "lemma": "bardzo",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 13,
+        "count": 194495,
+        "per_million": 2380.074,
+        "arf": 111608.36,
+        "dispersion": 0.8503
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.93,
+      "senses": [
+        {
+          "translation_ru": [
+            "очень"
+          ],
+          "gloss_en": "służący do podkreślenia cechy przymiotnika, przysłówka lub czasownika w wysokim stopniu, dużo",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "более",
+            "наиболее",
+            "больше",
+            "всего"
+          ],
+          "gloss_en": "bardziej, najbardziej wyraz pomocniczy, stosowany do tworzenia form stopnia wyższego i najwyższego niektórych przymiotników i przysłówków",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "bardzo"
+    },
+    {
+      "lemma": "jeden",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 14,
+        "count": 168575,
+        "per_million": 2062.885,
+        "arf": 100226.26,
+        "dispersion": 0.8861
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.97,
+      "senses": [
+        {
+          "translation_ru": [
+            "один"
+          ],
+          "gloss_en": "liczba 1",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "jeden:A"
+    },
+    {
+      "lemma": "czas",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 15,
+        "count": 171564,
+        "per_million": 2099.462,
+        "arf": 97730.17,
+        "dispersion": 0.8657
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.82,
+      "senses": [
+        {
+          "translation_ru": [
+            "время"
+          ],
+          "gloss_en": "wymiar używany do określania kolejności zdarzeń",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "время"
+          ],
+          "gloss_en": "chwila, moment, pora",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "время"
+          ],
+          "gloss_en": "kategoria odmiany czasownika, polegająca na rozróżnianiu chwili wykonania czynności względem momentu wypowiedzi",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "czas:S"
+    },
+    {
+      "lemma": "sam",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 16,
+        "count": 162566,
+        "per_million": 1989.352,
+        "arf": 95601.17,
+        "dispersion": 0.8593
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.7,
+      "senses": [
+        {
+          "translation_ru": [
+            "один"
+          ],
+          "gloss_en": "alone, without company",
+          "primary": false,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "сам"
+          ],
+          "gloss_en": "by oneself, without help",
+          "primary": true,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "sam:A"
+    },
+    {
+      "lemma": "inny",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 17,
+        "count": 150761,
+        "per_million": 1844.892,
+        "arf": 87288.5,
+        "dispersion": 0.8442
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.8,
+      "senses": [
+        {
+          "translation_ru": [
+            "другой"
+          ],
+          "gloss_en": "odmienny, wyglądający, zachowujący się inaczej niż zwykle",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "другой"
+          ],
+          "gloss_en": "w użyciu rzeczownikowym ktoś inny (2.1), coś innego",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "inny:A"
+    },
+    {
+      "lemma": "chcieć",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 18,
+        "count": 154308,
+        "per_million": 1888.297,
+        "arf": 79387.0,
+        "dispersion": 0.7165
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.97,
+      "senses": [
+        {
+          "translation_ru": [
+            "хотеть"
+          ],
+          "gloss_en": "odczuwać chęć zrobienia czegoś",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "chcieć"
+    },
+    {
+      "lemma": "mówić",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 19,
+        "count": 153124,
+        "per_million": 1873.809,
+        "arf": 77075.07,
+        "dispersion": 0.6718
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.95,
+      "senses": [
+        {
+          "translation_ru": [
+            "говорить"
+          ],
+          "gloss_en": "używać mowy",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "разговаривать"
+          ],
+          "gloss_en": "rozmawiać",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "говорить"
+          ],
+          "gloss_en": "posługiwać się jakimś językiem",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "mówić"
+    },
+    {
+      "lemma": "człowiek",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 20,
+        "count": 153656,
+        "per_million": 1880.319,
+        "arf": 75175.2,
+        "dispersion": 0.7418
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.85,
+      "senses": [
+        {
+          "translation_ru": [
+            "человек"
+          ],
+          "gloss_en": "Homo sapiens Linnaeus, istota o najwyższym stopniu świadomości zamieszkująca Ziemię",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "человек"
+          ],
+          "gloss_en": "ktoś, jakaś osoba",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "человек"
+          ],
+          "gloss_en": "pracownik, podwładny, członek",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "człowiek"
+    },
+    {
+      "lemma": "zostać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 21,
+        "count": 137299,
+        "per_million": 1680.155,
+        "arf": 73316.58,
+        "dispersion": 0.7142
+      },
+      "introduced_at": "B1",
+      "level_confidence": 0.65,
+      "senses": [
+        {
+          "translation_ru": [
+            "остаться",
+            "стать"
+          ],
+          "gloss_en": "aspekt dokonany od: zostawać",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "zostać"
+    },
+    {
+      "lemma": "raz",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 22,
+        "count": 124650,
+        "per_million": 1525.367,
+        "arf": 69644.52,
+        "dispersion": 0.8034
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.8,
+      "senses": [
+        {
+          "translation_ru": [
+            "раз"
+          ],
+          "gloss_en": "pojedyncza realizacja czynności",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "raz:Sm3~a~u"
+    },
+    {
+      "lemma": "pierwszy",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 23,
+        "count": 117557,
+        "per_million": 1438.568,
+        "arf": 67114.72,
+        "dispersion": 0.8485
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.9,
+      "senses": [
+        {
+          "translation_ru": [
+            "первый"
+          ],
+          "gloss_en": "od liczby 1",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "pierwszy:A"
+    },
+    {
+      "lemma": "wszystko",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 24,
+        "count": 116821,
+        "per_million": 1429.562,
+        "arf": 67084.22,
+        "dispersion": 0.8262
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.85,
+      "senses": [
+        {
+          "translation_ru": [
+            "всё"
+          ],
+          "gloss_en": "everything",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "все"
+          ],
+          "gloss_en": "everyone (colloquial use)",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "wszystko:S"
+    },
+    {
+      "lemma": "musieć",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 25,
+        "count": 122913,
+        "per_million": 1504.111,
+        "arf": 66334.58,
+        "dispersion": 0.7672
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.85,
+      "senses": [
+        {
+          "translation_ru": [
+            "должен",
+            "нужно"
+          ],
+          "gloss_en": "być zobowiązanym do zrobienia czegoś",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "musieć"
+    },
+    {
+      "lemma": "cały",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 26,
+        "count": 106781,
+        "per_million": 1306.7,
+        "arf": 62745.93,
+        "dispersion": 0.8491
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.8,
+      "senses": [
+        {
+          "translation_ru": [
+            "целый",
+            "весь"
+          ],
+          "gloss_en": "zupełny, zawierający wszystkie elementy w czasie i przestrzeni",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "весь"
+          ],
+          "gloss_en": "jedyny, wyłączny",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "целый"
+          ],
+          "gloss_en": "duży, wielki",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "cały"
+    },
+    {
+      "lemma": "wiedzieć",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 27,
+        "count": 132481,
+        "per_million": 1621.196,
+        "arf": 61537.01,
+        "dispersion": 0.6235
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.85,
+      "senses": [
+        {
+          "translation_ru": [
+            "знать",
+            "ведать"
+          ],
+          "gloss_en": "mieć wiedzę na jakiś temat, mieć świadomość prawdziwości czegoś",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "wiedzieć"
+    },
+    {
+      "lemma": "gdy",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 28,
+        "count": 110932,
+        "per_million": 1357.497,
+        "arf": 57763.57,
+        "dispersion": 0.7439
+      },
+      "introduced_at": "B1",
+      "level_confidence": 0.6,
+      "senses": [
+        {
+          "translation_ru": [
+            "когда"
+          ],
+          "gloss_en": "when",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "если"
+          ],
+          "gloss_en": "if",
+          "primary": false,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "тогда как",
+            "в то время как"
+          ],
+          "gloss_en": "whereas",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "gdy:D"
+    },
+    {
+      "lemma": "życie",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 29,
+        "count": 112538,
+        "per_million": 1377.15,
+        "arf": 57082.2,
+        "dispersion": 0.7653
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.72,
+      "senses": [
+        {
+          "translation_ru": [
+            "жизнь"
+          ],
+          "gloss_en": "zespół procesów zachodzących w organizmie żywym lub jego poszczególnych częściach",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "существование"
+          ],
+          "gloss_en": "utrzymanie, wyżywienie",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "życie"
+    },
+    {
+      "lemma": "miejsce",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 30,
+        "count": 101791,
+        "per_million": 1245.636,
+        "arf": 54812.1,
+        "dispersion": 0.7997
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.8,
+      "senses": [
+        {
+          "translation_ru": [
+            "место"
+          ],
+          "gloss_en": "obszar lub punkt w przestrzeni",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "место"
+          ],
+          "gloss_en": "miejsce (1.1), niezajęte przez nic, wolne do umieszczenia w nim czegoś",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "место"
+          ],
+          "gloss_en": "wyznaczone miejsce (1.1), przeznaczone dla kogoś; krzesło, fotel itp. zarezerwowane dla kogoś",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "miejsce"
+    },
+    {
+      "lemma": "dzień",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 31,
+        "count": 110065,
+        "per_million": 1346.887,
+        "arf": 54478.69,
+        "dispersion": 0.7604
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.97,
+      "senses": [
+        {
+          "translation_ru": [
+            "день"
+          ],
+          "gloss_en": "okres od świtu do zmierzchu",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "dzień:Sm3"
+    },
+    {
+      "lemma": "nowy",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 32,
+        "count": 110484,
+        "per_million": 1352.014,
+        "arf": 54376.23,
+        "dispersion": 0.7422
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.88,
+      "senses": [
+        {
+          "translation_ru": [
+            "новый"
+          ],
+          "gloss_en": "istniejący od niedawna",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "nowy:A"
+    },
+    {
+      "lemma": "nasz",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 33,
+        "count": 113020,
+        "per_million": 1383.048,
+        "arf": 53978.88,
+        "dispersion": 0.7415
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.9,
+      "senses": [
+        {
+          "translation_ru": [
+            "наш"
+          ],
+          "gloss_en": "our",
+          "primary": true,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "nasz"
+    },
+    {
+      "lemma": "duży",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 34,
+        "count": 96444,
+        "per_million": 1180.204,
+        "arf": 52916.13,
+        "dispersion": 0.7764
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.92,
+      "senses": [
+        {
+          "translation_ru": [
+            "большой"
+          ],
+          "gloss_en": "taki, którego rozmiar jest ponadprzeciętny",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "большой"
+          ],
+          "gloss_en": "taki, którego ilość, natężenie, skala lub inna domyślna cecha jest znaczna w porównaniu z obiektami tego samego rodzaju",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "duży"
+    },
+    {
+      "lemma": "każdy",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 35,
+        "count": 93926,
+        "per_million": 1149.391,
+        "arf": 52771.39,
+        "dispersion": 0.8348
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.8,
+      "senses": [
+        {
+          "translation_ru": [
+            "каждый"
+          ],
+          "gloss_en": "each, every",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "все",
+            "каждый"
+          ],
+          "gloss_en": "everyone, everybody",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "każdy"
+    },
+    {
+      "lemma": "mój",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 36,
+        "count": 130867,
+        "per_million": 1601.445,
+        "arf": 51438.29,
+        "dispersion": 0.6084
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.97,
+      "senses": [
+        {
+          "translation_ru": [
+            "мой"
+          ],
+          "gloss_en": "my, mine",
+          "primary": true,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "mój:A"
+    },
+    {
+      "lemma": "dobry",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 37,
+        "count": 92719,
+        "per_million": 1134.621,
+        "arf": 51335.88,
+        "dispersion": 0.8249
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.97,
+      "senses": [
+        {
+          "translation_ru": [
+            "хороший"
+          ],
+          "gloss_en": "miły, uczynny, usłużny, szlachetny",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "dobry:A"
+    },
+    {
+      "lemma": "drugi",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 38,
+        "count": 87986,
+        "per_million": 1076.702,
+        "arf": 51309.51,
+        "dispersion": 0.8487
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.88,
+      "senses": [
+        {
+          "translation_ru": [
+            "второй"
+          ],
+          "gloss_en": "zajmujący ostatnie miejsce w dwuelementowym zbiorze o określonej kolejności elementów",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "drugi:A"
+    },
+    {
+      "lemma": "jaki",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 39,
+        "count": 89523,
+        "per_million": 1095.511,
+        "arf": 51106.87,
+        "dispersion": 0.8327
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.88,
+      "senses": [
+        {
+          "translation_ru": [
+            "какой"
+          ],
+          "gloss_en": "what kind of (interrogative/relative)",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "какой-то"
+          ],
+          "gloss_en": "some, indefinite kind of",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "jaki"
+    },
+    {
+      "lemma": "kiedy",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 40,
+        "count": 101258,
+        "per_million": 1239.114,
+        "arf": 50486.99,
+        "dispersion": 0.6897
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.93,
+      "senses": [
+        {
+          "translation_ru": [
+            "когда"
+          ],
+          "gloss_en": "when",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "когда-нибудь",
+            "когда-то"
+          ],
+          "gloss_en": "sometime, at some point",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "kiedy:D"
+    },
+    {
+      "lemma": "stać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 41,
+        "count": 88963,
+        "per_million": 1088.658,
+        "arf": 48751.72,
+        "dispersion": 0.721
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.8,
+      "senses": [
+        {
+          "translation_ru": [
+            "стоять"
+          ],
+          "gloss_en": "o człowieku, zwierzęciu: być w pozycji wyprostowanej, podpartym tylko na nogach",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "стоять"
+          ],
+          "gloss_en": "o przedmiocie: być ustawionym w taki sposób, że pionowy wymiar jest większy od poziomych",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "стоять"
+          ],
+          "gloss_en": "o penisie: być w stanie erekcji (często z podmiotem domyślnym)",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "stać:Vi"
+    },
+    {
+      "lemma": "powiedzieć",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 42,
+        "count": 102836,
+        "per_million": 1258.424,
+        "arf": 48172.61,
+        "dispersion": 0.5965
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.95,
+      "senses": [
+        {
+          "translation_ru": [
+            "сказать"
+          ],
+          "gloss_en": "wyrazić coś słowami, oznajmić",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "сказать"
+          ],
+          "gloss_en": "wyrazić w jakikolwiek sposób komunikatywny",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "powiedzieć"
+    },
+    {
+      "lemma": "wszystek",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 43,
+        "count": 81662,
+        "per_million": 999.314,
+        "arf": 47997.29,
+        "dispersion": 0.8557
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.9,
+      "senses": [
+        {
+          "translation_ru": [
+            "весь",
+            "вся",
+            "всё"
+          ],
+          "gloss_en": "all, the whole of",
+          "primary": true,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "wszystek"
+    },
+    {
+      "lemma": "coś",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 44,
+        "count": 90887,
+        "per_million": 1112.202,
+        "arf": 45229.21,
+        "dispersion": 0.6821
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.92,
+      "senses": [
+        {
+          "translation_ru": [
+            "нечто",
+            "что-то"
+          ],
+          "gloss_en": "something",
+          "primary": true,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "coś:S"
+    },
+    {
+      "lemma": "strona",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 45,
+        "count": 82037,
+        "per_million": 1003.903,
+        "arf": 44890.08,
+        "dispersion": 0.8173
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.78,
+      "senses": [
+        {
+          "translation_ru": [
+            "страница"
+          ],
+          "gloss_en": "jedna z powierzchni kartki lub innych płaskich przedmiotów, zwykle w książce, gazecie, albumie itp.",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "сторона"
+          ],
+          "gloss_en": "umowna część czegoś, znajdująca się przy brzegu, krawędzi tego czegoś",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "сторона"
+          ],
+          "gloss_en": "jedna z osób będąca sygnatariuszem umowy lub występująca jako podmiot w procesie",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "strona"
+    },
+    {
+      "lemma": "sprawa",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 46,
+        "count": 90022,
+        "per_million": 1101.617,
+        "arf": 44832.7,
+        "dispersion": 0.7228
+      },
+      "introduced_at": "B1",
+      "level_confidence": 0.75,
+      "senses": [
+        {
+          "translation_ru": [
+            "дело"
+          ],
+          "gloss_en": "to, co jest dla kogoś ważne",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "sprawa"
+    },
+    {
+      "lemma": "dobrze",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 47,
+        "count": 80982,
+        "per_million": 990.993,
+        "arf": 44703.18,
+        "dispersion": 0.779
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.95,
+      "senses": [
+        {
+          "translation_ru": [
+            "хорошо"
+          ],
+          "gloss_en": "w należyty sposób",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "хорошо"
+          ],
+          "gloss_en": "uczciwie",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "хорошо"
+          ],
+          "gloss_en": "przyjemnie",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "dobrze"
+    },
+    {
+      "lemma": "koniec",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 48,
+        "count": 74948,
+        "per_million": 917.153,
+        "arf": 43002.6,
+        "dispersion": 0.8121
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.85,
+      "senses": [
+        {
+          "translation_ru": [
+            "конец"
+          ],
+          "gloss_en": "ostatni fragment, część podłużnego przedmiotu, czubek",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "конец"
+          ],
+          "gloss_en": "chwila, w której jakaś czynność nie jest już dłużej wykonywana",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "конец"
+          ],
+          "gloss_en": "okoliczności końca (1.2)",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "koniec"
+    },
+    {
+      "lemma": "nic",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 49,
+        "count": 81485,
+        "per_million": 997.148,
+        "arf": 42992.71,
+        "dispersion": 0.7166
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.93,
+      "senses": [
+        {
+          "translation_ru": [
+            "ничто",
+            "ничего"
+          ],
+          "gloss_en": "nothing",
+          "primary": true,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "nic"
+    },
+    {
+      "lemma": "praca",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 50,
+        "count": 100104,
+        "per_million": 1224.992,
+        "arf": 42696.5,
+        "dispersion": 0.6719
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.9,
+      "senses": [
+        {
+          "translation_ru": [
+            "работа",
+            "труд"
+          ],
+          "gloss_en": "wykonywanie jakiejś czynności, służącej uzyskaniu dóbr",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "работа"
+          ],
+          "gloss_en": "miejsce pracy (1.1); funkcja pełniona w takim miejscu",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "работа"
+          ],
+          "gloss_en": "artykuł, tekst lub dzieło plastyczne",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "praca"
+    },
+    {
+      "lemma": "osoba",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 51,
+        "count": 93036,
+        "per_million": 1138.5,
+        "arf": 41768.66,
+        "dispersion": 0.646
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.8,
+      "senses": [
+        {
+          "translation_ru": [
+            "человек",
+            "лицо"
+          ],
+          "gloss_en": "pojedynczy człowiek, ktoś",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "лицо"
+          ],
+          "gloss_en": "pojęcie używane do określenia formy czasownika, w zależności od wykonawcy czynności",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "герой"
+          ],
+          "gloss_en": "bohater dramatu",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "osoba"
+    },
+    {
+      "lemma": "teraz",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 52,
+        "count": 78802,
+        "per_million": 964.316,
+        "arf": 41367.61,
+        "dispersion": 0.7114
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.95,
+      "senses": [
+        {
+          "translation_ru": [
+            "теперь",
+            "сейчас"
+          ],
+          "gloss_en": "w tej chwili, obecnie",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "teraz"
+    },
+    {
+      "lemma": "jakiś",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 53,
+        "count": 79198,
+        "per_million": 969.162,
+        "arf": 40037.89,
+        "dispersion": 0.6894
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.8,
+      "senses": [
+        {
+          "translation_ru": [
+            "какой-то"
+          ],
+          "gloss_en": "some, unspecified",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "своего рода",
+            "какой-то"
+          ],
+          "gloss_en": "kinda, sorta (doubt about term)",
+          "primary": false,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "около",
+            "примерно"
+          ],
+          "gloss_en": "about (doubt about amount)",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "jakiś"
+    },
+    {
+      "lemma": "świat",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 54,
+        "count": 81556,
+        "per_million": 998.017,
+        "arf": 39500.35,
+        "dispersion": 0.7071
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.78,
+      "senses": [
+        {
+          "translation_ru": [
+            "свет",
+            "мир",
+            "земля"
+          ],
+          "gloss_en": "cała Ziemia",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "świat"
+    },
+    {
+      "lemma": "polski",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 55,
+        "count": 98348,
+        "per_million": 1203.504,
+        "arf": 37894.24,
+        "dispersion": 0.5658
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.93,
+      "senses": [
+        {
+          "translation_ru": [
+            "польский"
+          ],
+          "gloss_en": "odnoszący się do Polski lub Polaków",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "polski:A"
+    },
+    {
+      "lemma": "tu",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 56,
+        "count": 74961,
+        "per_million": 917.313,
+        "arf": 37286.26,
+        "dispersion": 0.711
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.95,
+      "senses": [
+        {
+          "translation_ru": [
+            "тут",
+            "здесь"
+          ],
+          "gloss_en": "here (location)",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "сюда"
+          ],
+          "gloss_en": "here, hither (direction)",
+          "primary": false,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "сейчас"
+          ],
+          "gloss_en": "now (time)",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "tu"
+    },
+    {
+      "lemma": "tam",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 57,
+        "count": 70977,
+        "per_million": 868.56,
+        "arf": 37217.76,
+        "dispersion": 0.759
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.95,
+      "senses": [
+        {
+          "translation_ru": [
+            "там"
+          ],
+          "gloss_en": "there (location)",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "туда"
+          ],
+          "gloss_en": "there, thither (direction)",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "tam:D"
+    },
+    {
+      "lemma": "gdzie",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 58,
+        "count": 65051,
+        "per_million": 796.042,
+        "arf": 36456.28,
+        "dispersion": 0.8132
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.95,
+      "senses": [
+        {
+          "translation_ru": [
+            "где"
+          ],
+          "gloss_en": "where (location)",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "куда"
+          ],
+          "gloss_en": "where, whither (direction)",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "gdzie:D"
+    },
+    {
+      "lemma": "dom",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 59,
+        "count": 80067,
+        "per_million": 979.796,
+        "arf": 35792.9,
+        "dispersion": 0.6777
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.95,
+      "senses": [
+        {
+          "translation_ru": [
+            "дом"
+          ],
+          "gloss_en": "oddzielny budynek mieszkalny",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "дом"
+          ],
+          "gloss_en": "pomieszczenie lub miejsce które kojarzymy z domem rodzinnym lub z ogniskiem domowym",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "род",
+            "семья",
+            "династия"
+          ],
+          "gloss_en": "ród, rodzina, dynastia",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "dom"
+    },
+    {
+      "lemma": "kolejny",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 60,
+        "count": 64582,
+        "per_million": 790.303,
+        "arf": 35732.02,
+        "dispersion": 0.7739
+      },
+      "introduced_at": "B1",
+      "level_confidence": 0.7,
+      "senses": [
+        {
+          "translation_ru": [
+            "следующий",
+            "очередной"
+          ],
+          "gloss_en": "następny po tym, który jest teraz; przyszły",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "kolejny"
+    },
+    {
+      "lemma": "zacząć",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 61,
+        "count": 68211,
+        "per_million": 834.711,
+        "arf": 34927.16,
+        "dispersion": 0.6659
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.82,
+      "senses": [
+        {
+          "translation_ru": [
+            "начать"
+          ],
+          "gloss_en": "aspekt dokonany od: zaczynać",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "zacząć"
+    },
+    {
+      "lemma": "zrobić",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 62,
+        "count": 66057,
+        "per_million": 808.353,
+        "arf": 34623.08,
+        "dispersion": 0.635
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.9,
+      "senses": [
+        {
+          "translation_ru": [
+            "сделать"
+          ],
+          "gloss_en": "odpowiednimi działaniami spowodować powstanie czegoś",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "zrobić"
+    },
+    {
+      "lemma": "dziecko",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 63,
+        "count": 92769,
+        "per_million": 1135.233,
+        "arf": 33618.51,
+        "dispersion": 0.626
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.95,
+      "senses": [
+        {
+          "translation_ru": [
+            "ребёнок"
+          ],
+          "gloss_en": "potomek niezależnie od wieku: syn lub córka w odniesieniu do swoich rodziców biologicznych lub przybranych",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "ребёнок"
+          ],
+          "gloss_en": "istota ludzka w okresie wzrostu i dojrzewania, umownie do 18 roku życia",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "детище"
+          ],
+          "gloss_en": "dzieło, do którego twórca czuje się szczególnie przywiązany emocjonalnie",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "dziecko"
+    },
+    {
+      "lemma": "wielki",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 64,
+        "count": 62644,
+        "per_million": 766.587,
+        "arf": 33502.11,
+        "dispersion": 0.761
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.78,
+      "senses": [
+        {
+          "translation_ru": [
+            "большой"
+          ],
+          "gloss_en": "o nadzwyczaj dużych rozmiarach",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "большой"
+          ],
+          "gloss_en": "o nadzwyczaj dużej skali lub natężeniu",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "большой",
+            "великий"
+          ],
+          "gloss_en": "bardzo ważny, znaczący",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "wielki:A"
+    },
+    {
+      "lemma": "chwila",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 65,
+        "count": 68157,
+        "per_million": 834.051,
+        "arf": 33315.52,
+        "dispersion": 0.6292
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.72,
+      "senses": [
+        {
+          "translation_ru": [
+            "мгновение",
+            "момент"
+          ],
+          "gloss_en": "bardzo krótki czas",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "chwila"
+    },
+    {
+      "lemma": "sposób",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 66,
+        "count": 60608,
+        "per_million": 741.672,
+        "arf": 32863.01,
+        "dispersion": 0.7377
+      },
+      "introduced_at": "B1",
+      "level_confidence": 0.75,
+      "senses": [
+        {
+          "translation_ru": [
+            "способ",
+            "метод"
+          ],
+          "gloss_en": "metoda, algorytm zrobienia czegoś, rozwiązania jakiegoś problemu",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "sposób:S"
+    },
+    {
+      "lemma": "znaleźć",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 67,
+        "count": 57451,
+        "per_million": 703.039,
+        "arf": 32747.85,
+        "dispersion": 0.6958
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.82,
+      "senses": [
+        {
+          "translation_ru": [
+            "найти"
+          ],
+          "gloss_en": "odszukać coś lub kogoś ukrytego",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "найти"
+          ],
+          "gloss_en": "stać się właścicielem dzięki komuś",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "найти"
+          ],
+          "gloss_en": "uzyskać coś, osiągnąć",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "znaleźć"
+    },
+    {
+      "lemma": "ostatni",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 68,
+        "count": 57014,
+        "per_million": 697.692,
+        "arf": 32344.05,
+        "dispersion": 0.8055
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.85,
+      "senses": [
+        {
+          "translation_ru": [
+            "последний"
+          ],
+          "gloss_en": "znajdujący się na końcu listy, kolejności",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "ostatni:A"
+    },
+    {
+      "lemma": "robić",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 69,
+        "count": 58681,
+        "per_million": 718.091,
+        "arf": 31017.16,
+        "dispersion": 0.6394
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.95,
+      "senses": [
+        {
+          "translation_ru": [
+            "делать"
+          ],
+          "gloss_en": "wykonywać coś, tworzyć, produkować, przyrządzać, przygotowywać",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "становиться"
+          ],
+          "gloss_en": "o porach, zjawiskach, faktach: następować, rozpoczynać się, pojawiać się",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "robić"
+    },
+    {
+      "lemma": "dać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 70,
+        "count": 56480,
+        "per_million": 691.157,
+        "arf": 30996.65,
+        "dispersion": 0.6739
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.9,
+      "senses": [
+        {
+          "translation_ru": [
+            "дать"
+          ],
+          "gloss_en": "wręczyć, ofiarować coś (także przenośnie) komuś",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "дать"
+          ],
+          "gloss_en": "pozwolić, umożliwić coś",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "дать"
+          ],
+          "gloss_en": "o kobiecie: umożliwić odbycie z sobą stosunku seksualnego, por. dać dupy",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "dać"
+    },
+    {
+      "lemma": "widzieć",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 71,
+        "count": 62349,
+        "per_million": 762.977,
+        "arf": 30967.46,
+        "dispersion": 0.6158
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.9,
+      "senses": [
+        {
+          "translation_ru": [
+            "видеть",
+            "зрить"
+          ],
+          "gloss_en": "o organizmach żywych odbierać bodźce wzrokowe",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "видеть"
+          ],
+          "gloss_en": "spotykać się",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "видеть"
+          ],
+          "gloss_en": "mieć dany pogląd na coś/kogoś",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "widzieć"
+    },
+    {
+      "lemma": "kto",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 72,
+        "count": 58735,
+        "per_million": 718.752,
+        "arf": 30828.44,
+        "dispersion": 0.7623
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.95,
+      "senses": [
+        {
+          "translation_ru": [
+            "кто"
+          ],
+          "gloss_en": "who",
+          "primary": true,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "kto"
+    },
+    {
+      "lemma": "żaden",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 73,
+        "count": 54257,
+        "per_million": 663.954,
+        "arf": 30765.63,
+        "dispersion": 0.8122
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.78,
+      "senses": [
+        {
+          "translation_ru": [
+            "никакой",
+            "ни один"
+          ],
+          "gloss_en": "no, none",
+          "primary": true,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "żaden"
+    },
+    {
+      "lemma": "wtedy",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 74,
+        "count": 58069,
+        "per_million": 710.602,
+        "arf": 30521.86,
+        "dispersion": 0.7434
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.78,
+      "senses": [
+        {
+          "translation_ru": [
+            "тогда"
+          ],
+          "gloss_en": "then, at that time",
+          "primary": true,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "wtedy"
+    },
+    {
+      "lemma": "powinien",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 75,
+        "count": 56812,
+        "per_million": 695.22,
+        "arf": 30039.24,
+        "dispersion": 0.749
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.8,
+      "senses": [
+        {
+          "translation_ru": [
+            "должен"
+          ],
+          "gloss_en": "wyrażający coś, co warto, żeby podmiot zrobił",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": null
+    },
+    {
+      "lemma": "potem",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 76,
+        "count": 58476,
+        "per_million": 715.582,
+        "arf": 29126.32,
+        "dispersion": 0.6662
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.85,
+      "senses": [
+        {
+          "translation_ru": [
+            "потом",
+            "после",
+            "затем"
+          ],
+          "gloss_en": "później, w chwili następnej",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "potem"
+    },
+    {
+      "lemma": "słowo",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 77,
+        "count": 58157,
+        "per_million": 711.679,
+        "arf": 28903.96,
+        "dispersion": 0.7009
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.82,
+      "senses": [
+        {
+          "translation_ru": [
+            "слово"
+          ],
+          "gloss_en": "wyróżniona fonetycznie lub graficznie część wypowiedzi składająca się z jednego lub więcej morfemów, wyrażająca pewną niezmienną treść w danym języku",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "слово"
+          ],
+          "gloss_en": "obietnica, przyrzeczenie",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "глагол"
+          ],
+          "gloss_en": "czasownik",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "słowo"
+    },
+    {
+      "lemma": "mały",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 78,
+        "count": 52227,
+        "per_million": 639.112,
+        "arf": 28689.63,
+        "dispersion": 0.785
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.95,
+      "senses": [
+        {
+          "translation_ru": [
+            "маленький"
+          ],
+          "gloss_en": "mający niewielkie rozmiary, nieduży, drobny, niski",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "mały:A"
+    },
+    {
+      "lemma": "ważny",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 79,
+        "count": 52766,
+        "per_million": 645.708,
+        "arf": 28602.64,
+        "dispersion": 0.7512
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.8,
+      "senses": [
+        {
+          "translation_ru": [
+            "важный"
+          ],
+          "gloss_en": "mający duże znaczenie",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "действительный"
+          ],
+          "gloss_en": "mający moc prawną, obowiązujący",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "ważny"
+    },
+    {
+      "lemma": "zawsze",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 80,
+        "count": 52751,
+        "per_million": 645.524,
+        "arf": 28481.97,
+        "dispersion": 0.7552
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.88,
+      "senses": [
+        {
+          "translation_ru": [
+            "всегда"
+          ],
+          "gloss_en": "always, every time",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "постоянно"
+          ],
+          "gloss_en": "always, constantly",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "zawsze"
+    },
+    {
+      "lemma": "oko",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 81,
+        "count": 61355,
+        "per_million": 750.813,
+        "arf": 28466.55,
+        "dispersion": 0.5947
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.9,
+      "senses": [
+        {
+          "translation_ru": [
+            "глаз",
+            "око"
+          ],
+          "gloss_en": "narząd wzroku",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "ячейка"
+          ],
+          "gloss_en": "otwór pomiędzy węzłami (splotami) sieci",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "oko:Sn_col"
+    },
+    {
+      "lemma": "ręka",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 82,
+        "count": 57557,
+        "per_million": 704.336,
+        "arf": 28299.86,
+        "dispersion": 0.6582
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.9,
+      "senses": [
+        {
+          "translation_ru": [
+            "рука"
+          ],
+          "gloss_en": "część kończyny górnej człowieka lub małpy człekokształtnej od nadgarstka do końca palców, dłoń",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "ręka"
+    },
+    {
+      "lemma": "głowa",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 83,
+        "count": 62411,
+        "per_million": 763.736,
+        "arf": 28204.34,
+        "dispersion": 0.5743
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.9,
+      "senses": [
+        {
+          "translation_ru": [
+            "голова"
+          ],
+          "gloss_en": "część ciała zwierząt i człowieka, znajdująca się u góry lub z przodu ciała, zawierająca mózg",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "глава",
+            "голова"
+          ],
+          "gloss_en": "osoba przewodnicząca czemuś",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "голова"
+          ],
+          "gloss_en": "umysł (w związkach frazeologicznych)",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "głowa"
+    },
+    {
+      "lemma": "własny",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 84,
+        "count": 51095,
+        "per_million": 625.26,
+        "arf": 27982.37,
+        "dispersion": 0.7674
+      },
+      "introduced_at": "B1",
+      "level_confidence": 0.72,
+      "senses": [
+        {
+          "translation_ru": [
+            "собственный"
+          ],
+          "gloss_en": "będący w czyimś wyłącznym posiadaniu",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "własny"
+    },
+    {
+      "lemma": "ktoś",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 85,
+        "count": 55549,
+        "per_million": 679.764,
+        "arf": 27840.15,
+        "dispersion": 0.7016
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.8,
+      "senses": [
+        {
+          "translation_ru": [
+            "кто-то",
+            "некто"
+          ],
+          "gloss_en": "someone, somebody",
+          "primary": true,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "ktoś:Sm1~tosia"
+    },
+    {
+      "lemma": "prowadzić",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 86,
+        "count": 52120,
+        "per_million": 637.803,
+        "arf": 27618.61,
+        "dispersion": 0.5697
+      },
+      "introduced_at": "B1",
+      "level_confidence": 0.72,
+      "senses": [
+        {
+          "translation_ru": [
+            "вести",
+            "провожать"
+          ],
+          "gloss_en": "być czyimś przewodnikiem, kierować kogoś do jakiegoś miejsca",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "вести",
+            "управлять",
+            "рулить"
+          ],
+          "gloss_en": "kierować jakimś pojazdem (w domyśle: samochodem)",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "вести"
+          ],
+          "gloss_en": "w tańcu: kierować partnerką",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "prowadzić"
+    },
+    {
+      "lemma": "chodzić",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 87,
+        "count": 51309,
+        "per_million": 627.878,
+        "arf": 27477.35,
+        "dispersion": 0.6757
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.88,
+      "senses": [
+        {
+          "translation_ru": [
+            "ходить"
+          ],
+          "gloss_en": "poruszać się za pomocą nóg",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "ходить"
+          ],
+          "gloss_en": "poruszać się (regularnie) w jakimś kierunku, w jakieś miejsce",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "ходить"
+          ],
+          "gloss_en": "o mechanizmie: działać, pracować",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "chodzić"
+    },
+    {
+      "lemma": "droga",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 88,
+        "count": 54523,
+        "per_million": 667.209,
+        "arf": 26896.67,
+        "dispersion": 0.7226
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.85,
+      "senses": [
+        {
+          "translation_ru": [
+            "дорога"
+          ],
+          "gloss_en": "każdy wytyczony lub przyjęty pas terenu przeznaczony do ruchu pojazdów i ludzi, także zwierząt",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "droga"
+    },
+    {
+      "lemma": "miasto",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 89,
+        "count": 66598,
+        "per_million": 814.973,
+        "arf": 26855.73,
+        "dispersion": 0.6134
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.9,
+      "senses": [
+        {
+          "translation_ru": [
+            "город"
+          ],
+          "gloss_en": "znaczny obszar gęsto zabudowany, będący skupiskiem ludności wykonującej zawody nierolnicze, a który otrzymał prawa miejskie",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "miasto:S"
+    },
+    {
+      "lemma": "pan",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 90,
+        "count": 84518,
+        "per_million": 1034.263,
+        "arf": 26462.12,
+        "dispersion": 0.5714
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.95,
+      "senses": [
+        {
+          "translation_ru": [
+            "господин",
+            "вы"
+          ],
+          "gloss_en": "zwrot grzecznościowy w stosunku do mężczyzny; w zwrotach bezpośrednich zastępuje zaimek ty",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "господин"
+          ],
+          "gloss_en": "z czasownikiem w drugiej osobie zwrot nieco mniej bezpośredni niż „ty”, lecz raczej nieuprzejmy",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "господин"
+          ],
+          "gloss_en": "feudał lub właściciel ziemski, również magnat; władca",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "pan"
+    },
+    {
+      "lemma": "dlatego",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 91,
+        "count": 46583,
+        "per_million": 570.045,
+        "arf": 26323.3,
+        "dispersion": 0.7836
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.78,
+      "senses": [
+        {
+          "translation_ru": [
+            "поэтому",
+            "потому"
+          ],
+          "gloss_en": "that's why, therefore",
+          "primary": true,
+          "source": "model"
+        },
+        {
+          "translation_ru": [
+            "для того чтобы"
+          ],
+          "gloss_en": "in order to",
+          "primary": false,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "dlatego"
+    },
+    {
+      "lemma": "część",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 92,
+        "count": 50310,
+        "per_million": 615.653,
+        "arf": 26252.79,
+        "dispersion": 0.7253
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.7,
+      "senses": [
+        {
+          "translation_ru": [
+            "часть"
+          ],
+          "gloss_en": "fragment jakiejś całości",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "деталь",
+            "элемент"
+          ],
+          "gloss_en": "urządzenie elektryczne lub mechaniczne, działające w określony sposób, przeznaczone do pracy wewnątrz innego urządzenia lub we współpracy z nim",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "część"
+    },
+    {
+      "lemma": "często",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 93,
+        "count": 49791,
+        "per_million": 609.302,
+        "arf": 25787.83,
+        "dispersion": 0.7266
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.85,
+      "senses": [
+        {
+          "translation_ru": [
+            "часто",
+            "зачастую"
+          ],
+          "gloss_en": "zob. częsty",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "często"
+    },
+    {
+      "lemma": "rzecz",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 94,
+        "count": 47220,
+        "per_million": 577.84,
+        "arf": 25762.49,
+        "dispersion": 0.7666
+      },
+      "introduced_at": "A2",
+      "level_confidence": 0.75,
+      "senses": [
+        {
+          "translation_ru": [
+            "вещь"
+          ],
+          "gloss_en": "wytwór materialny, przedmiot",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "тема"
+          ],
+          "gloss_en": "temat, treść, wątek",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "rzecz"
+    },
+    {
+      "lemma": "kobieta",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 95,
+        "count": 69089,
+        "per_million": 845.456,
+        "arf": 25389.05,
+        "dispersion": 0.6077
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.95,
+      "senses": [
+        {
+          "translation_ru": [
+            "женщина"
+          ],
+          "gloss_en": "dorosły człowiek płci żeńskiej",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "kobieta"
+    },
+    {
+      "lemma": "stary",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 96,
+        "count": 48528,
+        "per_million": 593.847,
+        "arf": 25125.51,
+        "dispersion": 0.7453
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.9,
+      "senses": [
+        {
+          "translation_ru": [
+            "старый"
+          ],
+          "gloss_en": "mający wiele lat, niemłody",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "старый"
+          ],
+          "gloss_en": "nieaktualny, nieważny",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "старый"
+          ],
+          "gloss_en": "o żywności, pokarmie: nieświeży, nienadający się do spożycia",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "stary:A"
+    },
+    {
+      "lemma": "sytuacja",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 97,
+        "count": 49202,
+        "per_million": 602.095,
+        "arf": 25039.25,
+        "dispersion": 0.6962
+      },
+      "introduced_at": "B1",
+      "level_confidence": 0.8,
+      "senses": [
+        {
+          "translation_ru": [
+            "ситуация",
+            "случай",
+            "положение"
+          ],
+          "gloss_en": "zespół okoliczności, stan, w którym ktoś lub coś się znajduje lub coś się dzieje",
+          "primary": true,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "sytuacja"
+    },
+    {
+      "lemma": "należeć",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 98,
+        "count": 46560,
+        "per_million": 569.764,
+        "arf": 24586.36,
+        "dispersion": 0.6503
+      },
+      "introduced_at": "B1",
+      "level_confidence": 0.75,
+      "senses": [
+        {
+          "translation_ru": [
+            "принадлежать"
+          ],
+          "gloss_en": "być w posiadaniu czyimś",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "нужно",
+            "следует"
+          ],
+          "gloss_en": "(tylko forma bezosobowa) należy = wypada, powinno się",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "należeć:Vi"
+    },
+    {
+      "lemma": "stan",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 99,
+        "count": 45060,
+        "per_million": 551.408,
+        "arf": 23897.72,
+        "dispersion": 0.7488
+      },
+      "introduced_at": "B1",
+      "level_confidence": 0.72,
+      "senses": [
+        {
+          "translation_ru": [
+            "состояние"
+          ],
+          "gloss_en": "sytuacja, stopień czegoś, poziom sprawności w danej chwili; nastrój",
+          "primary": true,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "штат"
+          ],
+          "gloss_en": "odrębna jednostka administracyjna niektórych państw federacyjnych",
+          "primary": false,
+          "source": "plwiktionary"
+        },
+        {
+          "translation_ru": [
+            "талия"
+          ],
+          "gloss_en": "część ubrania kobiety na wysokości talii",
+          "primary": false,
+          "source": "plwiktionary"
+        }
+      ],
+      "morph_lemma": "stan"
+    },
+    {
+      "lemma": "nikt",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 100,
+        "count": 44774,
+        "per_million": 547.908,
+        "arf": 23845.44,
+        "dispersion": 0.7358
+      },
+      "introduced_at": "A1",
+      "level_confidence": 0.9,
+      "senses": [
+        {
+          "translation_ru": [
+            "никто"
+          ],
+          "gloss_en": "no one, nobody",
+          "primary": true,
+          "source": "model"
+        }
+      ],
+      "morph_lemma": "nikt"
+    }
+  ]
+}

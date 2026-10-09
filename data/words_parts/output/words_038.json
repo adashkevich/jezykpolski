@@ -1,0 +1,6707 @@
+{
+  "part": 38,
+  "range": [
+    3701,
+    3800
+  ],
+  "words": [
+    {
+      "lemma": "skrócić",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3702,
+        "count": 1735,
+        "per_million": 21.232,
+        "arf": 1010.32,
+        "dispersion": 0.1485
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "сократить"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Zmniejszyć czas trwania lub objętość wypowiedzi.",
+          "translation_by": [
+            "скараціць"
+          ],
+          "translation_ua": [
+            "скоротити"
+          ],
+          "example_pl": "Skrócił przemówienie do pięciu minut.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "skrócić:zmniejszyć_czas_trwania_lub_objętość_wypowiedzi"
+        },
+        {
+          "translation_ru": [
+            "укоротить"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "Zmniejszyć długość czegoś.",
+          "translation_by": [
+            "пакараціць",
+            "скараціць"
+          ],
+          "translation_ua": [
+            "вкоротити",
+            "скоротити"
+          ],
+          "example_pl": "Krawiec skrócił spodnie.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "skrócić:zmniejszyć_długość_czegoś"
+        }
+      ],
+      "morph_lemma": "skrócić"
+    },
+    {
+      "lemma": "nadmiar",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3703,
+        "count": 1942,
+        "per_million": 23.765,
+        "arf": 1010.29,
+        "dispersion": 0.4345
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "избыток",
+            "излишек"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Ilość większa niż potrzebna lub dopuszczalna.",
+          "translation_by": [
+            "лішак",
+            "празмерная колькасць"
+          ],
+          "translation_ua": [
+            "надлишок",
+            "надмірна кількість"
+          ],
+          "example_pl": "Nadmiar cukru szkodzi zdrowiu.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "nadmiar:ilość_większa_niż_potrzebna_lub_dopuszczalna"
+        }
+      ],
+      "morph_lemma": "nadmiar"
+    },
+    {
+      "lemma": "szum",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3704,
+        "count": 2023,
+        "per_million": 24.756,
+        "arf": 1010.28,
+        "dispersion": 0.4355
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "шум"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Ciągły, jednostajny dźwięk lub zakłócenie odbioru.",
+          "translation_by": [
+            "шум",
+            "шолах"
+          ],
+          "translation_ua": [
+            "шум",
+            "шелест"
+          ],
+          "example_pl": "Słyszę szum morza.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "szum:ciągły_jednostajny_dźwięk_lub_zakłócenie_odbioru"
+        }
+      ],
+      "morph_lemma": "szum"
+    },
+    {
+      "lemma": "dopaść",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3705,
+        "count": 2035,
+        "per_million": 24.903,
+        "arf": 1010.21,
+        "dispersion": 0.2949
+      },
+      "introduced_at": {
+        "ru": "B2",
+        "by": "B2",
+        "ua": "B2"
+      },
+      "level_confidence": {
+        "ru": 0.76,
+        "by": 0.76,
+        "ua": 0.76
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "настигнуть",
+            "поймать"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Dogonić i schwytać kogoś.",
+          "translation_by": [
+            "дагнаць",
+            "злавіць"
+          ],
+          "translation_ua": [
+            "наздогнати",
+            "спіймати"
+          ],
+          "example_pl": "Policjant dopadł uciekającego złodzieja.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "dopaść:dogonić_i_schwytać_kogoś"
+        },
+        {
+          "translation_ru": [
+            "подбежать",
+            "добраться"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "Szybko dotrzeć do określonego miejsca.",
+          "translation_by": [
+            "падбегчы",
+            "хутка дабрацца"
+          ],
+          "translation_ua": [
+            "підбігти",
+            "швидко дістатися"
+          ],
+          "example_pl": "Dopadł drzwi i otworzył je.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "dopaść:szybko_dotrzeć_do_określonego_miejsca"
+        }
+      ],
+      "morph_lemma": "dopaść:Vp~dnę"
+    },
+    {
+      "lemma": "natychmiastowy",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3706,
+        "count": 1764,
+        "per_million": 21.586,
+        "arf": 1009.47,
+        "dispersion": 0.4578
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "немедленный",
+            "мгновенный"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "dziejący się natychmiast, bardzo szybko po jakimś wydarzeniu",
+          "translation_by": [
+            "неадкладны",
+            "імгненны"
+          ],
+          "translation_ua": [
+            "негайний",
+            "миттєвий"
+          ],
+          "example_pl": "Potrzebna jest natychmiastowa pomoc.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "natychmiastowy:dziejący_się_natychmiast_bardzo_szybko_po_jakimś"
+        }
+      ],
+      "morph_lemma": "natychmiastowy"
+    },
+    {
+      "lemma": "odpocząć",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3707,
+        "count": 1833,
+        "per_million": 22.431,
+        "arf": 1009.34,
+        "dispersion": 0.2919
+      },
+      "introduced_at": {
+        "ru": "A1",
+        "by": "A1",
+        "ua": "A1"
+      },
+      "level_confidence": {
+        "ru": 0.92,
+        "by": 0.92,
+        "ua": 0.92
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "отдохнуть"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Odzyskać siły po wysiłku.",
+          "translation_by": [
+            "адпачыць"
+          ],
+          "translation_ua": [
+            "відпочити"
+          ],
+          "example_pl": "Po pracy chcę odpocząć.",
+          "introduced_at": {
+            "ru": "A1",
+            "by": "A1",
+            "ua": "A1"
+          },
+          "level_confidence": {
+            "ru": 0.92,
+            "by": 0.92,
+            "ua": 0.92
+          },
+          "sense_id": "odpocząć:odzyskać_siły_po_wysiłku"
+        }
+      ],
+      "morph_lemma": "odpocząć"
+    },
+    {
+      "lemma": "zagadka",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3708,
+        "count": 1991,
+        "per_million": 24.364,
+        "arf": 1009.29,
+        "dispersion": 0.4162
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "загадка"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Pytanie lub zadanie wymagające odgadnięcia odpowiedzi.",
+          "translation_by": [
+            "загадка"
+          ],
+          "translation_ua": [
+            "загадка"
+          ],
+          "example_pl": "Rozwiąż tę zagadkę logiczną.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "zagadka:pytanie_lub_zadanie_wymagające_odgadnięcia_odpowiedzi"
+        },
+        {
+          "translation_ru": [
+            "загадка"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "intrygująca tajemnica, trudna do wyjaśnienia",
+          "translation_by": [
+            "загадка",
+            "таямніца"
+          ],
+          "translation_ua": [
+            "загадка",
+            "таємниця"
+          ],
+          "example_pl": "Jego zniknięcie pozostaje zagadką.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "zagadka:intrygująca_tajemnica_trudna_do_wyjaśnienia"
+        }
+      ],
+      "morph_lemma": "zagadka"
+    },
+    {
+      "lemma": "staw",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3709,
+        "count": 2439,
+        "per_million": 29.847,
+        "arf": 1008.62,
+        "dispersion": 0.3343
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "пруд"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "niewielki zbiornik wody stojącej sztucznego lub naturalnego pochodzenia",
+          "translation_by": [
+            "сажалка"
+          ],
+          "translation_ua": [
+            "ставок"
+          ],
+          "example_pl": "W stawie pływają ryby.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "staw:niewielki_zbiornik_wody_stojącej_sztucznego_lub_naturalnego"
+        },
+        {
+          "translation_ru": [
+            "сустав"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "ruchome połączenie kości",
+          "translation_by": [
+            "сустаў"
+          ],
+          "translation_ua": [
+            "суглоб"
+          ],
+          "example_pl": "Boli mnie staw kolanowy.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "staw:ruchome_połączenie_kości"
+        }
+      ],
+      "morph_lemma": "staw"
+    },
+    {
+      "lemma": "naprawa",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3710,
+        "count": 2160,
+        "per_million": 26.432,
+        "arf": 1008.51,
+        "dispersion": 0.3439
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "ремонт"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "doprowadzanie czegoś do właściwego stanu, użyteczności, porządku; usuwanie błędów",
+          "translation_by": [
+            "рамонт",
+            "выпраўленне"
+          ],
+          "translation_ua": [
+            "ремонт",
+            "виправлення"
+          ],
+          "example_pl": "Naprawa samochodu kosztowała dużo.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "naprawa:doprowadzanie_czegoś_do_właściwego_stanu_użyteczności_porządku"
+        }
+      ],
+      "morph_lemma": "naprawa"
+    },
+    {
+      "lemma": "szeptać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3711,
+        "count": 2284,
+        "per_million": 27.95,
+        "arf": 1006.7,
+        "dispersion": 0.2006
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "шептать"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Mówić bardzo cicho, szeptem.",
+          "translation_by": [
+            "шаптаць"
+          ],
+          "translation_ua": [
+            "шепотіти"
+          ],
+          "example_pl": "Szeptała, żeby nie obudzić dziecka.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "szeptać:mówić_bardzo_cicho_szeptem"
+        }
+      ],
+      "morph_lemma": "szeptać"
+    },
+    {
+      "lemma": "priorytet",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3712,
+        "count": 1987,
+        "per_million": 24.315,
+        "arf": 1006.42,
+        "dispersion": 0.3579
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "приоритет"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "pierwszeństwo przysługujące czemuś",
+          "translation_by": [
+            "прыярытэт"
+          ],
+          "translation_ua": [
+            "пріоритет"
+          ],
+          "example_pl": "Zdrowie jest naszym priorytetem.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "priorytet:pierwszeństwo_przysługujące_czemuś"
+        }
+      ],
+      "morph_lemma": "priorytet"
+    },
+    {
+      "lemma": "uporządkować",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3713,
+        "count": 1770,
+        "per_million": 21.66,
+        "arf": 1006.05,
+        "dispersion": 0.203
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "упорядочить",
+            "привести в порядок"
+          ],
+          "primary": true,
+          "source": "ruwiktionary",
+          "gloss_pl": "Ułożyć coś zgodnie z określonym porządkiem.",
+          "translation_by": [
+            "упарадкаваць"
+          ],
+          "translation_ua": [
+            "упорядкувати"
+          ],
+          "example_pl": "Uporządkował dokumenty według dat.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "uporządkować:ułożyć_coś_zgodnie_z_określonym_porządkiem"
+        },
+        {
+          "translation_ru": [
+            "убрать",
+            "навести порядок"
+          ],
+          "primary": false,
+          "source": "ruwiktionary",
+          "gloss_pl": "Doprowadzić miejsce do porządku, usuwając bałagan.",
+          "translation_by": [
+            "прыбраць",
+            "навесці парадак"
+          ],
+          "translation_ua": [
+            "прибрати",
+            "навести лад"
+          ],
+          "example_pl": "Uporządkowała pokój przed wizytą gości.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "uporządkować:doprowadzić_miejsce_do_porządku_usuwając_bałagan"
+        }
+      ],
+      "morph_lemma": "uporządkować"
+    },
+    {
+      "lemma": "raj",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3714,
+        "count": 2167,
+        "per_million": 26.518,
+        "arf": 1005.73,
+        "dispersion": 0.3966
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "рай",
+            "эдем"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Miejsce szczęścia w wierzeniach religijnych, zwłaszcza ogród Eden lub niebo.",
+          "translation_by": [
+            "рай"
+          ],
+          "translation_ua": [
+            "рай"
+          ],
+          "example_pl": "Według Biblii pierwsi ludzie żyli w raju.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "raj:miejsce_szczęścia_w_wierzeniach_religijnych_zwłaszcza_ogród"
+        },
+        {
+          "translation_ru": [
+            "рай"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "piękne miejsce, gdzie ludzie są szczęśliwi",
+          "translation_by": [
+            "рай"
+          ],
+          "translation_ua": [
+            "рай"
+          ],
+          "example_pl": "Ta wyspa to raj dla turystów.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "raj:piękne_miejsce_gdzie_ludzie_są_szczęśliwi"
+        }
+      ],
+      "morph_lemma": "raj"
+    },
+    {
+      "lemma": "parlamentarny",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3715,
+        "count": 2345,
+        "per_million": 28.696,
+        "arf": 1005.7,
+        "dispersion": 0.283
+      },
+      "introduced_at": {
+        "ru": "B2",
+        "by": "B2",
+        "ua": "B2"
+      },
+      "level_confidence": {
+        "ru": 0.76,
+        "by": 0.76,
+        "ua": 0.76
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "парламентский"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "dotyczący parlamentu, związany z parlamentem",
+          "translation_by": [
+            "парламенцкі"
+          ],
+          "translation_ua": [
+            "парламентський"
+          ],
+          "example_pl": "Zbliżają się wybory parlamentarne.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "parlamentarny:dotyczący_parlamentu_związany_z_parlamentem"
+        }
+      ],
+      "morph_lemma": "parlamentarny"
+    },
+    {
+      "lemma": "dobrać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3716,
+        "count": 1715,
+        "per_million": 20.987,
+        "arf": 1005.68,
+        "dispersion": 0.2073
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "подобрать"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Wybrać coś odpowiedniego lub pasującego do całości.",
+          "translation_by": [
+            "падабраць"
+          ],
+          "translation_ua": [
+            "дібрати"
+          ],
+          "example_pl": "Dobrała buty do sukienki.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "dobrać:wybrać_coś_odpowiedniego_lub_pasującego_do_całości"
+        },
+        {
+          "translation_ru": [
+            "добраться",
+            "взломать"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "W połączeniu z „się”: uzyskać dostęp do czegoś chronionego.",
+          "translation_by": [
+            "дабрацца",
+            "ўзламаць"
+          ],
+          "translation_ua": [
+            "дістатися",
+            "зламати захист"
+          ],
+          "example_pl": "Złodzieje dobrali się do sejfu.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "dobrać:w_połączeniu_z_się_uzyskać_dostęp_do"
+        },
+        {
+          "translation_ru": [
+            "приставать",
+            "добиваться близости"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "Potocznie, w połączeniu z „się”: próbować zbliżenia seksualnego z kimś.",
+          "translation_by": [
+            "падабрацца",
+            "схіліць да блізкасці"
+          ],
+          "translation_ua": [
+            "підступитися",
+            "схилити до близькості"
+          ],
+          "example_pl": "Próbował dobrać się do niej, choć nie chciała bliskości.",
+          "introduced_at": {
+            "ru": "C1",
+            "by": "C1",
+            "ua": "C1"
+          },
+          "level_confidence": {
+            "ru": 0.7,
+            "by": 0.7,
+            "ua": 0.7
+          },
+          "sense_id": "dobrać:potocznie_w_połączeniu_z_się_próbować_zbliżenia"
+        }
+      ],
+      "morph_lemma": "dobrać"
+    },
+    {
+      "lemma": "odszkodowanie",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3717,
+        "count": 2927,
+        "per_million": 35.818,
+        "arf": 1005.15,
+        "dispersion": 0.2611
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "возмещение",
+            "компенсация"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "rodzaj świadczenia, które wynika z odpowiedzialności za szkodę",
+          "translation_by": [
+            "кампенсацыя",
+            "пакрыццё шкоды"
+          ],
+          "translation_ua": [
+            "відшкодування",
+            "компенсація"
+          ],
+          "example_pl": "Otrzymał odszkodowanie za wypadek.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "odszkodowanie:rodzaj_świadczenia_które_wynika_z_odpowiedzialności_za"
+        }
+      ],
+      "morph_lemma": "odszkodowanie"
+    },
+    {
+      "lemma": "ubiegać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3718,
+        "count": 1836,
+        "per_million": 22.467,
+        "arf": 1004.49,
+        "dispersion": 0.1112
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "source": "editor",
+          "translation_ru": [
+            "добиваться",
+            "претендовать"
+          ],
+          "gloss_pl": "W połączeniu z „się o”: starać się coś uzyskać.",
+          "translation_by": [
+            "дамагацца",
+            "прэтэндаваць"
+          ],
+          "translation_ua": [
+            "домагатися",
+            "претендувати"
+          ],
+          "example_pl": "Ubiega się o stypendium.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "ubiegać:w_połączeniu_z_się_o_starać_się",
+          "primary": true
+        },
+        {
+          "translation_ru": [
+            "опережать"
+          ],
+          "primary": false,
+          "source": "ruwiktionary",
+          "gloss_pl": "Dawniej: wyprzedzać kogoś w działaniu lub ruchu.",
+          "translation_by": [
+            "апярэджваць"
+          ],
+          "translation_ua": [
+            "випереджати"
+          ],
+          "example_pl": "Zwinny jeździec ubiegał rywala na trakcie.",
+          "introduced_at": {
+            "ru": "C2",
+            "by": "C2",
+            "ua": "C2"
+          },
+          "level_confidence": {
+            "ru": 0.6,
+            "by": 0.6,
+            "ua": 0.6
+          },
+          "sense_id": "ubiegać:dawniej_wyprzedzać_kogoś_w_działaniu_lub_ruchu"
+        },
+        {
+          "translation_ru": [
+            "проходить",
+            "истекать"
+          ],
+          "primary": false,
+          "source": "ruwiktionary",
+          "sense_id": "ubiegać:czas_przemija",
+          "gloss_pl": "Książkowo, o czasie: przemijać.",
+          "translation_by": [
+            "мінаць",
+            "праходзіць"
+          ],
+          "translation_ua": [
+            "минати",
+            "спливати"
+          ],
+          "example_pl": "Dni ubiegają szybko.",
+          "introduced_at": {
+            "ru": "C1",
+            "by": "C1",
+            "ua": "C1"
+          },
+          "level_confidence": {
+            "ru": 0.66,
+            "by": 0.66,
+            "ua": 0.66
+          }
+        }
+      ],
+      "morph_lemma": "ubiegać:Vi"
+    },
+    {
+      "lemma": "głupota",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3719,
+        "count": 1966,
+        "per_million": 24.058,
+        "arf": 1004.01,
+        "dispersion": 0.4548
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "глупость"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "niedostatek rozumu przejawiający się brakiem bystrości, nieumiejętnością rozpoznawania istoty rzeczy, związków przyczynowo-skutkowych, przewidywania i kojarzenia",
+          "translation_by": [
+            "глупства",
+            "дурнота"
+          ],
+          "translation_ua": [
+            "дурість",
+            "глупота"
+          ],
+          "example_pl": "To głupota jechać tak szybko.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "głupota:niedostatek_rozumu_przejawiający_się_brakiem_bystrości_nieumiejętnością"
+        }
+      ],
+      "morph_lemma": "głupota"
+    },
+    {
+      "lemma": "świadomie",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 3720,
+        "count": 1872,
+        "per_million": 22.908,
+        "arf": 1003.87,
+        "dispersion": 0.4282
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "сознательно",
+            "намеренно"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "w sposób przemyślany, zaplanowany; celowo",
+          "translation_by": [
+            "свядома",
+            "наўмысна"
+          ],
+          "translation_ua": [
+            "свідомо",
+            "навмисно"
+          ],
+          "example_pl": "Świadomie wybrała trudniejszą drogę.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "świadomie:w_sposób_przemyślany_zaplanowany_celowo"
+        }
+      ],
+      "morph_lemma": "świadomie"
+    },
+    {
+      "lemma": "stawić",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3721,
+        "count": 1756,
+        "per_million": 21.489,
+        "arf": 1003.42,
+        "dispersion": 0.2392
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "явиться"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "W połączeniu z „się”: przybyć do wyznaczonego miejsca.",
+          "translation_by": [
+            "з'явіцца",
+            "прыбыць"
+          ],
+          "translation_ua": [
+            "з'явитися",
+            "прибути"
+          ],
+          "example_pl": "Stawił się na wezwanie sądu.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "stawić:w_połączeniu_z_się_przybyć_do_wyznaczonego"
+        },
+        {
+          "source": "editor",
+          "translation_ru": [
+            "оказать"
+          ],
+          "gloss_pl": "W połączeniu z „opór”: przeciwstawić się komuś lub czemuś.",
+          "translation_by": [
+            "аказаць",
+            "паставіць"
+          ],
+          "translation_ua": [
+            "чинити",
+            "поставити"
+          ],
+          "example_pl": "Mieszkańcy stawili opór napastnikom.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "stawić:w_połączeniu_z_opór_przeciwstawić_się_komuś",
+          "primary": false
+        }
+      ],
+      "morph_lemma": "stawić:Vi.p"
+    },
+    {
+      "lemma": "przybrać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3722,
+        "count": 1795,
+        "per_million": 21.966,
+        "arf": 1003.25,
+        "dispersion": 0.2951
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "принять"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Uzyskać określoną postać lub cechę.",
+          "translation_by": [
+            "прыняць",
+            "набыць"
+          ],
+          "translation_ua": [
+            "набути",
+            "прийняти"
+          ],
+          "example_pl": "Chmura przybrała kształt serca.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "przybrać:uzyskać_określoną_postać_lub_cechę"
+        },
+        {
+          "translation_ru": [
+            "украсить"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "Ozdobić coś dodatkami.",
+          "translation_by": [
+            "упрыгожыць"
+          ],
+          "translation_ua": [
+            "прикрасити"
+          ],
+          "example_pl": "Przybrała stół kwiatami.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "przybrać:ozdobić_coś_dodatkami"
+        },
+        {
+          "source": "editor",
+          "translation_ru": [
+            "прибавить",
+            "увеличиться"
+          ],
+          "gloss_pl": "Zwiększyć się pod względem masy, ilości lub siły.",
+          "translation_by": [
+            "набраць",
+            "павялічыцца"
+          ],
+          "translation_ua": [
+            "набрати",
+            "збільшитися"
+          ],
+          "example_pl": "Przybrał na wadze po zimie.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "przybrać:zwiększyć_się_pod_względem_masy_ilości_lub",
+          "primary": false
+        }
+      ],
+      "morph_lemma": "przybrać"
+    },
+    {
+      "lemma": "zadecydować",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3723,
+        "count": 1758,
+        "per_million": 21.513,
+        "arf": 1002.67,
+        "dispersion": 0.2413
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "решить"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Podjąć decyzję lub przesądzić o wyniku.",
+          "translation_by": [
+            "вырашыць"
+          ],
+          "translation_ua": [
+            "вирішити"
+          ],
+          "example_pl": "Zadecydował o zmianie planu.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "zadecydować:podjąć_decyzję_lub_przesądzić_o_wyniku"
+        }
+      ],
+      "morph_lemma": "zadecydować"
+    },
+    {
+      "lemma": "tok",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3724,
+        "count": 1968,
+        "per_million": 24.083,
+        "arf": 1002.54,
+        "dispersion": 0.3524
+      },
+      "introduced_at": {
+        "ru": "B2",
+        "by": "B2",
+        "ua": "B2"
+      },
+      "level_confidence": {
+        "ru": 0.76,
+        "by": 0.76,
+        "ua": 0.76
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "ход"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "kierunek pewnych działań czy myśli",
+          "translation_by": [
+            "ход",
+            "плынь"
+          ],
+          "translation_ua": [
+            "хід",
+            "перебіг"
+          ],
+          "example_pl": "Przerwał tok rozmowy.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "tok:kierunek_pewnych_działań_czy_myśli"
+        }
+      ],
+      "morph_lemma": "tok"
+    },
+    {
+      "lemma": "tunel",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3725,
+        "count": 3076,
+        "per_million": 37.642,
+        "arf": 1002.4,
+        "dispersion": 0.2812
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "тоннель",
+            "туннель"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "budowla ziemna umożliwiająca poprowadzenie drogi lub torów kolejowych pod ziemią, górą, wodą itp.",
+          "translation_by": [
+            "тунэль"
+          ],
+          "translation_ua": [
+            "тунель"
+          ],
+          "example_pl": "Pociąg wjechał do tunelu.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "tunel:budowla_ziemna_umożliwiająca_poprowadzenie_drogi_lub_torów"
+        }
+      ],
+      "morph_lemma": "tunel"
+    },
+    {
+      "lemma": "płacz",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3726,
+        "count": 2290,
+        "per_million": 28.023,
+        "arf": 1002.4,
+        "dispersion": 0.4067
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "плач"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "wylewanie łez",
+          "translation_by": [
+            "плач"
+          ],
+          "translation_ua": [
+            "плач"
+          ],
+          "example_pl": "Usłyszałam płacz dziecka.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "płacz:wylewanie_łez"
+        }
+      ],
+      "morph_lemma": "płacz"
+    },
+    {
+      "lemma": "zjawić",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3727,
+        "count": 2102,
+        "per_million": 25.723,
+        "arf": 1002.24,
+        "dispersion": 0.3011
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "появиться"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "W połączeniu z „się”: przybyć lub nagle pojawić się.",
+          "translation_by": [
+            "з'явіцца"
+          ],
+          "translation_ua": [
+            "з'явитися"
+          ],
+          "example_pl": "Zjawił się bez zapowiedzi.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "zjawić:w_połączeniu_z_się_przybyć_lub_nagle"
+        }
+      ],
+      "morph_lemma": "zjawić"
+    },
+    {
+      "lemma": "widywać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3728,
+        "count": 1904,
+        "per_million": 23.3,
+        "arf": 1002.05,
+        "dispersion": 0.2455
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "видеть время от времени"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Spotykać lub widzieć kogoś od czasu do czasu.",
+          "translation_by": [
+            "бачыць час ад часу"
+          ],
+          "translation_ua": [
+            "бачити час від часу"
+          ],
+          "example_pl": "Widywałem go czasem w parku.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "widywać:spotykać_lub_widzieć_kogoś_od_czasu_do"
+        },
+        {
+          "translation_ru": [
+            "видеться",
+            "встречаться"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "W połączeniu z „się”: spotykać się od czasu do czasu.",
+          "translation_by": [
+            "бачыцца",
+            "сустракацца"
+          ],
+          "translation_ua": [
+            "бачитися",
+            "зустрічатися"
+          ],
+          "example_pl": "Widujemy się co miesiąc.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "widywać:w_połączeniu_z_się_spotykać_się_od"
+        }
+      ],
+      "morph_lemma": "widywać"
+    },
+    {
+      "lemma": "imperium",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3729,
+        "count": 2930,
+        "per_million": 35.855,
+        "arf": 1001.65,
+        "dispersion": 0.3078
+      },
+      "introduced_at": {
+        "ru": "B2",
+        "by": "B2",
+        "ua": "B2"
+      },
+      "level_confidence": {
+        "ru": 0.76,
+        "by": 0.76,
+        "ua": 0.76
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "империя"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "wielkie i potężne państwo, które podporządkowuje sobie inne kraje",
+          "translation_by": [
+            "імперыя"
+          ],
+          "translation_ua": [
+            "імперія"
+          ],
+          "example_pl": "Imperium podbiło sąsiednie kraje.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "imperium:wielkie_i_potężne_państwo_które_podporządkowuje_sobie"
+        },
+        {
+          "translation_ru": [
+            "бизнес-империя"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "wielkie przedsiębiorstwo lub organizacja mająca placówki w wielu miejscach na dużym obszarze",
+          "translation_by": [
+            "бізнес-імперыя"
+          ],
+          "translation_ua": [
+            "бізнес-імперія"
+          ],
+          "example_pl": "Zbudował wielkie imperium medialne.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "imperium:wielkie_przedsiębiorstwo_lub_organizacja_mająca_placówki_w"
+        }
+      ],
+      "morph_lemma": "imperium"
+    },
+    {
+      "lemma": "czystość",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3730,
+        "count": 2029,
+        "per_million": 24.829,
+        "arf": 1001.56,
+        "dispersion": 0.3998
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "чистота"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "cecha tego, co jest czyste (oczyszczone, wyczyszczone), nie jest brudne",
+          "translation_by": [
+            "чысціня"
+          ],
+          "translation_ua": [
+            "чистота"
+          ],
+          "example_pl": "Dbamy o czystość kuchni.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "czystość:cecha_tego_co_jest_czyste_oczyszczone_wyczyszczone"
+        },
+        {
+          "translation_ru": [
+            "чистота",
+            "невинность"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "Brak moralnej skazy lub niepożądanych domieszek.",
+          "translation_by": [
+            "чысціня",
+            "бездакорнасць"
+          ],
+          "translation_ua": [
+            "чистота",
+            "бездоганність"
+          ],
+          "example_pl": "Podkreślał czystość swoich intencji.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "czystość:brak_moralnej_skazy_lub_niepożądanych_domieszek"
+        },
+        {
+          "translation_ru": [
+            "целомудрие"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "wstrzemięźliwość, powściągliwość seksualna",
+          "translation_by": [
+            "цнатлівасць"
+          ],
+          "translation_ua": [
+            "цнотливість"
+          ],
+          "example_pl": "Ślubowała zachować czystość.",
+          "introduced_at": {
+            "ru": "C1",
+            "by": "C1",
+            "ua": "C1"
+          },
+          "level_confidence": {
+            "ru": 0.7,
+            "by": 0.7,
+            "ua": 0.7
+          },
+          "sense_id": "czystość:wstrzemięźliwość_powściągliwość_seksualna"
+        }
+      ],
+      "morph_lemma": "czystość"
+    },
+    {
+      "lemma": "lądować",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3731,
+        "count": 1887,
+        "per_million": 23.092,
+        "arf": 1001.03,
+        "dispersion": 0.1983
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "приземляться"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "osiadać na czymś – z powietrza lub wody",
+          "translation_by": [
+            "прызямляцца",
+            "прыставаць"
+          ],
+          "translation_ua": [
+            "приземлятися",
+            "причалювати"
+          ],
+          "example_pl": "Samolot ląduje na lotnisku.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "lądować:osiadać_na_czymś_z_powietrza_lub_wody"
+        }
+      ],
+      "morph_lemma": "lądować"
+    },
+    {
+      "lemma": "rozumienie",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3732,
+        "count": 2385,
+        "per_million": 29.186,
+        "arf": 1000.94,
+        "dispersion": 0.3173
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "понимание"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Pojmowanie treści, znaczenia lub zależności.",
+          "translation_by": [
+            "разуменне"
+          ],
+          "translation_ua": [
+            "розуміння"
+          ],
+          "example_pl": "Rozumienie tekstu wymaga znajomości słów.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "rozumienie:pojmowanie_treści_znaczenia_lub_zależności"
+        },
+        {
+          "translation_ru": [
+            "понимание"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "Sposób pojmowania czegoś.",
+          "translation_by": [
+            "разуменне",
+            "трактоўка"
+          ],
+          "translation_ua": [
+            "розуміння",
+            "трактування"
+          ],
+          "example_pl": "W jego rozumieniu sukces oznacza spokój.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "rozumienie:sposób_pojmowania_czegoś"
+        }
+      ],
+      "morph_lemma": "rozumienie"
+    },
+    {
+      "lemma": "mrok",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3733,
+        "count": 2449,
+        "per_million": 29.969,
+        "arf": 1000.64,
+        "dispersion": 0.3714
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "мрак"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "brak wystarczającej jasności, światła, ciemna szarość, która pojawia się po zachodzie słońca, zgaszeniu światła lub wypełnia słabo oświetlone miejsca",
+          "translation_by": [
+            "змрок"
+          ],
+          "translation_ua": [
+            "морок",
+            "темрява"
+          ],
+          "example_pl": "W pokoju panował mrok.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "mrok:brak_wystarczającej_jasności_światła_ciemna_szarość_która"
+        }
+      ],
+      "morph_lemma": "mrok"
+    },
+    {
+      "lemma": "dynamiczny",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3734,
+        "count": 2007,
+        "per_million": 24.56,
+        "arf": 1000.46,
+        "dispersion": 0.3279
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "динамичный",
+            "энергичный"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "ruchliwy, zmienny, żywiołowy",
+          "translation_by": [
+            "дынамічны",
+            "энергічны"
+          ],
+          "translation_ua": [
+            "динамічний",
+            "енергійний"
+          ],
+          "example_pl": "To dynamiczny zespół pełen pomysłów.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "dynamiczny:ruchliwy_zmienny_żywiołowy"
+        }
+      ],
+      "morph_lemma": "dynamiczny"
+    },
+    {
+      "lemma": "uniwersalny",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3735,
+        "count": 2180,
+        "per_million": 26.677,
+        "arf": 1000.43,
+        "dispersion": 0.3498
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "универсальный"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Nadający się do różnych zastosowań lub dotyczący wielu sytuacji.",
+          "translation_by": [
+            "універсальны"
+          ],
+          "translation_ua": [
+            "універсальний"
+          ],
+          "example_pl": "To uniwersalne narzędzie do wielu zadań.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "uniwersalny:nadający_się_do_różnych_zastosowań_lub_dotyczący"
+        }
+      ],
+      "morph_lemma": "uniwersalny"
+    },
+    {
+      "lemma": "kult",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3736,
+        "count": 2544,
+        "per_million": 31.131,
+        "arf": 999.4,
+        "dispersion": 0.336
+      },
+      "introduced_at": {
+        "ru": "B2",
+        "by": "B2",
+        "ua": "B2"
+      },
+      "level_confidence": {
+        "ru": 0.76,
+        "by": 0.76,
+        "ua": 0.76
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "культ"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "zachowania o charakterze religijnym skupione na bóstwie, innej istocie lub przedmiocie",
+          "translation_by": [
+            "культ"
+          ],
+          "translation_ua": [
+            "культ"
+          ],
+          "example_pl": "Badacz opisuje kult dawnych bóstw.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "kult:zachowania_o_charakterze_religijnym_skupione_na_bóstwie"
+        },
+        {
+          "source": "editor",
+          "translation_ru": [
+            "культ",
+            "поклонение"
+          ],
+          "gloss_pl": "Bardzo silny podziw lub uwielbienie czegoś albo kogoś.",
+          "translation_by": [
+            "культ",
+            "пакланенне"
+          ],
+          "translation_ua": [
+            "культ",
+            "поклоніння"
+          ],
+          "example_pl": "W społeczeństwie rozwijał się kult sukcesu.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "kult:bardzo_silny_podziw_lub_uwielbienie_czegoś_albo",
+          "primary": false
+        }
+      ],
+      "morph_lemma": "kult"
+    },
+    {
+      "lemma": "mroczny",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3737,
+        "count": 2009,
+        "per_million": 24.585,
+        "arf": 998.02,
+        "dispersion": 0.3979
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "мрачный"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "pogrążony w mroku",
+          "translation_by": [
+            "цёмны",
+            "змрочны"
+          ],
+          "translation_ua": [
+            "темний",
+            "похмурий"
+          ],
+          "example_pl": "Weszliśmy do mrocznego korytarza.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "mroczny:pogrążony_w_mroku"
+        },
+        {
+          "translation_ru": [
+            "мрачный"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "przepełniony cierpieniem, pełen tragizmu, smutku, grozy",
+          "translation_by": [
+            "змрочны",
+            "жахлівы"
+          ],
+          "translation_ua": [
+            "похмурий",
+            "моторошний"
+          ],
+          "example_pl": "To mroczna opowieść o zbrodni.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "mroczny:przepełniony_cierpieniem_pełen_tragizmu_smutku_grozy"
+        }
+      ],
+      "morph_lemma": "mroczny"
+    },
+    {
+      "lemma": "wznieść",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3738,
+        "count": 1814,
+        "per_million": 22.198,
+        "arf": 997.74,
+        "dispersion": 0.1857
+      },
+      "introduced_at": {
+        "ru": "B2",
+        "by": "B2",
+        "ua": "B2"
+      },
+      "level_confidence": {
+        "ru": 0.76,
+        "by": 0.76,
+        "ua": 0.76
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "поднять",
+            "вознести"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Podnieść coś w górę.",
+          "translation_by": [
+            "падняць",
+            "узнесці"
+          ],
+          "translation_ua": [
+            "підняти",
+            "піднести"
+          ],
+          "example_pl": "Wzniósł ręce do góry.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "wznieść:podnieść_coś_w_górę"
+        },
+        {
+          "source": "editor",
+          "translation_ru": [
+            "возвести"
+          ],
+          "gloss_pl": "Zbudować obiekt.",
+          "translation_by": [
+            "узвесці"
+          ],
+          "translation_ua": [
+            "звести"
+          ],
+          "example_pl": "Wzniesiono nowy most.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "wznieść:zbudować_obiekt",
+          "primary": false
+        }
+      ],
+      "morph_lemma": "wznieść"
+    },
+    {
+      "lemma": "reprezentant",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3739,
+        "count": 2052,
+        "per_million": 25.111,
+        "arf": 997.72,
+        "dispersion": 0.3332
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "представитель"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "osoba działająca w imieniu jakiejś grupy, reprezentująca kogoś lub coś",
+          "translation_by": [
+            "прадстаўнік"
+          ],
+          "translation_ua": [
+            "представник"
+          ],
+          "example_pl": "Reprezentant szkoły wystąpił na konkursie.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "reprezentant:osoba_działająca_w_imieniu_jakiejś_grupy_reprezentująca"
+        }
+      ],
+      "morph_lemma": "reprezentant:Sm2"
+    },
+    {
+      "lemma": "trząść",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3740,
+        "count": 2022,
+        "per_million": 24.744,
+        "arf": 996.83,
+        "dispersion": 0.2257
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "трясти"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "wykonywać ruchy drgania, szarpania",
+          "translation_by": [
+            "трэсці"
+          ],
+          "translation_ua": [
+            "трясти"
+          ],
+          "example_pl": "Nie trząś butelką.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "trząść:wykonywać_ruchy_drgania_szarpania"
+        },
+        {
+          "translation_ru": [
+            "трястись",
+            "дрожать"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "W połączeniu z „się”: drżeć lub podlegać wstrząsom.",
+          "translation_by": [
+            "трэсціся",
+            "дрыжаць"
+          ],
+          "translation_ua": [
+            "трястися",
+            "тремтіти"
+          ],
+          "example_pl": "Trząsł się z zimna.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "trząść:w_połączeniu_z_się_drżeć_lub_podlegać"
+        }
+      ],
+      "morph_lemma": "trząść"
+    },
+    {
+      "lemma": "honorowy",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3741,
+        "count": 2029,
+        "per_million": 24.829,
+        "arf": 996.7,
+        "dispersion": 0.3535
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "почётный"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "taki, który służy do wyróżnienia kogoś lub do okazania szacunku",
+          "translation_by": [
+            "ганаровы"
+          ],
+          "translation_ua": [
+            "почесний"
+          ],
+          "example_pl": "Otrzymała tytuł honorowego obywatela.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "honorowy:taki_który_służy_do_wyróżnienia_kogoś_lub"
+        },
+        {
+          "translation_ru": [
+            "человек чести",
+            "с чувством достоинства"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "mający poczucie godności osobistej",
+          "translation_by": [
+            "ганарлівы",
+            "з пачуццём годнасці"
+          ],
+          "translation_ua": [
+            "гордий",
+            "із почуттям гідності"
+          ],
+          "example_pl": "Jest honorowy i nie przyjmie niezasłużonej nagrody.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "honorowy:mający_poczucie_godności_osobistej"
+        },
+        {
+          "translation_ru": [
+            "честный",
+            "соответствующий чести"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "zgodny z honorem",
+          "translation_by": [
+            "сумленны",
+            "адпаведны гонару"
+          ],
+          "translation_ua": [
+            "чесний",
+            "відповідний честі"
+          ],
+          "example_pl": "Postąpił w honorowy sposób.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "honorowy:zgodny_z_honorem"
+        }
+      ],
+      "morph_lemma": "honorowy"
+    },
+    {
+      "lemma": "brzmienie",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3742,
+        "count": 2988,
+        "per_million": 36.565,
+        "arf": 996.47,
+        "dispersion": 0.2489
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "звучание"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "zespół cech dźwiękowych danego instrumentu, sprzętu lub głosu",
+          "translation_by": [
+            "гучанне"
+          ],
+          "translation_ua": [
+            "звучання"
+          ],
+          "example_pl": "Podoba mi się brzmienie tego instrumentu.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "brzmienie:zespół_cech_dźwiękowych_danego_instrumentu_sprzętu_lub"
+        },
+        {
+          "source": "editor",
+          "translation_ru": [
+            "формулировка",
+            "редакция"
+          ],
+          "gloss_pl": "Dokładna postać słowna tekstu, zwłaszcza prawnego.",
+          "translation_by": [
+            "фармулёўка",
+            "рэдакцыя"
+          ],
+          "translation_ua": [
+            "формулювання",
+            "редакція"
+          ],
+          "example_pl": "Przepis otrzymał nowe brzmienie.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "brzmienie:dokładna_postać_słowna_tekstu_zwłaszcza_prawnego",
+          "primary": false
+        }
+      ],
+      "morph_lemma": "brzmienie"
+    },
+    {
+      "lemma": "dziesiąty",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3743,
+        "count": 1860,
+        "per_million": 22.761,
+        "arf": 994.74,
+        "dispersion": 0.4687
+      },
+      "introduced_at": {
+        "ru": "A1",
+        "by": "A1",
+        "ua": "A1"
+      },
+      "level_confidence": {
+        "ru": 0.92,
+        "by": 0.92,
+        "ua": 0.92
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "десятый"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Zajmujący miejsce po dziewiątym w kolejności.",
+          "translation_by": [
+            "дзясяты"
+          ],
+          "translation_ua": [
+            "десятий"
+          ],
+          "example_pl": "Mieszkam na dziesiątym piętrze.",
+          "introduced_at": {
+            "ru": "A1",
+            "by": "A1",
+            "ua": "A1"
+          },
+          "level_confidence": {
+            "ru": 0.92,
+            "by": 0.92,
+            "ua": 0.92
+          },
+          "sense_id": "dziesiąty:zajmujący_miejsce_po_dziewiątym_w_kolejności"
+        }
+      ],
+      "morph_lemma": "dziesiąty:A"
+    },
+    {
+      "lemma": "pandemia",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3744,
+        "count": 2985,
+        "per_million": 36.528,
+        "arf": 994.33,
+        "dispersion": 0.073
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "пандемия"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "globalna epidemia, obejmująca duże obszary (kraj, kontynent lub cały świat)",
+          "translation_by": [
+            "пандэмія"
+          ],
+          "translation_ua": [
+            "пандемія"
+          ],
+          "example_pl": "Pandemia zmieniła sposób pracy.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "pandemia:globalna_epidemia_obejmująca_duże_obszary_kraj_kontynent"
+        }
+      ],
+      "morph_lemma": "pandemia"
+    },
+    {
+      "lemma": "spisać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3745,
+        "count": 1735,
+        "per_million": 21.232,
+        "arf": 994.13,
+        "dispersion": 0.2212
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "составить",
+            "переписать"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Zapisać informacje, często w postaci listy.",
+          "translation_by": [
+            "запісаць",
+            "скласці"
+          ],
+          "translation_ua": [
+            "записати",
+            "скласти"
+          ],
+          "example_pl": "Spisał listę zakupów.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "spisać:zapisać_informacje_często_w_postaci_listy"
+        },
+        {
+          "translation_ru": [
+            "справиться"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "W połączeniu z „się”: wykonać zadanie z określonym wynikiem.",
+          "translation_by": [
+            "справіцца",
+            "паказаць сябе"
+          ],
+          "translation_ua": [
+            "впоратися",
+            "показати себе"
+          ],
+          "example_pl": "Drużyna świetnie się spisała.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "spisać:w_połączeniu_z_się_wykonać_zadanie_z"
+        },
+        {
+          "translation_ru": [
+            "записать данные нарушителя"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "Zanotować dane osoby dla celów urzędowych lub policyjnych.",
+          "translation_by": [
+            "запісаць даныя парушальніка"
+          ],
+          "translation_ua": [
+            "записати дані порушника"
+          ],
+          "example_pl": "Policjant spisał kierowcę.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "spisać:zanotować_dane_osoby_dla_celów_urzędowych_lub"
+        }
+      ],
+      "morph_lemma": "spisać"
+    },
+    {
+      "lemma": "poszukać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3746,
+        "count": 1714,
+        "per_million": 20.975,
+        "arf": 993.81,
+        "dispersion": 0.2588
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "поискать"
+          ],
+          "primary": true,
+          "source": "ruwiktionary",
+          "gloss_pl": "Poświęcić pewien czas na szukanie czegoś.",
+          "translation_by": [
+            "пашукаць"
+          ],
+          "translation_ua": [
+            "пошукати"
+          ],
+          "example_pl": "Poszukam kluczy w torbie.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "poszukać:poświęcić_pewien_czas_na_szukanie_czegoś"
+        }
+      ],
+      "morph_lemma": "poszukać"
+    },
+    {
+      "lemma": "dopytywać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3747,
+        "count": 2089,
+        "per_million": 25.564,
+        "arf": 993.36,
+        "dispersion": 0.2235
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "расспрашивать"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Zadawać dodatkowe pytania, aby poznać szczegóły.",
+          "translation_by": [
+            "распытваць",
+            "дапытвацца"
+          ],
+          "translation_ua": [
+            "розпитувати",
+            "допитуватися"
+          ],
+          "example_pl": "Dopytywała o szczegóły podróży.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "dopytywać:zadawać_dodatkowe_pytania_aby_poznać_szczegóły"
+        }
+      ],
+      "morph_lemma": "dopytywać"
+    },
+    {
+      "lemma": "chwytać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3748,
+        "count": 2000,
+        "per_million": 24.474,
+        "arf": 992.95,
+        "dispersion": 0.2276
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "хватать"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Brać coś szybko lub mocno do ręki.",
+          "translation_by": [
+            "хапаць"
+          ],
+          "translation_ua": [
+            "хапати"
+          ],
+          "example_pl": "Chwyta piłkę obiema rękami.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "chwytać:brać_coś_szybko_lub_mocno_do_ręki"
+        },
+        {
+          "translation_ru": [
+            "ловить"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "Łapać uciekającą osobę lub zwierzę.",
+          "translation_by": [
+            "лавіць"
+          ],
+          "translation_ua": [
+            "ловити"
+          ],
+          "example_pl": "Policja chwyta przestępców.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "chwytać:łapać_uciekającą_osobę_lub_zwierzę"
+        },
+        {
+          "translation_ru": [
+            "улавливать"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "Rozpoznawać znaczenie, sygnał lub wrażenie.",
+          "translation_by": [
+            "улавіць",
+            "разумець"
+          ],
+          "translation_ua": [
+            "вловлювати",
+            "розуміти"
+          ],
+          "example_pl": "Szybko chwyta sens wypowiedzi.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "chwytać:rozpoznawać_znaczenie_sygnał_lub_wrażenie"
+        }
+      ],
+      "morph_lemma": "chwytać"
+    },
+    {
+      "lemma": "podatnik",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3749,
+        "count": 4262,
+        "per_million": 52.155,
+        "arf": 992.63,
+        "dispersion": 0.138
+      },
+      "introduced_at": {
+        "ru": "B2",
+        "by": "B2",
+        "ua": "B2"
+      },
+      "level_confidence": {
+        "ru": 0.76,
+        "by": 0.76,
+        "ua": 0.76
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "налогоплательщик"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "osoba zobowiązana do płacenia podatków, osoba płacąca podatki",
+          "translation_by": [
+            "падаткаплацельшчык"
+          ],
+          "translation_ua": [
+            "платник податків"
+          ],
+          "example_pl": "Podatnik musi złożyć deklarację.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "podatnik:osoba_zobowiązana_do_płacenia_podatków_osoba_płacąca"
+        }
+      ],
+      "morph_lemma": "podatnik"
+    },
+    {
+      "lemma": "alternatywny",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3750,
+        "count": 2030,
+        "per_million": 24.842,
+        "arf": 992.49,
+        "dispersion": 0.3652
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "альтернативный"
+          ],
+          "primary": true,
+          "source": "ruwiktionary",
+          "gloss_pl": "Stanowiący inną możliwość niż dotychczasowa lub główna.",
+          "translation_by": [
+            "альтэрнатыўны"
+          ],
+          "translation_ua": [
+            "альтернативний"
+          ],
+          "example_pl": "Szukamy alternatywnego rozwiązania.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "alternatywny:stanowiący_inną_możliwość_niż_dotychczasowa_lub_główna"
+        }
+      ],
+      "morph_lemma": "alternatywny"
+    },
+    {
+      "lemma": "komplet",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3751,
+        "count": 1899,
+        "per_million": 23.238,
+        "arf": 992.18,
+        "dispersion": 0.3706
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "комплект"
+          ],
+          "primary": true,
+          "source": "ruwiktionary",
+          "gloss_pl": "Pełny zestaw pasujących do siebie rzeczy.",
+          "translation_by": [
+            "камплект"
+          ],
+          "translation_ua": [
+            "комплект"
+          ],
+          "example_pl": "Kupiliśmy komplet naczyń.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "komplet:pełny_zestaw_pasujących_do_siebie_rzeczy"
+        }
+      ],
+      "morph_lemma": "komplet"
+    },
+    {
+      "lemma": "skręcić",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3752,
+        "count": 2127,
+        "per_million": 26.029,
+        "arf": 992.11,
+        "dispersion": 0.2252
+      },
+      "introduced_at": {
+        "ru": "A1",
+        "by": "A1",
+        "ua": "A1"
+      },
+      "level_confidence": {
+        "ru": 0.92,
+        "by": 0.92,
+        "ua": 0.92
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "повернуть",
+            "свернуть"
+          ],
+          "primary": true,
+          "source": "ruwiktionary",
+          "gloss_pl": "Zmienić kierunek ruchu.",
+          "translation_by": [
+            "павярнуць",
+            "звярнуць"
+          ],
+          "translation_ua": [
+            "повернути",
+            "звернути"
+          ],
+          "example_pl": "Skręć w prawo za mostem.",
+          "introduced_at": {
+            "ru": "A1",
+            "by": "A1",
+            "ua": "A1"
+          },
+          "level_confidence": {
+            "ru": 0.92,
+            "by": 0.92,
+            "ua": 0.92
+          },
+          "sense_id": "skręcić:zmienić_kierunek_ruchu"
+        },
+        {
+          "translation_ru": [
+            "скрутить",
+            "свить"
+          ],
+          "primary": false,
+          "source": "ruwiktionary",
+          "gloss_pl": "Nadać czemuś kształt przez obracanie lub zwijanie.",
+          "translation_by": [
+            "скруціць",
+            "звіць"
+          ],
+          "translation_ua": [
+            "скрутити",
+            "звити"
+          ],
+          "example_pl": "Skręciła włosy w ciasny warkocz.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "skręcić:nadać_czemuś_kształt_przez_obracanie_lub_zwijanie"
+        },
+        {
+          "translation_ru": [
+            "свинтить",
+            "соединить винтами"
+          ],
+          "primary": false,
+          "source": "ruwiktionary",
+          "gloss_pl": "Połączyć części za pomocą śrub.",
+          "translation_by": [
+            "сашрубаваць",
+            "злучыць шрубамі"
+          ],
+          "translation_ua": [
+            "скрутити",
+            "з'єднати гвинтами"
+          ],
+          "example_pl": "Skręcił szafkę według instrukcji.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "skręcić:połączyć_części_za_pomocą_śrub"
+        },
+        {
+          "source": "editor",
+          "translation_ru": [
+            "подвернуть",
+            "повредить сустав"
+          ],
+          "gloss_pl": "Uszkodzić staw przez gwałtowny ruch poza normalny zakres.",
+          "translation_by": [
+            "вывіхнуць",
+            "падвярнуць"
+          ],
+          "translation_ua": [
+            "вивихнути",
+            "підвернути"
+          ],
+          "example_pl": "Skręciła kostkę podczas biegu.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "skręcić:uszkodzić_staw_przez_gwałtowny_ruch_poza_normalny",
+          "primary": false
+        }
+      ],
+      "morph_lemma": "skręcić"
+    },
+    {
+      "lemma": "zatytułować",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3753,
+        "count": 1974,
+        "per_million": 24.156,
+        "arf": 992.11,
+        "dispersion": 0.2863
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "озаглавить",
+            "назвать"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Nadać tytuł utworowi.",
+          "translation_by": [
+            "азагаловіць",
+            "назваць"
+          ],
+          "translation_ua": [
+            "озаглавити",
+            "назвати"
+          ],
+          "example_pl": "Zatytułował książkę „Powrót”.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "zatytułować:nadać_tytuł_utworowi"
+        }
+      ],
+      "morph_lemma": "zatytułować"
+    },
+    {
+      "lemma": "wzgórze",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3754,
+        "count": 2657,
+        "per_million": 32.514,
+        "arf": 991.8,
+        "dispersion": 0.3308
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "холм",
+            "взгорье"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Niewysokie wzniesienie terenu o zaokrąglonym szczycie.",
+          "translation_by": [
+            "пагорак"
+          ],
+          "translation_ua": [
+            "пагорб"
+          ],
+          "example_pl": "Dom stoi na wzgórzu.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "wzgórze:niewysokie_wzniesienie_terenu_o_zaokrąglonym_szczycie"
+        }
+      ],
+      "morph_lemma": "wzgórze"
+    },
+    {
+      "lemma": "zachwycać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3755,
+        "count": 1792,
+        "per_million": 21.929,
+        "arf": 991.75,
+        "dispersion": 0.2197
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "восхищать",
+            "восторгать"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "wprawiać kogoś w stan zachwytu; być powodem/obiektem czyjegoś zachwytu",
+          "translation_by": [
+            "захапляць"
+          ],
+          "translation_ua": [
+            "захоплювати"
+          ],
+          "example_pl": "Ten widok zachwyca turystów.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "zachwycać:wprawiać_kogoś_w_stan_zachwytu_być_powodem"
+        },
+        {
+          "translation_ru": [
+            "восхищаться",
+            "восторгаться"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "W połączeniu z „się”: odczuwać i wyrażać podziw.",
+          "translation_by": [
+            "захапляцца"
+          ],
+          "translation_ua": [
+            "захоплюватися"
+          ],
+          "example_pl": "Zachwyca się muzyką Chopina.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "zachwycać:w_połączeniu_z_się_odczuwać_i_wyrażać"
+        }
+      ],
+      "morph_lemma": "zachwycać"
+    },
+    {
+      "lemma": "autorstwo",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3756,
+        "count": 1924,
+        "per_million": 23.544,
+        "arf": 991.45,
+        "dispersion": 0.3655
+      },
+      "introduced_at": {
+        "ru": "B2",
+        "by": "B2",
+        "ua": "B2"
+      },
+      "level_confidence": {
+        "ru": 0.76,
+        "by": 0.76,
+        "ua": 0.76
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "авторство"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "fakt bycia twórcą dzieła",
+          "translation_by": [
+            "аўтарства"
+          ],
+          "translation_ua": [
+            "авторство"
+          ],
+          "example_pl": "Autorstwo obrazu jest niepewne.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "autorstwo:fakt_bycia_twórcą_dzieła"
+        }
+      ],
+      "morph_lemma": "autorstwo"
+    },
+    {
+      "lemma": "podwyżka",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3757,
+        "count": 2808,
+        "per_million": 34.362,
+        "arf": 991.14,
+        "dispersion": 0.2397
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "повышение зарплаты"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "podniesienie wysokości uposażenia",
+          "translation_by": [
+            "павышэнне зарплаты"
+          ],
+          "translation_ua": [
+            "підвищення зарплати"
+          ],
+          "example_pl": "Dostałem podwyżkę w pracy.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "podwyżka:podniesienie_wysokości_uposażenia"
+        },
+        {
+          "source": "editor",
+          "translation_ru": [
+            "повышение цены"
+          ],
+          "gloss_pl": "Zwiększenie ceny lub opłaty.",
+          "translation_by": [
+            "павышэнне цаны"
+          ],
+          "translation_ua": [
+            "підвищення ціни"
+          ],
+          "example_pl": "Podwyżka cen paliwa zaskoczyła kierowców.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "podwyżka:zwiększenie_ceny_lub_opłaty",
+          "primary": false
+        }
+      ],
+      "morph_lemma": "podwyżka"
+    },
+    {
+      "lemma": "radiowy",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3758,
+        "count": 2132,
+        "per_million": 26.09,
+        "arf": 989.86,
+        "dispersion": 0.3394
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "радио-",
+            "относящийся к радио"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "związany z radiem, charakterystyczny dla radia, przekazywany przez radio",
+          "translation_by": [
+            "радыёвы"
+          ],
+          "translation_ua": [
+            "радійний"
+          ],
+          "example_pl": "Słuchamy programu radiowego.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "radiowy:związany_z_radiem_charakterystyczny_dla_radia_przekazywany"
+        }
+      ],
+      "morph_lemma": "radiowy"
+    },
+    {
+      "lemma": "zasłaniać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3759,
+        "count": 1752,
+        "per_million": 21.44,
+        "arf": 989.69,
+        "dispersion": 0.1767
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "заслонять",
+            "закрывать"
+          ],
+          "primary": true,
+          "source": "ruwiktionary",
+          "gloss_pl": "Zakrywać coś lub uniemożliwiać widzenie.",
+          "translation_by": [
+            "засланяць",
+            "закрываць"
+          ],
+          "translation_ua": [
+            "затуляти",
+            "закривати"
+          ],
+          "example_pl": "Zasłania okno firanką.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "zasłaniać:zakrywać_coś_lub_uniemożliwiać_widzenie"
+        }
+      ],
+      "morph_lemma": "zasłaniać"
+    },
+    {
+      "lemma": "wyłaniać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3760,
+        "count": 1882,
+        "per_million": 23.03,
+        "arf": 989.61,
+        "dispersion": 0.2207
+      },
+      "introduced_at": {
+        "ru": "B2",
+        "by": "B2",
+        "ua": "B2"
+      },
+      "level_confidence": {
+        "ru": 0.76,
+        "by": 0.76,
+        "ua": 0.76
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "отбирать",
+            "выбирать"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "wybierać kogoś lub coś spośród wielu, uznając za najlepszego, za najlepsze",
+          "translation_by": [
+            "выбіраць",
+            "вызначаць"
+          ],
+          "translation_ua": [
+            "обирати",
+            "визначати"
+          ],
+          "example_pl": "Komisja wyłania najlepszych kandydatów.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "wyłaniać:wybierać_kogoś_lub_coś_spośród_wielu_uznając"
+        },
+        {
+          "source": "editor",
+          "translation_ru": [
+            "появляться",
+            "вырисовываться"
+          ],
+          "gloss_pl": "W połączeniu z „się”: stopniowo stawać się widocznym lub znanym.",
+          "translation_by": [
+            "з'яўляцца",
+            "выныраць"
+          ],
+          "translation_ua": [
+            "з'являтися",
+            "виринати"
+          ],
+          "example_pl": "Z mgły wyłania się zamek.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "wyłaniać:w_połączeniu_z_się_stopniowo_stawać_się",
+          "primary": false
+        }
+      ],
+      "morph_lemma": "wyłaniać"
+    },
+    {
+      "lemma": "tematyka",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3761,
+        "count": 2030,
+        "per_million": 24.842,
+        "arf": 989.58,
+        "dispersion": 0.3226
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "тематика"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "ogół zagadnień",
+          "translation_by": [
+            "тэматыка"
+          ],
+          "translation_ua": [
+            "тематика"
+          ],
+          "example_pl": "Interesuje mnie tematyka filmu.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "tematyka:ogół_zagadnień"
+        }
+      ],
+      "morph_lemma": "tematyka"
+    },
+    {
+      "lemma": "powiadomić",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3762,
+        "count": 1664,
+        "per_million": 20.363,
+        "arf": 989.54,
+        "dispersion": 0.1362
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "уведомить",
+            "сообщить"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Przekazać komuś wiadomość o czymś.",
+          "translation_by": [
+            "паведаміць",
+            "апавясціць"
+          ],
+          "translation_ua": [
+            "повідомити",
+            "сповістити"
+          ],
+          "example_pl": "Powiadomił policję o wypadku.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "powiadomić:przekazać_komuś_wiadomość_o_czymś"
+        }
+      ],
+      "morph_lemma": "powiadomić"
+    },
+    {
+      "lemma": "zjechać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3763,
+        "count": 1804,
+        "per_million": 22.076,
+        "arf": 989.29,
+        "dispersion": 0.255
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "съехать"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Przemieścić się pojazdem lub ślizgiem w dół.",
+          "translation_by": [
+            "з'ехаць",
+            "спусціцца"
+          ],
+          "translation_ua": [
+            "з'їхати",
+            "спуститися"
+          ],
+          "example_pl": "Zjechał na nartach ze stoku.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "zjechać:przemieścić_się_pojazdem_lub_ślizgiem_w_dół"
+        },
+        {
+          "translation_ru": [
+            "свернуть"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "Opuścić trasę, skręcając na inną drogę lub pobocze.",
+          "translation_by": [
+            "з'ехаць",
+            "звярнуць"
+          ],
+          "translation_ua": [
+            "з'їхати",
+            "звернути"
+          ],
+          "example_pl": "Zjechał z autostrady przy pierwszym zjeździe.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "zjechać:opuścić_trasę_skręcając_na_inną_drogę_lub"
+        },
+        {
+          "translation_ru": [
+            "раскритиковать"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "Potocznie: ostro skrytykować kogoś.",
+          "translation_by": [
+            "жорстка раскрытыкаваць"
+          ],
+          "translation_ua": [
+            "жорстко розкритикувати"
+          ],
+          "example_pl": "Szef zjechał go za spóźnienie.",
+          "introduced_at": {
+            "ru": "C1",
+            "by": "C1",
+            "ua": "C1"
+          },
+          "level_confidence": {
+            "ru": 0.7,
+            "by": 0.7,
+            "ua": 0.7
+          },
+          "sense_id": "zjechać:potocznie_ostro_skrytykować_kogoś"
+        }
+      ],
+      "morph_lemma": "zjechać"
+    },
+    {
+      "lemma": "zemsta",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3764,
+        "count": 2074,
+        "per_million": 25.38,
+        "arf": 988.32,
+        "dispersion": 0.4215
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "месть"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "odwet za krzywdy",
+          "translation_by": [
+            "помста"
+          ],
+          "translation_ua": [
+            "помста"
+          ],
+          "example_pl": "Nie szukał zemsty za krzywdę.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "zemsta:odwet_za_krzywdy"
+        }
+      ],
+      "morph_lemma": "zemsta"
+    },
+    {
+      "lemma": "posłać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3765,
+        "count": 2052,
+        "per_million": 25.111,
+        "arf": 987.93,
+        "dispersion": 0.2296
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "послать"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Wysłać kogoś lub coś do określonego miejsca.",
+          "translation_by": [
+            "паслаць",
+            "адправіць"
+          ],
+          "translation_ua": [
+            "послати",
+            "відправити"
+          ],
+          "example_pl": "Posłał list do przyjaciela.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "posłać:wysłać_kogoś_lub_coś_do_określonego_miejsca"
+        }
+      ],
+      "morph_lemma": "posłać:Vp~ślę"
+    },
+    {
+      "lemma": "rzekomy",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3766,
+        "count": 1880,
+        "per_million": 23.006,
+        "arf": 987.85,
+        "dispersion": 0.4168
+      },
+      "introduced_at": {
+        "ru": "B2",
+        "by": "B2",
+        "ua": "B2"
+      },
+      "level_confidence": {
+        "ru": 0.76,
+        "by": 0.76,
+        "ua": 0.76
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "якобы",
+            "мнимый"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Przedstawiany jako prawdziwy, choć może taki nie być.",
+          "translation_by": [
+            "нібыта",
+            "меркаваны"
+          ],
+          "translation_ua": [
+            "нібито",
+            "гаданий"
+          ],
+          "example_pl": "Rzekomy ekspert nie znał odpowiedzi.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "rzekomy:przedstawiany_jako_prawdziwy_choć_może_taki_nie"
+        }
+      ],
+      "morph_lemma": "rzekomy"
+    },
+    {
+      "lemma": "pilot",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3767,
+        "count": 2703,
+        "per_million": 33.077,
+        "arf": 987.6,
+        "dispersion": 0.3193
+      },
+      "introduced_at": {
+        "ru": "A1",
+        "by": "A1",
+        "ua": "A1"
+      },
+      "level_confidence": {
+        "ru": 0.92,
+        "by": 0.92,
+        "ua": 0.92
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "пилот"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "osoba kierująca pojazdem latającym – statkiem kosmicznym, śmigłowcem lub samolotem",
+          "translation_by": [
+            "пілот"
+          ],
+          "translation_ua": [
+            "пілот"
+          ],
+          "example_pl": "Pilot bezpiecznie wylądował.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "pilot:osoba_kierująca_pojazdem_latającym_statkiem_kosmicznym_śmigłowcem"
+        },
+        {
+          "translation_ru": [
+            "сопровождающий туристической группы"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "osoba odpowiedzialna za przebieg wycieczki",
+          "translation_by": [
+            "кіраўнік экскурсійнай паездкі"
+          ],
+          "translation_ua": [
+            "керівник туристичної поїздки"
+          ],
+          "example_pl": "Pilot wycieczki sprawdził bilety uczestników.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "pilot:osoba_odpowiedzialna_za_przebieg_wycieczki"
+        },
+        {
+          "translation_ru": [
+            "пульт"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "urządzenie do sterowania na odległość sprzętem elektronicznym lub maszyną",
+          "translation_by": [
+            "пульт"
+          ],
+          "translation_ua": [
+            "пульт"
+          ],
+          "example_pl": "Podaj mi pilot do telewizora.",
+          "introduced_at": {
+            "ru": "A1",
+            "by": "A1",
+            "ua": "A1"
+          },
+          "level_confidence": {
+            "ru": 0.92,
+            "by": 0.92,
+            "ua": 0.92
+          },
+          "sense_id": "pilot:urządzenie_do_sterowania_na_odległość_sprzętem_elektronicznym"
+        }
+      ],
+      "morph_lemma": "pilot:Sm3"
+    },
+    {
+      "lemma": "dywan",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3768,
+        "count": 2080,
+        "per_million": 25.453,
+        "arf": 987.29,
+        "dispersion": 0.4118
+      },
+      "introduced_at": {
+        "ru": "A1",
+        "by": "A1",
+        "ua": "A1"
+      },
+      "level_confidence": {
+        "ru": 0.92,
+        "by": 0.92,
+        "ua": 0.92
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "ковёр"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "gruba, wzorzysta tkanina, przeznaczona do przykrycia podłogi",
+          "translation_by": [
+            "дыван"
+          ],
+          "translation_ua": [
+            "килим"
+          ],
+          "example_pl": "Na podłodze leży dywan.",
+          "introduced_at": {
+            "ru": "A1",
+            "by": "A1",
+            "ua": "A1"
+          },
+          "level_confidence": {
+            "ru": 0.92,
+            "by": 0.92,
+            "ua": 0.92
+          },
+          "sense_id": "dywan:gruba_wzorzysta_tkanina_przeznaczona_do_przykrycia_podłogi"
+        }
+      ],
+      "morph_lemma": "dywan"
+    },
+    {
+      "lemma": "miód",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3769,
+        "count": 3474,
+        "per_million": 42.512,
+        "arf": 987.21,
+        "dispersion": 0.2654
+      },
+      "introduced_at": {
+        "ru": "A1",
+        "by": "A1",
+        "ua": "A1"
+      },
+      "level_confidence": {
+        "ru": 0.92,
+        "by": 0.92,
+        "ua": 0.92
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "мёд"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "gęsty, słodki produkt spożywczy, w kolorze żółtym lub brązowym, wytwarzany przez pszczoły",
+          "translation_by": [
+            "мёд"
+          ],
+          "translation_ua": [
+            "мед"
+          ],
+          "example_pl": "Dodaj miód do herbaty.",
+          "introduced_at": {
+            "ru": "A1",
+            "by": "A1",
+            "ua": "A1"
+          },
+          "level_confidence": {
+            "ru": 0.92,
+            "by": 0.92,
+            "ua": 0.92
+          },
+          "sense_id": "miód:gęsty_słodki_produkt_spożywczy_w_kolorze_żółtym"
+        },
+        {
+          "translation_ru": [
+            "медовуха"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "Napój alkoholowy otrzymywany przez fermentację miodu z wodą i dodatkami.",
+          "translation_by": [
+            "мядовы алкагольны напой"
+          ],
+          "translation_ua": [
+            "медовий алкогольний напій"
+          ],
+          "example_pl": "Goście pili miód pitny.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "miód:napój_alkoholowy_powstały_w_wyniku_fermentacji_brzeczki"
+        }
+      ],
+      "morph_lemma": "miód"
+    },
+    {
+      "lemma": "romans",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3770,
+        "count": 2329,
+        "per_million": 28.5,
+        "arf": 985.42,
+        "dispersion": 0.3807
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "роман"
+          ],
+          "primary": true,
+          "source": "ruwiktionary",
+          "gloss_pl": "Związek miłosny, często krótkotrwały lub pozamałżeński.",
+          "translation_by": [
+            "раман",
+            "любоўная сувязь"
+          ],
+          "translation_ua": [
+            "роман",
+            "любовний зв'язок"
+          ],
+          "example_pl": "Miała romans z kolegą z pracy.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "romans:związek_miłosny_często_krótkotrwały_lub_pozamałżeński"
+        },
+        {
+          "translation_ru": [
+            "любовный роман"
+          ],
+          "primary": false,
+          "source": "ruwiktionary",
+          "gloss_pl": "Utwór literacki opowiadający o miłości.",
+          "translation_by": [
+            "любоўны раман"
+          ],
+          "translation_ua": [
+            "любовний роман"
+          ],
+          "example_pl": "Czytała romans o nieszczęśliwej miłości.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "romans:utwór_literacki_opowiadający_o_miłości"
+        },
+        {
+          "translation_ru": [
+            "романс"
+          ],
+          "primary": false,
+          "source": "ruwiktionary",
+          "sense_id": "romans:piesn_milosna",
+          "gloss_pl": "Liryczna pieśń o miłości.",
+          "translation_by": [
+            "раманс"
+          ],
+          "translation_ua": [
+            "романс"
+          ],
+          "example_pl": "Śpiewaczka wykonała dawny romans przy akompaniamencie fortepianu.",
+          "introduced_at": {
+            "ru": "C1",
+            "by": "C1",
+            "ua": "C1"
+          },
+          "level_confidence": {
+            "ru": 0.66,
+            "by": 0.66,
+            "ua": 0.66
+          }
+        }
+      ],
+      "morph_lemma": "romans"
+    },
+    {
+      "lemma": "głąb",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3771,
+        "count": 2013,
+        "per_million": 24.633,
+        "arf": 985.29,
+        "dispersion": 0.4272
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "глубь"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Wnętrze lub głębsza część czegoś; najczęściej w połączeniu „w głąb”.",
+          "translation_by": [
+            "глыб",
+            "глыбіня"
+          ],
+          "translation_ua": [
+            "глиб",
+            "глибина"
+          ],
+          "example_pl": "Weszliśmy w głąb lasu.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "głąb:wnętrze_lub_głębsza_część_czegoś_najczęściej_w"
+        },
+        {
+          "translation_ru": [
+            "кочерыжка"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "Twarda środkowa część główki kapusty.",
+          "translation_by": [
+            "храпка",
+            "качарыжка"
+          ],
+          "translation_ua": [
+            "качан"
+          ],
+          "example_pl": "Wyciął głąb z kapusty.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "głąb:twarda_środkowa_część_główki_kapusty"
+        },
+        {
+          "translation_ru": [
+            "дурак",
+            "болван"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "Obraźliwie: człowiek uważany za głupiego.",
+          "translation_by": [
+            "дурань",
+            "балван"
+          ],
+          "translation_ua": [
+            "дурень",
+            "бовдур"
+          ],
+          "example_pl": "„Ty głąbie!” — krzyknął ze złością.",
+          "introduced_at": {
+            "ru": "C1",
+            "by": "C1",
+            "ua": "C1"
+          },
+          "level_confidence": {
+            "ru": 0.7,
+            "by": 0.7,
+            "ua": 0.7
+          },
+          "sense_id": "głąb:obraźliwie_człowiek_uważany_za_głupiego"
+        }
+      ],
+      "morph_lemma": "głąb:Sm2.m3"
+    },
+    {
+      "lemma": "prawdopodobnie",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 3772,
+        "count": 1793,
+        "per_million": 21.941,
+        "arf": 985.28,
+        "dispersion": 0.3812
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "вероятно"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "przypuszczalnie, być może",
+          "translation_by": [
+            "верагодна"
+          ],
+          "translation_ua": [
+            "ймовірно"
+          ],
+          "example_pl": "Prawdopodobnie jutro będzie padać.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "prawdopodobnie:przypuszczalnie_być_może"
+        }
+      ],
+      "morph_lemma": "prawdopodobnie:D"
+    },
+    {
+      "lemma": "uniemożliwiać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3773,
+        "count": 1697,
+        "per_million": 20.767,
+        "arf": 984.83,
+        "dispersion": 0.1945
+      },
+      "introduced_at": {
+        "ru": "B2",
+        "by": "B2",
+        "ua": "B2"
+      },
+      "level_confidence": {
+        "ru": 0.76,
+        "by": 0.76,
+        "ua": 0.76
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "делать невозможным",
+            "препятствовать"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Sprawiać, że czegoś nie da się zrobić.",
+          "translation_by": [
+            "рабіць немагчымым",
+            "перашкаджаць"
+          ],
+          "translation_ua": [
+            "унеможливлювати",
+            "перешкоджати"
+          ],
+          "example_pl": "Śnieg uniemożliwia przejazd.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "uniemożliwiać:sprawiać_że_czegoś_nie_da_się_zrobić"
+        }
+      ],
+      "morph_lemma": "uniemożliwiać"
+    },
+    {
+      "lemma": "gościć",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3774,
+        "count": 1727,
+        "per_million": 21.134,
+        "arf": 984.43,
+        "dispersion": 0.1928
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "принимать гостей"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Przyjmować kogoś u siebie jako gościa.",
+          "translation_by": [
+            "прымаць гасцей"
+          ],
+          "translation_ua": [
+            "приймати гостей"
+          ],
+          "example_pl": "Gościmy rodzinę z Ukrainy.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "gościć:przyjmować_kogoś_u_siebie_jako_gościa"
+        },
+        {
+          "translation_ru": [
+            "гостить"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "Przebywać u kogoś jako gość.",
+          "translation_by": [
+            "гасцяваць"
+          ],
+          "translation_ua": [
+            "гостювати"
+          ],
+          "example_pl": "Gościł u nas przez tydzień.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "gościć:przebywać_u_kogoś_jako_gość"
+        },
+        {
+          "translation_ru": [
+            "появляться",
+            "присутствовать"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "Przenośnie: pojawiać się lub pozostawać gdzieś.",
+          "translation_by": [
+            "з'яўляцца",
+            "прысутнічаць"
+          ],
+          "translation_ua": [
+            "з'являтися",
+            "бути присутнім"
+          ],
+          "example_pl": "Uśmiech często gości na jej twarzy.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "gościć:przenośnie_pojawiać_się_lub_pozostawać_gdzieś"
+        }
+      ],
+      "morph_lemma": "gościć"
+    },
+    {
+      "lemma": "technologiczny",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3775,
+        "count": 2323,
+        "per_million": 28.427,
+        "arf": 983.57,
+        "dispersion": 0.2821
+      },
+      "introduced_at": {
+        "ru": "B2",
+        "by": "B2",
+        "ua": "B2"
+      },
+      "level_confidence": {
+        "ru": 0.76,
+        "by": 0.76,
+        "ua": 0.76
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "технологический"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "związany z technologią, dotyczący technologii",
+          "translation_by": [
+            "тэхналагічны"
+          ],
+          "translation_ua": [
+            "технологічний"
+          ],
+          "example_pl": "Fabryka wdraża nowe rozwiązania technologiczne.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "technologiczny:związany_z_technologią_dotyczący_technologii"
+        }
+      ],
+      "morph_lemma": "technologiczny"
+    },
+    {
+      "lemma": "kapłan",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3776,
+        "count": 3011,
+        "per_million": 36.846,
+        "arf": 983.42,
+        "dispersion": 0.2713
+      },
+      "introduced_at": {
+        "ru": "B2",
+        "by": "B2",
+        "ua": "B2"
+      },
+      "level_confidence": {
+        "ru": 0.76,
+        "by": 0.76,
+        "ua": 0.76
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "священнослужитель",
+            "священник"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Osoba pełniąca funkcje religijne i sprawująca obrzędy.",
+          "translation_by": [
+            "святар",
+            "святар-служыцель"
+          ],
+          "translation_ua": [
+            "священник",
+            "священнослужитель"
+          ],
+          "example_pl": "Kapłan odprawił nabożeństwo.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "kapłan:osoba_pełniąca_funkcje_religijne_i_sprawująca_obrzędy"
+        }
+      ],
+      "morph_lemma": "kapłan"
+    },
+    {
+      "lemma": "zamontować",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3777,
+        "count": 1808,
+        "per_million": 22.125,
+        "arf": 983.19,
+        "dispersion": 0.1139
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "установить",
+            "смонтировать"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Przymocować i przygotować urządzenie lub element do użycia.",
+          "translation_by": [
+            "усталяваць",
+            "зманціраваць"
+          ],
+          "translation_ua": [
+            "встановити",
+            "змонтувати"
+          ],
+          "example_pl": "Zamontowali nową lampę.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "zamontować:przymocować_i_przygotować_urządzenie_lub_element_do"
+        }
+      ],
+      "morph_lemma": "zamontować"
+    },
+    {
+      "lemma": "roboczy",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3778,
+        "count": 2022,
+        "per_million": 24.744,
+        "arf": 983.15,
+        "dispersion": 0.3684
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "рабочий"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "związany z robotą, właściwy robocie",
+          "translation_by": [
+            "рабочы",
+            "працоўны"
+          ],
+          "translation_ua": [
+            "робочий"
+          ],
+          "example_pl": "Poniedziałek jest dniem roboczym.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "roboczy:związany_z_robotą_właściwy_robocie"
+        },
+        {
+          "translation_ru": [
+            "рабочий",
+            "пробный"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "taki, który jest wstępną wersją, do dalszej obróbki",
+          "translation_by": [
+            "рабочы",
+            "папярэдні"
+          ],
+          "translation_ua": [
+            "робочий",
+            "попередній"
+          ],
+          "example_pl": "To robocza wersja dokumentu.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "roboczy:taki_który_jest_wstępną_wersją_do_dalszej"
+        }
+      ],
+      "morph_lemma": "roboczy"
+    },
+    {
+      "lemma": "wzorzec",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3779,
+        "count": 2339,
+        "per_million": 28.623,
+        "arf": 982.8,
+        "dispersion": 0.3575
+      },
+      "introduced_at": {
+        "ru": "B2",
+        "by": "B2",
+        "ua": "B2"
+      },
+      "level_confidence": {
+        "ru": 0.76,
+        "by": 0.76,
+        "ua": 0.76
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "образец"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "wzór wyznaczający normę dla innych przedmiotów i zjawisk",
+          "translation_by": [
+            "узор",
+            "мадэль"
+          ],
+          "translation_ua": [
+            "зразок",
+            "модель"
+          ],
+          "example_pl": "Projekt opiera się na sprawdzonym wzorcu.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "wzorzec:wzór_wyznaczający_normę_dla_innych_przedmiotów_i"
+        },
+        {
+          "translation_ru": [
+            "пример для подражания"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "cechy, osoby warte naśladowania",
+          "translation_by": [
+            "узор для пераймання"
+          ],
+          "translation_ua": [
+            "взірець для наслідування"
+          ],
+          "example_pl": "Jest wzorcem uczciwości.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "wzorzec:cechy_osoby_warte_naśladowania"
+        },
+        {
+          "translation_ru": [
+            "эталон"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "jednostka porównawcza przy wyznaczaniu właściwości",
+          "translation_by": [
+            "эталон"
+          ],
+          "translation_ua": [
+            "еталон"
+          ],
+          "example_pl": "Przyrząd porównano z wzorcem pomiarowym.",
+          "introduced_at": {
+            "ru": "C1",
+            "by": "C1",
+            "ua": "C1"
+          },
+          "level_confidence": {
+            "ru": 0.7,
+            "by": 0.7,
+            "ua": 0.7
+          },
+          "sense_id": "wzorzec:jednostka_porównawcza_przy_wyznaczaniu_właściwości"
+        }
+      ],
+      "morph_lemma": "wzorzec"
+    },
+    {
+      "lemma": "zachęcić",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3780,
+        "count": 1698,
+        "per_million": 20.779,
+        "arf": 982.08,
+        "dispersion": 0.192
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "побудить",
+            "ободрить"
+          ],
+          "primary": true,
+          "source": "ruwiktionary",
+          "gloss_pl": "Sprawić, że ktoś nabierze chęci do działania.",
+          "translation_by": [
+            "заахвоціць",
+            "падбадзёрыць"
+          ],
+          "translation_ua": [
+            "заохотити",
+            "підбадьорити"
+          ],
+          "example_pl": "Zachęcił mnie do nauki polskiego.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "zachęcić:sprawić_że_ktoś_nabierze_chęci_do_działania"
+        }
+      ],
+      "morph_lemma": "zachęcić"
+    },
+    {
+      "lemma": "wątpienie",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3781,
+        "count": 1869,
+        "per_million": 22.871,
+        "arf": 980.96,
+        "dispersion": 0.3962
+      },
+      "introduced_at": {
+        "ru": "B2",
+        "by": "B2",
+        "ua": "B2"
+      },
+      "level_confidence": {
+        "ru": 0.76,
+        "by": 0.76,
+        "ua": 0.76
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "сомнение"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Brak pewności lub wiary w coś.",
+          "translation_by": [
+            "сумненне"
+          ],
+          "translation_ua": [
+            "сумнів"
+          ],
+          "example_pl": "Nie ma powodu do wątpienia w jego słowa.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "wątpienie:brak_pewności_lub_wiary_w_coś"
+        }
+      ],
+      "morph_lemma": "wątpienie"
+    },
+    {
+      "lemma": "zmarły",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3782,
+        "count": 2380,
+        "per_million": 29.125,
+        "arf": 980.93,
+        "dispersion": 0.3661
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "покойник",
+            "умерший"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Osoba, która nie żyje.",
+          "translation_by": [
+            "нябожчык",
+            "памерлы"
+          ],
+          "translation_ua": [
+            "небіжчик",
+            "померлий"
+          ],
+          "example_pl": "Rodzina pożegnała zmarłego.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "zmarły:osoba_która_nie_żyje"
+        }
+      ],
+      "morph_lemma": "zmarły:S"
+    },
+    {
+      "lemma": "niepewny",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3783,
+        "count": 1726,
+        "per_million": 21.121,
+        "arf": 980.93,
+        "dispersion": 0.4868
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "неопределённый",
+            "сомнительный"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Nieznany, wątpliwy lub trudny do przewidzenia.",
+          "translation_by": [
+            "няпэўны",
+            "сумнеўны"
+          ],
+          "translation_ua": [
+            "непевний",
+            "сумнівний"
+          ],
+          "example_pl": "Wynik spotkania jest niepewny.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "niepewny:nieznany_wątpliwy_lub_trudny_do_przewidzenia"
+        },
+        {
+          "translation_ru": [
+            "неуверенный"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "Nieodczuwający pewności lub zdecydowania.",
+          "translation_by": [
+            "няўпэўнены"
+          ],
+          "translation_ua": [
+            "невпевнений"
+          ],
+          "example_pl": "Był niepewny swojej odpowiedzi.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "niepewny:nieodczuwający_pewności_lub_zdecydowania"
+        }
+      ],
+      "morph_lemma": "niepewny"
+    },
+    {
+      "lemma": "wysiąść",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3784,
+        "count": 2159,
+        "per_million": 26.42,
+        "arf": 980.62,
+        "dispersion": 0.3049
+      },
+      "introduced_at": {
+        "ru": "A1",
+        "by": "A1",
+        "ua": "A1"
+      },
+      "level_confidence": {
+        "ru": 0.92,
+        "by": 0.92,
+        "ua": 0.92
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "выйти из транспорта"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Opuścić pojazd po podróży.",
+          "translation_by": [
+            "выйсці з транспарту"
+          ],
+          "translation_ua": [
+            "вийти з транспорту"
+          ],
+          "example_pl": "Wysiądź na następnym przystanku.",
+          "introduced_at": {
+            "ru": "A1",
+            "by": "A1",
+            "ua": "A1"
+          },
+          "level_confidence": {
+            "ru": 0.92,
+            "by": 0.92,
+            "ua": 0.92
+          },
+          "sense_id": "wysiąść:opuścić_pojazd_po_podróży"
+        },
+        {
+          "translation_ru": [
+            "сломаться",
+            "выйти из строя"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "Potocznie: przestać działać.",
+          "translation_by": [
+            "зламацца",
+            "выйсці са строю"
+          ],
+          "translation_ua": [
+            "зламатися",
+            "вийти з ладу"
+          ],
+          "example_pl": "Komputer całkiem wysiadł podczas pracy.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "wysiąść:potocznie_przestać_działać"
+        }
+      ],
+      "morph_lemma": "wysiąść"
+    },
+    {
+      "lemma": "chętny",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3785,
+        "count": 1678,
+        "per_million": 20.534,
+        "arf": 979.7,
+        "dispersion": 0.4084
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "желающий",
+            "готовый"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Mający ochotę lub gotowość do czegoś.",
+          "translation_by": [
+            "ахвотны",
+            "той, хто хоча"
+          ],
+          "translation_ua": [
+            "охочий",
+            "той, хто бажає"
+          ],
+          "example_pl": "Kto jest chętny na wycieczkę?",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "chętny:mający_ochotę_lub_gotowość_do_czegoś"
+        }
+      ],
+      "morph_lemma": "chętny:A"
+    },
+    {
+      "lemma": "wieczorny",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3786,
+        "count": 1858,
+        "per_million": 22.737,
+        "arf": 979.23,
+        "dispersion": 0.4219
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "вечерний"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "odbywający się wieczorem, związany z końcem dnia",
+          "translation_by": [
+            "вячэрні"
+          ],
+          "translation_ua": [
+            "вечірній"
+          ],
+          "example_pl": "Lubię wieczorny spacer.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "wieczorny:odbywający_się_wieczorem_związany_z_końcem_dnia"
+        }
+      ],
+      "morph_lemma": "wieczorny"
+    },
+    {
+      "lemma": "skała",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3787,
+        "count": 2865,
+        "per_million": 35.06,
+        "arf": 978.83,
+        "dispersion": 0.288
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "скала",
+            "утёс"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Duży blok litego materiału skalnego lub skalne urwisko.",
+          "translation_by": [
+            "скала",
+            "уцёс"
+          ],
+          "translation_ua": [
+            "скеля",
+            "урвище"
+          ],
+          "example_pl": "Wspinaliśmy się na wysoką skałę.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "skała:zbudowana_w_widoczny_sposób_z_litej_skały"
+        },
+        {
+          "translation_ru": [
+            "горная порода"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "zespół minerałów lub wiele ziaren tego samego minerału",
+          "translation_by": [
+            "горная парода"
+          ],
+          "translation_ua": [
+            "гірська порода"
+          ],
+          "example_pl": "Granit jest twardą skałą.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "skała:zespół_minerałów_lub_wiele_ziaren_tego_samego"
+        }
+      ],
+      "morph_lemma": "skała"
+    },
+    {
+      "lemma": "puchar",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3788,
+        "count": 2579,
+        "per_million": 31.56,
+        "arf": 977.93,
+        "dispersion": 0.1773
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "source": "editor",
+          "translation_ru": [
+            "призовой кубок"
+          ],
+          "gloss_pl": "Nagroda sportowa w postaci ozdobnego naczynia.",
+          "translation_by": [
+            "прызавы кубак"
+          ],
+          "translation_ua": [
+            "призовий кубок"
+          ],
+          "example_pl": "Zwycięzca podniósł puchar.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "puchar:nagroda_sportowa_w_postaci_ozdobnego_naczynia",
+          "primary": true
+        },
+        {
+          "translation_ru": [
+            "кубок"
+          ],
+          "primary": false,
+          "source": "plwiktionary",
+          "gloss_pl": "naczynie, rodzaj czary z nóżką, w postaci dużego kielicha, niekiedy z grubego szkła",
+          "translation_by": [
+            "кубак",
+            "чара"
+          ],
+          "translation_ua": [
+            "кубок",
+            "чаша"
+          ],
+          "example_pl": "Pił z ozdobnego pucharu.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "puchar:naczynie_rodzaj_czary_z_nóżką_w_postaci"
+        }
+      ],
+      "morph_lemma": "puchar"
+    },
+    {
+      "lemma": "błoto",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3789,
+        "count": 2258,
+        "per_million": 27.632,
+        "arf": 977.5,
+        "dispersion": 0.382
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "грязь",
+            "слякоть"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "mieszanina ziemi i wody",
+          "translation_by": [
+            "бруд",
+            "гразь"
+          ],
+          "translation_ua": [
+            "багно",
+            "бруд"
+          ],
+          "example_pl": "Buty są całe w błocie.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "błoto:mieszanina_ziemi_i_wody"
+        }
+      ],
+      "morph_lemma": "błoto"
+    },
+    {
+      "lemma": "potrawa",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3790,
+        "count": 2190,
+        "per_million": 26.799,
+        "arf": 977.23,
+        "dispersion": 0.3342
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "блюдо",
+            "кушанье"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "posiłek stworzony z jadalnych składników",
+          "translation_by": [
+            "страва"
+          ],
+          "translation_ua": [
+            "страва"
+          ],
+          "example_pl": "To moja ulubiona potrawa.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "potrawa:posiłek_stworzony_z_jadalnych_składników"
+        }
+      ],
+      "morph_lemma": "potrawa"
+    },
+    {
+      "lemma": "podsumowywać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3791,
+        "count": 1719,
+        "per_million": 21.036,
+        "arf": 977.22,
+        "dispersion": 0.1948
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "подытоживать"
+          ],
+          "primary": true,
+          "source": "ruwiktionary",
+          "gloss_pl": "Zbierać najważniejsze wnioski lub wyniki w krótką całość.",
+          "translation_by": [
+            "падводзіць вынікі",
+            "падсумоўваць"
+          ],
+          "translation_ua": [
+            "підбивати підсумки",
+            "підсумовувати"
+          ],
+          "example_pl": "Podsumowujemy wyniki projektu.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "podsumowywać:zbierać_najważniejsze_wnioski_lub_wyniki_w_krótką"
+        }
+      ],
+      "morph_lemma": "podsumowywać"
+    },
+    {
+      "lemma": "zimno",
+      "pos": "ADV",
+      "frequency": {
+        "rank": 3792,
+        "count": 2097,
+        "per_million": 25.661,
+        "arf": 976.55,
+        "dispersion": 0.4068
+      },
+      "introduced_at": {
+        "ru": "A1",
+        "by": "A1",
+        "ua": "A1"
+      },
+      "level_confidence": {
+        "ru": 0.92,
+        "by": 0.92,
+        "ua": 0.92
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "холодно"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "z uczuciem utraty ciepła",
+          "translation_by": [
+            "холадна"
+          ],
+          "translation_ua": [
+            "холодно"
+          ],
+          "example_pl": "Zimą jest tu zimno.",
+          "introduced_at": {
+            "ru": "A1",
+            "by": "A1",
+            "ua": "A1"
+          },
+          "level_confidence": {
+            "ru": 0.92,
+            "by": 0.92,
+            "ua": 0.92
+          },
+          "sense_id": "zimno:z_uczuciem_utraty_ciepła"
+        }
+      ],
+      "morph_lemma": "zimno:D"
+    },
+    {
+      "lemma": "kilogram",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3793,
+        "count": 2197,
+        "per_million": 26.885,
+        "arf": 976.28,
+        "dispersion": 0.3367
+      },
+      "introduced_at": {
+        "ru": "A1",
+        "by": "A1",
+        "ua": "A1"
+      },
+      "level_confidence": {
+        "ru": 0.92,
+        "by": 0.92,
+        "ua": 0.92
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "килограмм"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "podstawowa jednostka masy w układzie SI, oznaczana kg",
+          "translation_by": [
+            "кілаграм"
+          ],
+          "translation_ua": [
+            "кілограм"
+          ],
+          "example_pl": "Kup kilogram jabłek.",
+          "introduced_at": {
+            "ru": "A1",
+            "by": "A1",
+            "ua": "A1"
+          },
+          "level_confidence": {
+            "ru": 0.92,
+            "by": 0.92,
+            "ua": 0.92
+          },
+          "sense_id": "kilogram:podstawowa_jednostka_masy_w_układzie_si_oznaczana"
+        }
+      ],
+      "morph_lemma": "kilogram"
+    },
+    {
+      "lemma": "mróz",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3794,
+        "count": 2246,
+        "per_million": 27.485,
+        "arf": 975.52,
+        "dispersion": 0.2906
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "мороз"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "temperatura poniżej 0 stopni Celsjusza",
+          "translation_by": [
+            "мароз"
+          ],
+          "translation_ua": [
+            "мороз"
+          ],
+          "example_pl": "W nocy był silny mróz.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "mróz:temperatura_poniżej_0_stopni_celsjusza"
+        }
+      ],
+      "morph_lemma": "mróz"
+    },
+    {
+      "lemma": "łąka",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3795,
+        "count": 2536,
+        "per_million": 31.034,
+        "arf": 975.33,
+        "dispersion": 0.3122
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "луг",
+            "лужайка"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "teren gęsto porośnięty trawami",
+          "translation_by": [
+            "луг"
+          ],
+          "translation_ua": [
+            "лука",
+            "луг"
+          ],
+          "example_pl": "Na łące kwitną kwiaty.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "łąka:teren_gęsto_porośnięty_trawami"
+        }
+      ],
+      "morph_lemma": "łąka"
+    },
+    {
+      "lemma": "doprowadzać",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3796,
+        "count": 1697,
+        "per_million": 20.767,
+        "arf": 975.06,
+        "dispersion": 0.2114
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "доводить"
+          ],
+          "primary": true,
+          "source": "ruwiktionary",
+          "gloss_pl": "Powodować osiągnięcie określonego stanu lub skutku.",
+          "translation_by": [
+            "даводзіць",
+            "прыводзіць да"
+          ],
+          "translation_ua": [
+            "доводити",
+            "призводити до"
+          ],
+          "example_pl": "Stres doprowadza go do rozpaczy.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "doprowadzać:powodować_osiągnięcie_określonego_stanu_lub_skutku"
+        },
+        {
+          "translation_ru": [
+            "подводить",
+            "проводить"
+          ],
+          "primary": false,
+          "source": "ruwiktionary",
+          "gloss_pl": "Prowadzić kogoś lub dostarczać coś do określonego miejsca.",
+          "translation_by": [
+            "падводзіць",
+            "праводзіць"
+          ],
+          "translation_ua": [
+            "підводити",
+            "проводити"
+          ],
+          "example_pl": "Doprowadzają wodę do nowego domu.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "doprowadzać:prowadzić_kogoś_lub_dostarczać_coś_do_określonego"
+        }
+      ],
+      "morph_lemma": "doprowadzać"
+    },
+    {
+      "lemma": "osłabić",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3797,
+        "count": 1728,
+        "per_million": 21.146,
+        "arf": 974.61,
+        "dispersion": 0.1853
+      },
+      "introduced_at": {
+        "ru": "B1",
+        "by": "B1",
+        "ua": "B1"
+      },
+      "level_confidence": {
+        "ru": 0.8,
+        "by": 0.8,
+        "ua": 0.8
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "ослабить"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Zmniejszyć siłę, odporność lub intensywność czegoś.",
+          "translation_by": [
+            "аслабіць"
+          ],
+          "translation_ua": [
+            "ослабити"
+          ],
+          "example_pl": "Choroba osłabiła organizm.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "osłabić:zmniejszyć_siłę_odporność_lub_intensywność_czegoś"
+        }
+      ],
+      "morph_lemma": "osłabić"
+    },
+    {
+      "lemma": "nakaz",
+      "pos": "NOUN",
+      "frequency": {
+        "rank": 3798,
+        "count": 1977,
+        "per_million": 24.193,
+        "arf": 973.72,
+        "dispersion": 0.3998
+      },
+      "introduced_at": {
+        "ru": "B2",
+        "by": "B2",
+        "ua": "B2"
+      },
+      "level_confidence": {
+        "ru": 0.76,
+        "by": 0.76,
+        "ua": 0.76
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "распоряжение",
+            "приказ"
+          ],
+          "primary": true,
+          "source": "ruwiktionary",
+          "gloss_pl": "Wiążące polecenie wydane przez uprawnioną osobę lub organ.",
+          "translation_by": [
+            "загад",
+            "прадпісанне"
+          ],
+          "translation_ua": [
+            "наказ",
+            "припис"
+          ],
+          "example_pl": "Sąd wydał nakaz zapłaty.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "nakaz:wiążące_polecenie_wydane_przez_uprawnioną_osobę_lub"
+        },
+        {
+          "translation_ru": [
+            "требование",
+            "веление",
+            "императив"
+          ],
+          "primary": false,
+          "source": "ruwiktionary",
+          "gloss_pl": "Silna powinność wynikająca z zasad lub przekonań.",
+          "translation_by": [
+            "патрабаванне",
+            "імператыў"
+          ],
+          "translation_ua": [
+            "вимога",
+            "імператив"
+          ],
+          "example_pl": "Pomoc słabszym uważa za moralny nakaz.",
+          "introduced_at": {
+            "ru": "B2",
+            "by": "B2",
+            "ua": "B2"
+          },
+          "level_confidence": {
+            "ru": 0.76,
+            "by": 0.76,
+            "ua": 0.76
+          },
+          "sense_id": "nakaz:silna_powinność_wynikająca_z_zasad_lub_przekonań"
+        }
+      ],
+      "morph_lemma": "nakaz"
+    },
+    {
+      "lemma": "japoński",
+      "pos": "ADJ",
+      "frequency": {
+        "rank": 3799,
+        "count": 2469,
+        "per_million": 30.214,
+        "arf": 973.53,
+        "dispersion": 0.285
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "японский"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "dotyczący lub odnoszący się do Japonii lub Japończyków",
+          "translation_by": [
+            "японскі"
+          ],
+          "translation_ua": [
+            "японський"
+          ],
+          "example_pl": "Próbujemy japońskiej kuchni.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "japoński:dotyczący_lub_odnoszący_się_do_japonii_lub"
+        }
+      ],
+      "morph_lemma": "japoński:A"
+    },
+    {
+      "lemma": "przewrócić",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3800,
+        "count": 1941,
+        "per_million": 23.752,
+        "arf": 973.02,
+        "dispersion": 0.2511
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "опрокинуть",
+            "перевернуть"
+          ],
+          "primary": true,
+          "source": "model",
+          "gloss_pl": "Spowodować, że coś upadnie lub zmieni pionowe położenie.",
+          "translation_by": [
+            "перакуліць"
+          ],
+          "translation_ua": [
+            "перекинути"
+          ],
+          "example_pl": "Przewrócił szklankę na stole.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "przewrócić:spowodować_że_coś_upadnie_lub_zmieni_pionowe"
+        },
+        {
+          "translation_ru": [
+            "упасть"
+          ],
+          "primary": false,
+          "source": "model",
+          "gloss_pl": "W połączeniu z „się”: stracić równowagę i upaść.",
+          "translation_by": [
+            "упасці",
+            "перакуліцца"
+          ],
+          "translation_ua": [
+            "впасти",
+            "перекинутися"
+          ],
+          "example_pl": "Przewróciła się na śliskim chodniku.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "przewrócić:w_połączeniu_z_się_stracić_równowagę_i"
+        }
+      ],
+      "morph_lemma": "przewrócić"
+    },
+    {
+      "lemma": "polecić",
+      "pos": "VERB",
+      "frequency": {
+        "rank": 3801,
+        "count": 1798,
+        "per_million": 22.002,
+        "arf": 972.62,
+        "dispersion": 0.2509
+      },
+      "introduced_at": {
+        "ru": "A2",
+        "by": "A2",
+        "ua": "A2"
+      },
+      "level_confidence": {
+        "ru": 0.86,
+        "by": 0.86,
+        "ua": 0.86
+      },
+      "senses": [
+        {
+          "translation_ru": [
+            "порекомендовать"
+          ],
+          "primary": true,
+          "source": "plwiktionary",
+          "gloss_pl": "Wskazać coś lub kogoś jako godnego wyboru.",
+          "translation_by": [
+            "парэкамендаваць",
+            "параіць"
+          ],
+          "translation_ua": [
+            "порекомендувати",
+            "порадити"
+          ],
+          "example_pl": "Polecił mi dobry podręcznik.",
+          "introduced_at": {
+            "ru": "A2",
+            "by": "A2",
+            "ua": "A2"
+          },
+          "level_confidence": {
+            "ru": 0.86,
+            "by": 0.86,
+            "ua": 0.86
+          },
+          "sense_id": "polecić:wskazać_coś_lub_kogoś_jako_godnego_wyboru"
+        },
+        {
+          "source": "editor",
+          "translation_ru": [
+            "поручить",
+            "приказать"
+          ],
+          "gloss_pl": "Zlecić komuś wykonanie zadania.",
+          "translation_by": [
+            "даручыць",
+            "загадаць"
+          ],
+          "translation_ua": [
+            "доручити",
+            "наказати"
+          ],
+          "example_pl": "Szef polecił mi przygotować raport.",
+          "introduced_at": {
+            "ru": "B1",
+            "by": "B1",
+            "ua": "B1"
+          },
+          "level_confidence": {
+            "ru": 0.8,
+            "by": 0.8,
+            "ua": 0.8
+          },
+          "sense_id": "polecić:zlecić_komuś_wykonanie_zadania",
+          "primary": false
+        }
+      ],
+      "morph_lemma": "polecić"
+    }
+  ]
+}
