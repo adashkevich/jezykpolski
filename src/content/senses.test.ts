@@ -3,6 +3,7 @@ import { __resetLoaderCachesForTest } from './loader.ts'
 import { __resetIndexStoreForTest, initIndexStore } from './index-store.ts'
 import {
   getAllTranslations,
+  getPrimaryExample,
   getPrimaryTranslation,
   getSenseDetails,
   getSenses,
@@ -185,5 +186,47 @@ describe('getSenseDetails', () => {
     vi.stubGlobal('fetch', makeFetchMock({ 'senses/009.json': senses }))
     await expect(getSenseDetails('być|VERB')).rejects.toThrow(/sense-details\/009\.json/)
     expect(await getSenses('być|VERB')).toHaveLength(2)
+  })
+})
+
+describe('getPrimaryExample', () => {
+  // `być` as in the real content, but with the primary sense SECOND in the file: the example
+  // must be the flagged sense's, not the first one's.
+  const senses = {
+    'być|VERB': [
+      { id: 'być:exist', ru: ['быть'], lv: [1, 1, 1], primary: false },
+      { id: 'być:copula', ru: ['быть'], lv: [1, 1, 1], primary: true },
+    ],
+  }
+  const details = {
+    'być:copula': { gl: 'łącznik', ex: 'Anna jest lekarką.', by: ['быць'], ua: ['бути'] },
+    'być:exist': { gl: 'istnieć', ex: 'Czy na Marsie jest życie?', by: ['быць'], ua: ['бути'] },
+  }
+
+  it("is the primary sense's example, by the primary flag rather than file position", async () => {
+    initIndexStore([entry({ lemma: 'być', pos: 'VERB', rank: 1, sensesShard: 9 })])
+    vi.stubGlobal(
+      'fetch',
+      makeFetchMock({ 'senses/009.json': senses, 'sense-details/009.json': details }),
+    )
+    expect(await getPrimaryExample('być|VERB')).toBe('Anna jest lekarką.')
+  })
+
+  it('is undefined when the primary sense has no details entry', async () => {
+    initIndexStore([entry({ lemma: 'być', pos: 'VERB', rank: 1, sensesShard: 9 })])
+    vi.stubGlobal(
+      'fetch',
+      makeFetchMock({
+        'senses/009.json': senses,
+        'sense-details/009.json': { 'być:exist': details['być:exist'] },
+      }),
+    )
+    expect(await getPrimaryExample('być|VERB')).toBeUndefined()
+  })
+
+  it('rejects when the details shard cannot be fetched', async () => {
+    initIndexStore([entry({ lemma: 'być', pos: 'VERB', rank: 1, sensesShard: 9 })])
+    vi.stubGlobal('fetch', makeFetchMock({ 'senses/009.json': senses }))
+    await expect(getPrimaryExample('być|VERB')).rejects.toThrow(/sense-details\/009\.json/)
   })
 })

@@ -45,6 +45,18 @@ test.describe('accessibility (axe) — light theme, real screens', () => {
     await expectNoAxeViolations(page, '/words/:wordId')
   })
 
+  test('word detail with several senses (/words/:wordId, być)', async ({ page }) => {
+    // Task 50: gloss, example and the «изучаем»/«позже» badges — the gloss and example come
+    // from the lazy `sense-details` shard, so scan once they are on screen.
+    await page.goto(`/words/${encodeURIComponent('być|VERB')}`)
+    await expect(page.getByRole('heading', { name: 'być', level: 1 })).toBeVisible()
+    await expect(page.getByText('«Anna jest lekarką.»')).toBeVisible()
+    await expect(page.getByText('«Czy na Marsie jest życie?»')).toBeVisible()
+    await expect(page.getByText('изучаем')).toBeVisible()
+    await expect(page.getByText('позже')).toBeVisible()
+    await expectNoAxeViolations(page, '/words/:wordId (several senses)')
+  })
+
   test('nouns/verbs/adjectives stub sections', async ({ page }) => {
     for (const path of ['/nouns', '/verbs', '/adjectives']) {
       await page.goto(path)

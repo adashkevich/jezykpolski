@@ -11,23 +11,38 @@
  * Thin wrapper over `content/senses.ts#getSenses` (task 04) — no new loading/caching logic,
  * just the React plumbing `getSenses` itself deliberately doesn't have (it's a plain
  * `content/**` async function, not a hook).
+ *
+ * Task 50 (`spec/tasks/50-word-detail-senses-v2.md` §1) adds the display-only details (Polish
+ * gloss and example) from the lazy `sense-details` shard (`getSenseDetails`). They load
+ * SEPARATELY: the translations show as soon as the senses shard is in, the details fill in
+ * when theirs arrives, and a failed details load — the normal case offline, with that shard
+ * never cached — is swallowed on purpose: `details` just stays empty and the list shows
+ * translations only, no error message.
  */
 import { useEffect, useState } from 'react'
-import { getSenses } from '@/content/senses.ts'
+import { getSenseDetails, getSenses } from '@/content/senses.ts'
 import type { WordId } from '@/learning/skills/skill-id.ts'
-import type { Sense } from '@/types/content.ts'
+import type { Sense, SenseDetails, SenseId } from '@/types/content.ts'
 
 export type SensesStatus = 'loading' | 'ready' | 'error'
+
+export type SenseDetailsById = ReadonlyMap<SenseId, SenseDetails>
+
+const NO_DETAILS: SenseDetailsById = new Map()
 
 export interface UseSensesResult {
   readonly status: SensesStatus
   readonly senses: readonly Sense[]
+  /** Polish gloss/example per sense id. Empty until the details shard arrives — and for good
+   *  if it never does (offline, never cached); a sense missing from it is simply absent. */
+  readonly details: SenseDetailsById
   readonly error: Error | undefined
 }
 
 export function useSenses(wordId: WordId): UseSensesResult {
   const [status, setStatus] = useState<SensesStatus>('loading')
   const [senses, setSenses] = useState<readonly Sense[]>([])
+  const [details, setDetails] = useState<SenseDetailsById>(NO_DETAILS)
   const [error, setError] = useState<Error | undefined>(undefined)
   // Tracks the last `wordId` this hook's state actually belongs to. When `wordId` changes
   // (route param navigation while the page stays mounted), reset happens right here, during
@@ -40,6 +55,7 @@ export function useSenses(wordId: WordId): UseSensesResult {
     setLastSeenWordId(wordId)
     setStatus('loading')
     setSenses([])
+    setDetails(NO_DETAILS)
     setError(undefined)
   }
 
@@ -63,5 +79,22 @@ export function useSenses(wordId: WordId): UseSensesResult {
     }
   }, [wordId])
 
-  return { status, senses, error }
+  useEffect(() => {
+    let cancelled = false
+
+    getSenseDetails(wordId)
+      .then((result) => {
+        if (!cancelled) setDetails(result)
+      })
+      .catch(() => {
+        // Deliberately silent (task 50 §1): no details shard offline is a normal situation,
+        // and the translations above are complete without them.
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [wordId])
+
+  return { status, senses, details, error }
 }

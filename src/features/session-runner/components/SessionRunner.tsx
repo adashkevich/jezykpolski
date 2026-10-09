@@ -64,7 +64,12 @@ import { encodeSkillId, type SkillId } from '@/learning/skills/skill-id.ts'
 import type { SessionMode } from '@/types/progress.ts'
 import { isFirstAnswerInSession, useSessionStore } from '@/stores/session.store.ts'
 import type { SessionRuntime } from '../hooks/useSessionBootstrap.ts'
-import { correctAnswerOf, submitAnswer, toSrsState } from '../lib/answer-pipeline.ts'
+import {
+  correctAnswerOf,
+  showsWordExample,
+  submitAnswer,
+  toSrsState,
+} from '../lib/answer-pipeline.ts'
 import { generateForSkill } from '../lib/build-session-exercises.ts'
 import { createExerciseComponentRegistry } from './exercise-registry.tsx'
 import { ExerciseFeedback } from './ExerciseFeedback.tsx'
@@ -363,6 +368,14 @@ function ActiveQuestion({
 
   const canMarkKnown = feedback !== null && markKnownOffered
 
+  // Task 50 §2: the primary sense's example goes under the answer — vocab questions only, and
+  // only once there IS feedback (before the answer it would give the answer away). Whatever
+  // the details shard has delivered by now; if it is not here yet, the line is just absent.
+  const example =
+    feedback !== null && showsWordExample(instance.exercise)
+      ? runtime.cache.getPrimaryExample(descriptor.wordId)
+      : undefined
+
   // «Знаю» после чистого ответа (задача 41 §2, на этапах выбора — задача 40 §3): сам ответ уже
   // оценён и записан `handleAnswer` — кнопка лишь дополнительно помечает слово известным
   // (самооценка, без отдельного reviewLog — то же рассуждение, что в шапке
@@ -410,6 +423,7 @@ function ActiveQuestion({
           feedback={feedback}
           correctAnswer={correctAnswerOf(instance.exercise)}
           attempt={typedAttempt ?? undefined}
+          example={example}
           onNext={handleNext}
           onMarkKnown={
             canMarkKnown

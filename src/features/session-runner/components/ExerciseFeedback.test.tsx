@@ -209,6 +209,31 @@ describe('ExerciseFeedback', () => {
     expect(onMarkKnown).toHaveBeenCalledOnce()
   })
 
+  // Задача 50 §2: пример primary-значения — строка под статусом, на любом из статусов.
+  it.each([
+    ['верный ответ', 'быть'],
+    ['неверный ответ', 'иметь'],
+  ])('%s: пример выводится польской строкой в «…», курсивом', (_name, answer) => {
+    const feedback = grade(plRuExercise, answer)
+    render(
+      <ExerciseFeedback
+        feedback={feedback}
+        correctAnswer="быть"
+        example="Anna jest lekarką."
+        onNext={() => {}}
+      />,
+    )
+    const example = screen.getByText('«Anna jest lekarką.»')
+    expect(example).toHaveAttribute('lang', 'pl')
+    expect(example).toHaveClass('italic')
+  })
+
+  it('без example (грамматика, matching, детали не успели) строки нет', () => {
+    const feedback = grade(plRuExercise, 'иметь')
+    render(<ExerciseFeedback feedback={feedback} correctAnswer="быть" onNext={() => {}} />)
+    expect(screen.queryByText(/«/)).not.toBeInTheDocument()
+  })
+
   it('every animation utility is gated behind motion-safe: so prefers-reduced-motion disables it', () => {
     const feedback = grade(plRuExercise, 'иметь')
     render(<ExerciseFeedback feedback={feedback} correctAnswer="быть" onNext={() => {}} />)

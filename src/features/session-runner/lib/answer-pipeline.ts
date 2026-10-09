@@ -181,6 +181,28 @@ export function correctAnswerOf(exercise: Exercise): string {
   }
 }
 
+/**
+ * Whether the feedback of `exercise` shows the word's example sentence (task 50 §2): the
+ * translation exercises (`choice`/`input`/`self-assess`, both directions) do — the sentence
+ * shows the word in use — while grammar questions (`form-*`, `context-sentence`, `table`) and
+ * matching, which are not about the word's meaning, don't. A `switch` without a default so a
+ * new exercise type cannot be added without deciding this.
+ */
+export function showsWordExample(exercise: Exercise): boolean {
+  switch (exercise.type) {
+    case 'choice':
+    case 'input':
+    case 'self-assess':
+      return true
+    case 'form-choice':
+    case 'form-input':
+    case 'context-sentence':
+    case 'table':
+    case 'matching':
+      return false
+  }
+}
+
 /** Synthesizes a `GradeResult` for `self-assess` without calling `grade()` on the raw rating
  *  string — `grade()`'s `self-assess` branch compares the answer against `exercise.answer`
  *  (the word itself), which a `'1'|'2'|'3'` rating string would never match. "Correct" here

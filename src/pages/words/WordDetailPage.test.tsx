@@ -191,6 +191,7 @@ const DOBRY_ID = encodeWordId('dobry', 'ADJ')
 const CHLODNO_ID = encodeWordId('chłodno', 'ADV')
 const POWINIEN_ID = encodeWordId('powinien', 'VERB')
 const TO_ID = encodeWordId('to', 'PRON')
+const BYC_ID = encodeWordId('być', 'VERB')
 
 const FIXTURE_ENTRIES: readonly WordIndexEntry[] = [
   {
@@ -253,6 +254,16 @@ const FIXTURE_ENTRIES: readonly WordIndexEntry[] = [
     sensesShard: 0,
     paradigmShard: -1,
   },
+  {
+    lemma: 'być',
+    pos: 'VERB',
+    rank: 1,
+    level: 'A1',
+    levels: uniformLevels('A1'),
+    primaryRu: 'быть',
+    sensesShard: 0,
+    paradigmShard: -1,
+  },
 ]
 
 const SENSES_SHARD = {
@@ -264,10 +275,54 @@ const SENSES_SHARD = {
   'dobry|ADJ': [{ id: 'dobry:good', ru: ['хороший'], lv: [1, 1, 1], primary: true }],
   'chłodno|ADV': [{ id: 'chłodno:cold', ru: ['холодно'], lv: [3, 3, 3], primary: true }],
   'powinien|VERB': [{ id: 'powinien:should', ru: ['должен'], lv: [2, 2, 2], primary: true }],
-  'to|PRON': [{ id: 'to:this', ru: ['это'], lv: [1, 1, 1], primary: true }],
+  // Real `to|PRON` (public/content/senses/007.json): two senses, no paradigm.
+  'to|PRON': [
+    { id: 'to:demonstrative', ru: ['это'], lv: [1, 1, 1], primary: true },
+    { id: 'to:consequence', ru: ['то'], lv: [2, 2, 2], primary: false },
+  ],
+  // `być|VERB` as in the real content (public/content/senses/014.json, checked with a one-off
+  // script) except for the order: the primary sense is written SECOND, so the card's "primary
+  // first" is the page's doing and not an accident of the fixture.
+  'być|VERB': [
+    { id: 'być:exist', ru: ['быть'], lv: [1, 1, 1], primary: false },
+    { id: 'być:copula', ru: ['быть'], lv: [1, 1, 1], primary: true },
+  ],
 }
 
-function makeFetchMock() {
+// Real glosses and examples from `public/content/sense-details/014.json` (`być`) and `007.json` (`to`).
+const SENSE_DETAILS_SHARD = {
+  'być:copula': {
+    gl: 'łączyć podmiot z informacją o jego cechach lub tożsamości',
+    ex: 'Anna jest lekarką.',
+    by: ['быць'],
+    ua: ['бути'],
+  },
+  'być:exist': {
+    gl: 'istnieć lub znajdować się w określonym stanie',
+    ex: 'Czy na Marsie jest życie?',
+    by: ['быць'],
+    ua: ['бути'],
+  },
+  // `public/content/sense-details/007.json`'s two `to` entries.
+  'to:demonstrative': {
+    gl: 'wskazuje rzecz, sytuację lub treść wypowiedzi',
+    ex: 'Co to jest?',
+    by: ['гэта'],
+    ua: ['це'],
+  },
+  'to:consequence': {
+    gl: 'wprowadza skutek lub następstwo warunku',
+    ex: 'Jeśli pada, to zostaję w domu.',
+    by: ['то', 'тады'],
+    ua: ['то', 'тоді'],
+  },
+}
+
+/** What `sense-details/000.json` does: arrive (default), 404 (offline, shard never cached), or
+ *  stay pending until the test lets it through. */
+type SenseDetailsRoute = 'available' | 'missing' | Promise<unknown>
+
+function makeFetchMock(senseDetails: SenseDetailsRoute = 'available') {
   const routes: Record<string, unknown> = {
     'senses/000.json': SENSES_SHARD,
     'paradigms/001.json': { 'kobieta|NOUN': { forms: KOBIETA_RAW_FORMS, dominantGender: 1 } },
@@ -277,6 +332,13 @@ function makeFetchMock() {
   }
   return vi.fn(async (url: unknown) => {
     const href = String(url)
+    if (href.includes('sense-details/000.json')) {
+      if (senseDetails === 'missing') {
+        return { ok: false, status: 404, json: async () => ({}) } as Response
+      }
+      const body = senseDetails === 'available' ? SENSE_DETAILS_SHARD : await senseDetails
+      return { ok: true, json: async () => body } as Response
+    }
     const key = Object.keys(routes).find((k) => href.includes(k))
     if (key === undefined) return { ok: false, status: 404, json: async () => ({}) } as Response
     return { ok: true, json: async () => routes[key] } as Response
@@ -350,6 +412,47 @@ describe('header, senses (FR-40/FR-41)', () => {
     // "женщина" appears twice — once as the header's primary translation, once as sense #1.
     expect(screen.getAllByText('женщина').length).toBe(2)
     expect(screen.getByText('жена')).toBeInTheDocument()
+  })
+  it('być: two senses, the primary one first (although the shard has it second) with its example and «изучаем», then «позже»', async () => {
+    renderWordDetail(BYC_ID)
+    await screen.findByText('«Anna jest lekarką.»')
+
+    const [first, second] = screen.getAllByRole('listitem')
+    expect(within(first!).getByText('изучаем')).toBeInTheDocument()
+    expect(within(first!).getByText('«Anna jest lekarką.»')).toBeInTheDocument()
+    expect(
+      within(first!).getByText('łączyć podmiot z informacją o jego cechach lub tożsamości'),
+    ).toBeInTheDocument()
+    expect(within(second!).getByText('позже')).toBeInTheDocument()
+    expect(within(second!).getByText('«Czy na Marsie jest życie?»')).toBeInTheDocument()
+  })
+
+  it('translations show first; gloss and example are drawn in when the details shard arrives', async () => {
+    let deliverDetails!: (shard: unknown) => void
+    fetchMock = makeFetchMock(new Promise((resolve) => (deliverDetails = resolve)))
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderWordDetail(BYC_ID)
+    await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(2))
+    expect(screen.getByText('изучаем')).toBeInTheDocument()
+    expect(screen.queryByText(/«/)).not.toBeInTheDocument()
+
+    deliverDetails(SENSE_DETAILS_SHARD)
+    expect(await screen.findByText('«Anna jest lekarką.»')).toBeInTheDocument()
+  })
+
+  it('offline without the details shard: translations only, no gloss, no example, no error', async () => {
+    fetchMock = makeFetchMock('missing')
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderWordDetail(BYC_ID)
+    await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(2))
+    await waitFor(() => expect(fetchedUrlsContaining('sense-details/000.json')).toBe(1))
+
+    expect(screen.getByText('изучаем')).toBeInTheDocument()
+    expect(screen.queryByText(/«/)).not.toBeInTheDocument()
+    expect(document.querySelector('[lang="pl"]')).toBeNull()
+    expect(screen.queryByText(/Не удалось/)).not.toBeInTheDocument()
   })
 })
 
@@ -548,6 +651,12 @@ describe('acceptance 6 — a paradigm-less word opens without errors and has no 
     expect(screen.queryByRole('button', { name: /формы/i })).not.toBeInTheDocument()
     expect(screen.queryByText('Формы')).not.toBeInTheDocument()
     expect(fetchedUrlsContaining('paradigms/')).toBe(0)
+    // Both real senses of `to`, each with its example, and no error anywhere.
+    expect(screen.getByText('это', { selector: 'span' })).toBeInTheDocument()
+    expect(screen.getByText('то')).toBeInTheDocument()
+    expect(await screen.findByText('«Co to jest?»')).toBeInTheDocument()
+    expect(screen.getByText('«Jeśli pada, to zostaję w domu.»')).toBeInTheDocument()
+    expect(screen.queryByText(/Не удалось/)).not.toBeInTheDocument()
   })
 })
 

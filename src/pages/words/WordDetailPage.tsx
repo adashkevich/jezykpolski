@@ -22,6 +22,7 @@ import { getIndexStore } from '@/content/index-store.ts'
 import { getPrimaryTranslation } from '@/content/senses.ts'
 import { useWordProgress } from '@/hooks/useWordProgress.ts'
 import { useWordSkills } from '@/hooks/useWordSkills.ts'
+import { DEFAULT_LANG_PROFILE } from '@/learning/session/lang-profile.ts'
 import type { WordId } from '@/learning/skills/skill-id.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import { useLazyParadigm } from '@/features/word-detail/hooks/useLazyParadigm.ts'
@@ -62,7 +63,7 @@ export function WordDetailPage() {
 
 function WordDetailContent({ wordId, entry }: { wordId: WordId; entry: WordIndexEntry }) {
   const primaryTranslation = getPrimaryTranslation(wordId)
-  const { status: sensesStatus, senses, error: sensesError } = useSenses(wordId)
+  const { status: sensesStatus, senses, details, error: sensesError } = useSenses(wordId)
   const wordProgress = useWordProgress(wordId)
   const skills = useWordSkills(wordId)
   const lazyParadigm = useLazyParadigm(wordId)
@@ -85,7 +86,14 @@ function WordDetailContent({ wordId, entry }: { wordId: WordId; entry: WordIndex
           paradigm={lazyParadigm.paradigm}
         />
 
-        <SensesList status={sensesStatus} senses={senses} error={sensesError} />
+        {/* Task 51: the active profile from the setting replaces the default here. */}
+        <SensesList
+          status={sensesStatus}
+          senses={senses}
+          details={details}
+          error={sensesError}
+          profile={DEFAULT_LANG_PROFILE}
+        />
       </section>
 
       {hasParadigm && (

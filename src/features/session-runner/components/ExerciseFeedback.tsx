@@ -30,6 +30,11 @@
  * подсказок не было, но была исправленная ошибка) — раньше ответ с одной лишь исправленной
  * ошибкой тоже назывался «с подсказкой». Что считать безупречным ответом, решает
  * `letter-attempt.ts#isFlawlessAttempt` (через `assistOf`, задача 45) — условие здесь не дублируется.
+ *
+ * **Задача 50** (`spec/tasks/50-word-detail-senses-v2.md` §2): у vocab-упражнений под статусом
+ * выводится польский пример primary-значения (`example`). Только здесь, в состоянии фидбэка, —
+ * до ответа пример подсказал бы его; решает, показывать ли, вызывающий (`SessionRunner`), а
+ * компонент лишь рисует строку, если она передана.
  */
 import {
   AlertTriangle,
@@ -56,6 +61,9 @@ export interface ExerciseFeedbackProps {
    *  Drives the `hinted`/`corrected` statuses below — a `choice`-family answer has nothing of the sort
    *  and leaves this `undefined`. */
   readonly attempt?: TypedAttemptOutcome
+  /** Polish usage example of the word's primary sense (task 50) — a line under the status
+   *  block. Absent for grammar/matching exercises and when the example hasn't loaded. */
+  readonly example?: string
   /** "Далее" was activated (click, or Enter on the auto-focused button). */
   onNext(): void
   /** When set, a secondary "Знаю" button is shown next to "Далее" — the runner passes it only
@@ -125,6 +133,7 @@ export function ExerciseFeedback({
   feedback,
   correctAnswer,
   attempt,
+  example,
   onNext,
   onMarkKnown,
 }: ExerciseFeedbackProps) {
@@ -174,6 +183,12 @@ export function ExerciseFeedback({
             </p>
           )}
         </div>
+      )}
+
+      {example && (
+        <p lang="pl" className="px-1 text-body-md italic text-muted-foreground">
+          «{example}»
+        </p>
       )}
 
       <div className="flex gap-3">

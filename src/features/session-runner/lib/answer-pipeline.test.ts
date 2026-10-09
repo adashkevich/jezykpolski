@@ -27,7 +27,7 @@ import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.
 import type { WordIndexEntry } from '@/types/content.ts'
 import type { Exercise } from '@/learning/exercises/exercise.types.ts'
 import type { SkillRecord } from '@/types/progress.ts'
-import { correctAnswerOf, submitAnswer, toSrsState } from './answer-pipeline.ts'
+import { correctAnswerOf, showsWordExample, submitAnswer, toSrsState } from './answer-pipeline.ts'
 import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function entry(
@@ -177,6 +177,45 @@ describe('correctAnswerOf', () => {
   it('throws for table/matching — no single accepted answer to report', () => {
     expect(() => correctAnswerOf({ type: 'matching', pairs: [] })).toThrow()
     expect(() => correctAnswerOf({ type: 'table', lemma: 'kobieta', cells: [] })).toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// showsWordExample — pure (task 50 §2: the example sentence is for translation exercises only).
+// ---------------------------------------------------------------------------
+
+describe('showsWordExample', () => {
+  it('choice / input / self-assess (the vocab exercises) show the example', () => {
+    expect(showsWordExample(CHOICE_EXERCISE)).toBe(true)
+    expect(showsWordExample(INPUT_EXERCISE)).toBe(true)
+    expect(showsWordExample(SELF_ASSESS_EXERCISE)).toBe(true)
+    expect(showsWordExample({ ...CHOICE_EXERCISE, direction: 'ru-pl' })).toBe(true)
+  })
+
+  it('grammar exercises and matching do not', () => {
+    expect(
+      showsWordExample({
+        type: 'form-choice',
+        lemma: 'kobieta',
+        hint: 'женщина',
+        promptMode: 'lemma',
+        slot: 'noun:sg:genitive',
+        options: ['kobiety', 'kobiecie'],
+        correct: 'kobiety',
+      }),
+    ).toBe(false)
+    expect(
+      showsWordExample({
+        type: 'form-input',
+        lemma: 'kobieta',
+        hint: 'женщина',
+        promptMode: 'lemma',
+        slot: 'noun:sg:genitive',
+        accepted: ['kobiety'],
+      }),
+    ).toBe(false)
+    expect(showsWordExample({ type: 'table', lemma: 'kobieta', cells: [] })).toBe(false)
+    expect(showsWordExample({ type: 'matching', pairs: [] })).toBe(false)
   })
 })
 

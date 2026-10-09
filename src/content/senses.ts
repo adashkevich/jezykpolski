@@ -90,3 +90,14 @@ export async function getSenseDetails(wordId: WordId): Promise<Map<SenseId, Sens
   }
   return result
 }
+
+/**
+ * Polish usage example of `wordId`'s PRIMARY sense — the one being taught (task 49) — for the
+ * exercise feedback (task 50 §2); `undefined` when that sense has no details entry. Rejects
+ * like {@link getSenseDetails} when the sense-details shard cannot be fetched.
+ */
+export async function getPrimaryExample(wordId: WordId): Promise<string | undefined> {
+  const [senses, details] = await Promise.all([getSenses(wordId), getSenseDetails(wordId)])
+  const primary = senses[0]
+  return primary === undefined ? undefined : details.get(primary.id)?.example
+}

@@ -623,3 +623,114 @@ describe('«Точность»: чистый первый ответ (задач
     expect(await getDailyStats(today())).toMatchObject({ accuracyAttempts: 1, accuracyClean: 1 })
   })
 })
+
+// ---------------------------------------------------------------------------
+// Задача 50 §2: пример primary-значения в фидбэке vocab-упражнения.
+// ---------------------------------------------------------------------------
+
+describe('пример значения в фидбэке (задача 50)', () => {
+  const EXAMPLE = 'Ta kobieta jest lekarką.'
+  const NEVER = new Promise<never>(() => {})
+
+  /** Шард значений с `kobieta` (одно primary-значение) и шард деталей, который отдаёт `details`:
+   *  промис, который решает тест — так видно, что вопрос не ждёт детали. */
+  function stubContent(details: Promise<unknown>) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: unknown) => {
+        const href = String(url)
+        if (href.includes('sense-details/')) {
+          const body = await details
+          return { ok: true, json: async () => body } as Response
+        }
+        if (href.includes('senses/')) {
+          const body = {
+            'kobieta|NOUN': [
+              { id: 'kobieta:woman', ru: ['женщина'], lv: [1, 1, 1], primary: true },
+            ],
+          }
+          return { ok: true, json: async () => body } as Response
+        }
+        return { ok: true, json: async () => ({}) } as Response
+      }),
+    )
+  }
+
+  const DETAILS = {
+    'kobieta:woman': {
+      gl: 'dorosła osoba płci żeńskiej',
+      ex: EXAMPLE,
+      by: ['жанчына'],
+      ua: ['жінка'],
+    },
+  }
+
+  it.each([
+    ['верный ответ', true],
+    ['неверный ответ', false],
+  ])(
+    'выбор, %s: до ответа примера нет (хотя шард уже загружен), после ответа есть',
+    async (_name, correct) => {
+      const user = userEvent.setup()
+      stubContent(Promise.resolve(DETAILS))
+      const runtime = await startSession({ kind: 'word', wordId: KOBIETA })
+      expect(currentSkillId()).toBe(skillId('vocab:pl-ru'))
+
+      // Пример уже в кэше сессии — и всё равно не на экране, пока не было ответа.
+      await vi.waitFor(() => expect(runtime.cache.getPrimaryExample(KOBIETA)).toBe(EXAMPLE))
+      expect(screen.queryByText(`«${EXAMPLE}»`)).not.toBeInTheDocument()
+      expect(screen.queryByText(/«/)).not.toBeInTheDocument()
+
+      await answerChoice(user, correct)
+
+      expect(screen.getByText(`«${EXAMPLE}»`)).toHaveAttribute('lang', 'pl')
+    },
+  )
+
+  it('ввод (vocab:ru-pl-input): пример показывается после ответа', async () => {
+    const user = userEvent.setup()
+    stubContent(Promise.resolve(DETAILS))
+    await seed(skillRecord('vocab:ru-pl-input'))
+    const runtime = await startSession({ kind: 'word', wordId: KOBIETA })
+    expect(currentSkillId()).toBe(skillId('vocab:ru-pl-input'))
+    await vi.waitFor(() => expect(runtime.cache.getPrimaryExample(KOBIETA)).toBe(EXAMPLE))
+    expect(screen.queryByText(/«/)).not.toBeInTheDocument()
+
+    await user.type(screen.getByRole('textbox', { name: 'Ответ по-польски' }), 'kobieta')
+    await screen.findByRole('button', { name: 'Далее' })
+
+    expect(screen.getByText(`«${EXAMPLE}»`)).toBeInTheDocument()
+  })
+
+  it('шард деталей не пришёл: вопрос показывается, ответ принимается, фидбэк без примера', async () => {
+    const user = userEvent.setup()
+    stubContent(NEVER)
+
+    // `startSession` ждёт готовности сессии — если бы `preload` ждал шард деталей, он завис бы здесь.
+    const runtime = await startSession({ kind: 'word', wordId: KOBIETA })
+    await screen.findByRole('radiogroup', { name: 'Варианты ответа' })
+    expect(runtime.cache.getPrimaryExample(KOBIETA)).toBeUndefined()
+
+    await answerChoice(user, true)
+
+    expect(screen.getByRole('button', { name: 'Далее' })).toBeInTheDocument()
+    expect(screen.queryByText(/«/)).not.toBeInTheDocument()
+  })
+
+  it('шард деталей недоступен (офлайн): то же самое, без ошибки', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: unknown) => {
+        if (String(url).includes('sense-details/')) throw new TypeError('Failed to fetch')
+        return { ok: true, json: async () => ({}) } as Response
+      }),
+    )
+    await startSession({ kind: 'word', wordId: KOBIETA })
+
+    await answerChoice(user, false)
+
+    expect(screen.queryByText(/«/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Далее' })).toBeInTheDocument()
+  })
+})
