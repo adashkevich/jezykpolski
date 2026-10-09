@@ -4,7 +4,9 @@ import {
   ManifestSchema,
   ParadigmsShardSchema,
   RawWordSchema,
+  RawWordV2Schema,
   SensesShardSchema,
+  WordsJsonV2Schema,
 } from './content.schema.ts'
 
 describe('content.schema input validation', () => {
@@ -121,5 +123,72 @@ describe('content.schema output validation', () => {
       },
     }
     expect(ManifestSchema.safeParse(manifest).success).toBe(false)
+  })
+})
+
+describe('content.schema input validation, words.json v2', () => {
+  const levels = { ru: 'A1', by: 'A1', ua: 'A2' }
+  const confidence = { ru: 0.9, by: 0.9, ua: 0.8 }
+  const sense = {
+    sense_id: 'dom:building',
+    translation_ru: ['дом'],
+    translation_by: ['дом'],
+    translation_ua: ['дім'],
+    gloss_pl: 'budynek mieszkalny',
+    example_pl: 'Mieszkam w małym domu.',
+    introduced_at: levels,
+    level_confidence: confidence,
+    primary: true,
+  }
+  const word = {
+    lemma: 'dom',
+    pos: 'NOUN',
+    frequency: { rank: 50, count: 100, per_million: 1, arf: 1, dispersion: 0.5 },
+    introduced_at: levels,
+    level_confidence: confidence,
+    senses: [sense],
+    morph_lemma: 'dom',
+  }
+
+  it('accepts a well-formed word; source and the sense-level pos are optional', () => {
+    expect(RawWordV2Schema.safeParse(word).success).toBe(true)
+    const withExtras = { ...word, senses: [{ ...sense, source: 'editor', pos: 'ADP' }] }
+    expect(RawWordV2Schema.safeParse(withExtras).success).toBe(true)
+  })
+
+  it('accepts the parts of speech that appear only in v2 (PRON, SCONJ, DET, INTJ)', () => {
+    for (const pos of ['PRON', 'SCONJ', 'DET', 'INTJ']) {
+      expect(RawWordV2Schema.safeParse({ ...word, pos }).success).toBe(true)
+    }
+    expect(RawWordV2Schema.safeParse({ ...word, pos: 'ADP' }).success).toBe(false)
+  })
+
+  it('rejects a v1-style word: string introduced_at, numeric level_confidence', () => {
+    expect(RawWordV2Schema.safeParse({ ...word, introduced_at: 'A1' }).success).toBe(false)
+    expect(RawWordV2Schema.safeParse({ ...word, level_confidence: 0.9 }).success).toBe(false)
+  })
+
+  it('rejects a sense without translation_by, with an empty translation or an unknown level', () => {
+    for (const bad of [
+      { ...sense, translation_by: undefined },
+      { ...sense, translation_ua: [] },
+      { ...sense, gloss_pl: '' },
+      { ...sense, introduced_at: { ...levels, by: 'D1' } },
+      { ...sense, level_confidence: { ...confidence, ua: 1.5 } },
+    ]) {
+      expect(RawWordV2Schema.safeParse({ ...word, senses: [bad] }).success).toBe(false)
+    }
+  })
+
+  it('accepts schema_version 2 only', () => {
+    const file = {
+      schema_version: 2,
+      generated_at: 'x',
+      source: 'y',
+      counts: { total: 1 },
+      words: [word],
+    }
+    expect(WordsJsonV2Schema.safeParse(file).success).toBe(true)
+    expect(WordsJsonV2Schema.safeParse({ ...file, schema_version: 1 }).success).toBe(false)
   })
 })

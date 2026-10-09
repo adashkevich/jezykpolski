@@ -65,6 +65,93 @@ export type RawWord = z.infer<typeof RawWordSchema>
 export type WordsJson = z.infer<typeof WordsJsonSchema>
 
 // ---------------------------------------------------------------------------
+// Input: data/words.json, schema_version 2 (spec/tasks/46, 47 §1)
+//
+// Added next to the v1 schemas above, which stay until task 47 switches the content
+// pipeline over to v2 and deletes them.
+// ---------------------------------------------------------------------------
+
+/**
+ * Every `pos` the edited chunks (`data/words_parts/output`) can carry. A superset of the
+ * codec's `POS_VALUES` on purpose: `scripts/assemble-words.ts` validates the chunks BEFORE
+ * it drops the one `DET` word (`niektóry|DET`, merged into `niektóry|ADJ`), and the codec
+ * only learns `PRON`/`SCONJ`/`INTJ` in task 47.
+ */
+export const RAW_POS_V2_VALUES = [
+  'NOUN',
+  'VERB',
+  'ADJ',
+  'ADV',
+  'PRON',
+  'SCONJ',
+  'DET',
+  'INTJ',
+] as const
+
+/** One level per learner profile: Russian only (`ru`), + Belarusian (`by`), + Ukrainian (`ua`). */
+export const LevelTripleSchema = z.object({
+  ru: z.enum(LEVEL_VALUES),
+  by: z.enum(LEVEL_VALUES),
+  ua: z.enum(LEVEL_VALUES),
+})
+
+const ConfidenceSchema = z.number().min(0).max(1)
+
+export const ConfidenceTripleSchema = z.object({
+  ru: ConfidenceSchema,
+  by: ConfidenceSchema,
+  ua: ConfidenceSchema,
+})
+
+const NonEmptyStringSchema = z.string().min(1)
+const TranslationsSchema = z.array(NonEmptyStringSchema).min(1)
+
+export const RawSenseV2Schema = z.object({
+  /** `"<lemma>:<slug>"` — permanent, unique across the whole dictionary. */
+  sense_id: NonEmptyStringSchema,
+  translation_ru: TranslationsSchema,
+  translation_by: TranslationsSchema,
+  translation_ua: TranslationsSchema,
+  gloss_pl: NonEmptyStringSchema,
+  example_pl: NonEmptyStringSchema,
+  introduced_at: LevelTripleSchema,
+  level_confidence: ConfidenceTripleSchema,
+  primary: z.boolean(),
+  // Absent on some senses of the edited chunks.
+  source: z.string().optional(),
+  // The 3 senses of `dzięki` carry their own POS (INTJ / ADP / NOUN) — kept as-is, never
+  // shipped to the runtime. Free-form on purpose: `ADP` is not a word-level POS.
+  pos: z.string().optional(),
+})
+
+export const RawWordV2Schema = z.object({
+  lemma: z.string().min(1),
+  pos: z.enum(RAW_POS_V2_VALUES),
+  frequency: RawFrequencySchema,
+  /** Earliest level over the word's senses, per profile. */
+  introduced_at: LevelTripleSchema,
+  /** Confidence of the sense that decided `introduced_at` (the lowest, on a tie). */
+  level_confidence: ConfidenceTripleSchema,
+  senses: z.array(RawSenseV2Schema).min(1),
+  // `null` for the words that have no paradigm in inflections.json.
+  morph_lemma: z.string().nullable(),
+})
+
+export const WordsJsonV2Schema = z.object({
+  schema_version: z.literal(2),
+  generated_at: z.string(),
+  source: z.string(),
+  counts: z.record(z.string(), z.number()),
+  words: z.array(RawWordV2Schema),
+})
+
+export type LevelTriple = z.infer<typeof LevelTripleSchema>
+export type ConfidenceTriple = z.infer<typeof ConfidenceTripleSchema>
+export type RawSenseV2 = z.infer<typeof RawSenseV2Schema>
+export type RawWordV2 = z.infer<typeof RawWordV2Schema>
+export type WordsJsonV2 = z.infer<typeof WordsJsonV2Schema>
+
+// ---------------------------------------------------------------------------
 // Input: data/inflections.json
 // ---------------------------------------------------------------------------
 
