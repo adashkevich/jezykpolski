@@ -175,7 +175,7 @@ describe('export -> reset -> import round trip (acceptance point 1)', () => {
     expect(await db.skills.count()).toBe(0)
     expect(await settingsGet('dailyNewWordsBudget', -1)).toBe(-1)
 
-    const { data } = prepareImport(backup, 'content-v1')
+    const { data } = await prepareImport(backup, 'content-v1')
     await applyImport(data, 'content-v1')
 
     const after = await getWordProgressSummary()
@@ -210,7 +210,7 @@ describe('export -> reset -> import — поля точности (задача 
 
     const backup = await buildBackupExport('content-v1')
     await resetAllData()
-    const { data } = prepareImport(JSON.parse(JSON.stringify(backup)), 'content-v1')
+    const { data } = await prepareImport(JSON.parse(JSON.stringify(backup)), 'content-v1')
     await applyImport(data, 'content-v1')
 
     const [log] = await db.reviewLogs.toArray()
@@ -237,7 +237,7 @@ describe('export -> reset -> import — серия и блокировка вв�
 
     const backup = await buildBackupExport('content-v1')
     await resetAllData()
-    const { data } = prepareImport(JSON.parse(JSON.stringify(backup)), 'content-v1')
+    const { data } = await prepareImport(JSON.parse(JSON.stringify(backup)), 'content-v1')
     await applyImport(data, 'content-v1')
 
     const choice = await db.skills.get('kobieta|NOUN::vocab:ru-pl-choice')
@@ -258,14 +258,14 @@ describe('prepareImport / applyImport — validation and edge cases (acceptance 
     await db.skills.add(vocabSkill('kobieta|NOUN', 'vocab:pl-ru', 30))
     const before = await db.skills.toArray()
 
-    expect(() => prepareImport({ not: 'a backup' }, 'v1')).toThrow(/повреждён|неверн/i)
-    expect(() => prepareImport('just a string', 'v1')).toThrow()
-    expect(() => prepareImport(null, 'v1')).toThrow()
+    await expect(prepareImport({ not: 'a backup' }, 'v1')).rejects.toThrow(/повреждён|неверн/i)
+    await expect(prepareImport('just a string', 'v1')).rejects.toThrow()
+    await expect(prepareImport(null, 'v1')).rejects.toThrow()
 
     expect(await db.skills.toArray()).toEqual(before)
   })
 
-  it('rejects an unknown schemaVersion (acceptance point 3)', () => {
+  it('rejects an unknown schemaVersion (acceptance point 3)', async () => {
     initIndexStore([entry('kobieta', 1)])
     const bogus = {
       schemaVersion: 999,
@@ -277,14 +277,14 @@ describe('prepareImport / applyImport — validation and edge cases (acceptance 
       dailyStats: [],
       settings: {},
     }
-    expect(() => prepareImport(bogus, 'v1')).toThrow(/формата бэкапа/i)
+    await expect(prepareImport(bogus, 'v1')).rejects.toThrow(/формата бэкапа/i)
   })
 
   it('passes with a warning (not a rejection) when contentVersion differs (acceptance point 4)', async () => {
     initIndexStore([entry('kobieta', 1)])
     const backup = await buildBackupExport('old-content-version')
 
-    const { summary } = prepareImport(backup, 'new-content-version')
+    const { summary } = await prepareImport(backup, 'new-content-version')
     expect(summary.contentVersionMismatch).toBe(true)
 
     // Does not block applyImport either.
@@ -304,7 +304,7 @@ describe('prepareImport / applyImport — validation and edge cases (acceptance 
       ],
     }
 
-    const { data, summary } = prepareImport(withGhost, 'v1')
+    const { data, summary } = await prepareImport(withGhost, 'v1')
     expect(summary.missingWordSkillsCount).toBe(1)
     expect(summary.skillsCount).toBe(2)
 
@@ -324,7 +324,7 @@ describe('prepareImport / applyImport — validation and edge cases (acceptance 
     }
 
     expect(await db.wordProgress.count()).toBe(0)
-    const { data } = prepareImport(withSkill, 'v1')
+    const { data } = await prepareImport(withSkill, 'v1')
     await applyImport(data, 'v1')
 
     const progress = await db.wordProgress.get('kobieta|NOUN')
@@ -351,7 +351,7 @@ describe('prepareImport / applyImport — validation and edge cases (acceptance 
       dailyStats: [],
       settings: {},
     }
-    const { data } = prepareImport(emptyBackup, 'v1')
+    const { data } = await prepareImport(emptyBackup, 'v1')
     await applyImport(data, 'v1')
 
     expect(await db.skills.count()).toBe(0)
@@ -369,7 +369,7 @@ describe('prepareImport / applyImport — validation and edge cases (acceptance 
 // ---------------------------------------------------------------------------
 
 describe('prepareImport — normalizes a pre-task-37 backup (legacy vocab:ru-pl)', () => {
-  it('migrates a legacy skills row and its reviewLogs reference, and reflects the backfill in the summary', () => {
+  it('migrates a legacy skills row and its reviewLogs reference, and reflects the backfill in the summary', async () => {
     initIndexStore([entry('kobieta', 1)])
     const legacyBackup = {
       schemaVersion: CURRENT_BACKUP_SCHEMA_VERSION,
@@ -382,7 +382,7 @@ describe('prepareImport — normalizes a pre-task-37 backup (legacy vocab:ru-pl)
       settings: {},
     }
 
-    const { data, summary } = prepareImport(legacyBackup, 'v1')
+    const { data, summary } = await prepareImport(legacyBackup, 'v1')
 
     // The raw file has 2 skills; the summary counts the post-migration 3 (backfill included)
     // — "будет импортировано N навыков" should reflect what the user actually gets.
@@ -411,7 +411,7 @@ describe('prepareImport — normalizes a pre-task-37 backup (legacy vocab:ru-pl)
       settings: {},
     }
 
-    const { data } = prepareImport(legacyBackup, 'v1')
+    const { data } = await prepareImport(legacyBackup, 'v1')
     await applyImport(data, 'v1')
 
     const skills = await db.skills.toArray()

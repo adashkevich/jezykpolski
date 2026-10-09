@@ -38,6 +38,7 @@ import {
   type BackupExport,
 } from '../backup.schema.ts'
 import { migrateLegacyReviewLogSkillId, migrateLegacySkills } from '../legacy-vocab-migration.ts'
+import { applyWordIdRenamesToLists } from './word-id-renames.repository.ts'
 
 // ---------------------------------------------------------------------------
 // Export (task text §2)
@@ -92,6 +93,12 @@ export interface ImportSummary {
    *  these will be silently dropped by `applyImport`, counted here up front so the
    *  confirmation summary can mention them before the user commits. */
   readonly missingWordSkillsCount: number
+  /** Task 48 §3: skills of a pre-v2 backup moved onto a renamed `wordId` (merged ones
+   *  included) — already reflected in `skillsCount`/`data`. */
+  readonly renamedSkillsCount: number
+  /** Task 48 §3: skills of a pre-v2 backup dropped because the renamed word has no such
+   *  dimension (e.g. the noun cases of `to|NOUN`, now `to|PRON` without a paradigm). */
+  readonly droppedRenamedSkillsCount: number
   /** Task text §3: "Расхождение contentVersion — предупреждение, не ошибка". `false` when
    *  the current content version is unknown (nothing to compare against) — never blocks
    *  import either way, purely informational. */
@@ -104,33 +111,47 @@ export interface ImportSummary {
  * Steps 2-4: parses + validates `raw` (throws {@link BackupValidationError} or
  * {@link UnknownBackupSchemaVersionError} from `backup.schema.ts` — the caller is expected to
  * let those propagate to the UI's error message, per NFR-16's "понятная ошибка"), normalizes
- * a pre-task-37 backup's `vocab:ru-pl` rows (see below), then builds the pre-confirmation
- * summary off the *normalized* data — so "будет импортировано N навыков" already reflects
- * the backfilled count the user will actually get, not the raw file's pre-migration one.
- * Never writes anything — safe to call speculatively the moment a file is picked, before the
- * user has confirmed anything (task text step 5 is strictly after this).
+ * an older backup's rows (see below), then builds the pre-confirmation summary off the
+ * *normalized* data — so "будет импортировано N навыков" already reflects what the user will
+ * actually get, not the raw file's pre-migration count. Never writes anything — safe to call
+ * speculatively the moment a file is picked, before the user has confirmed anything (task
+ * text step 5 is strictly after this).
  *
- * `CURRENT_BACKUP_SCHEMA_VERSION` is deliberately NOT bumped for this (see that constant's
- * own doc comment: it gates genuine *shape* changes, and `dimension` has always been a bare
- * `z.string()` — a backup exported before task 37 still parses just fine, it's the specific
- * string *value* `'vocab:ru-pl'` that's now stale). `migrateLegacySkills`/
- * `migrateLegacyReviewLogSkillId` (`db/legacy-vocab-migration.ts`) are the exact same pure
- * transform `database.ts`'s `version(2)` Dexie migration already applies to existing rows —
- * shared so an old backup imported into an already-migrated database can never reintroduce
- * `vocab:ru-pl`.
+ * Two normalizations, in order, each the exact pure transform its in-place migration applies
+ * to existing rows — shared so an old backup imported into an already-migrated database can
+ * never reintroduce stale keys:
+ *  - task 37: `migrateLegacySkills`/`migrateLegacyReviewLogSkillId`
+ *    (`db/legacy-vocab-migration.ts`, same as `database.ts`'s `version(2)`) — `vocab:ru-pl`;
+ *  - task 48: `applyWordIdRenamesToLists` (`word-id-renames.repository.ts`, same transform
+ *    as the `word-id-renames-v2` startup step) — `wordId`s renamed in dictionary v2. It reads
+ *    the paradigms of the renamed words' targets (`hasDimension`), which is why this function
+ *    is async. A backup without renamed ids touches no content beyond the index.
+ *
+ * `CURRENT_BACKUP_SCHEMA_VERSION` is deliberately NOT bumped for either (see that constant's
+ * own doc comment: it gates genuine *shape* changes; `dimension`/`wordId` have always been bare
+ * strings — an old backup still parses just fine, only some string *values* are stale).
+ *
+ * The task 48 spec text names `applyImport` as the place for the rename pass ("после
+ * `migrateLegacySkills`"); `migrateLegacySkills` actually runs here, and the summary needs the
+ * moved/dropped counts before the user confirms, so the pass runs here too and `applyImport`
+ * receives already-normalized data (decision log, 2026-10-09, task 48).
  */
-export function prepareImport(
+export async function prepareImport(
   raw: unknown,
   currentContentVersion: string,
-): { data: BackupExport; summary: ImportSummary } {
+): Promise<{ data: BackupExport; summary: ImportSummary }> {
   const parsed = parseBackupJson(raw)
-  const data: BackupExport = {
-    ...parsed,
-    skills: migrateLegacySkills(parsed.skills as SkillRecord[]),
-    reviewLogs: parsed.reviewLogs.map((log) => ({
+  const renamed = await applyWordIdRenamesToLists(
+    migrateLegacySkills(parsed.skills as SkillRecord[]),
+    parsed.reviewLogs.map((log) => ({
       ...log,
       skillId: migrateLegacyReviewLogSkillId(log.skillId),
-    })),
+    })) as ReviewLogRecord[],
+  )
+  const data: BackupExport = {
+    ...parsed,
+    skills: renamed.skills,
+    reviewLogs: renamed.reviewLogs,
   }
   const index = getIndexStore().byId
   const missingWordSkillsCount = data.skills.filter((s) => !index.has(s.wordId as WordId)).length
@@ -144,6 +165,8 @@ export function prepareImport(
       dailyStatsCount: data.dailyStats.length,
       settingsCount: Object.keys(data.settings).length,
       missingWordSkillsCount,
+      renamedSkillsCount: renamed.movedSkills,
+      droppedRenamedSkillsCount: renamed.droppedSkills,
       contentVersionMismatch: data.contentVersion !== currentContentVersion,
       importedContentVersion: data.contentVersion,
       currentContentVersion,

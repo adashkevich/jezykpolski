@@ -43,7 +43,7 @@ export function ImportControl() {
   async function handleFileChosen(file: File) {
     try {
       const raw = await readBackupFileAsJson(file)
-      const { data, summary } = prepareImport(raw, manifest.contentVersion)
+      const { data, summary } = await prepareImport(raw, manifest.contentVersion)
       setState({ phase: 'confirm', data, summary })
     } catch (error: unknown) {
       setState({
@@ -110,6 +110,13 @@ export function ImportControl() {
             {state.summary.reviewLogsCount.toLocaleString('ru-RU')} записей истории. Текущий
             прогресс будет заменён.
           </p>
+          {state.summary.renamedSkillsCount + state.summary.droppedRenamedSkillsCount > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Перенесено на новые слова:{' '}
+              {state.summary.renamedSkillsCount.toLocaleString('ru-RU')} навыков, отброшено:{' '}
+              {state.summary.droppedRenamedSkillsCount.toLocaleString('ru-RU')}
+            </p>
+          )}
           {state.summary.missingWordSkillsCount > 0 && (
             <p className="text-xs text-muted-foreground">
               {state.summary.missingWordSkillsCount.toLocaleString('ru-RU')} навыков ссылаются

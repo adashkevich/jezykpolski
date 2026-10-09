@@ -82,16 +82,37 @@ export function migrateReviewLog(log: ReviewLogRecord, renames): ReviewLogRecord
 
 ---
 
+## Реализация — где отступает от текста выше
+
+- **Бэкап:** перенос идёт в `prepareImport` (сразу после `migrateLegacySkills`, которая на самом
+  деле живёт там, а не в `applyImport`); `prepareImport` стал `async` — `hasDimension` грузит
+  парадигмы целевых слов. `applyImport` получает уже нормализованные данные. Сводка:
+  `ImportSummary.renamedSkillsCount` / `droppedRenamedSkillsCount`, строка в `ImportControl`.
+- **Логи:** `migrateReviewLog(log, renames)` — ровно сигнатура §1 (только перенос ключей);
+  правило «логи отброшенных измерений остаются со старыми `skillId`/`wordId`» — в
+  `migrateReviewLogsForRenames(logs, renames, hasDimension)`, общей для шага и бэкапа. Решение
+  принимается по `hasDimension`, а не по списку `dropped`: лог может жить без навыка
+  (`resetWord` удаляет навыки, логи оставляет).
+- **Чтение в шаге:** `where('wordId').equals(id).toArray()` по каждому старому/целевому id и
+  `bulkPut` переписанных логов вместо `anyOf(…)` / `.modify(…)` — без курсоров IndexedDB
+  (сбой курсоров WebKit, см. шапку `recomputeAll`). Размерности грузятся до транзакции
+  (`fetch` шардов нельзя держать внутри неё), сама транзакция `rw` по `skills` + `reviewLogs`
+  перечитывает строки и пишет.
+- **`StartupMigrations.tsx`:** шаги — массив `STARTUP_MIGRATIONS`, выполняются по очереди, шаг
+  задачи 48 первым (пересчёты задач 28/37 бросают на неизвестном индексу `wordId`); шаг
+  задачи 49 дописывается в конец массива.
+
 ## Acceptance
 
-- [ ] Тест на fake-indexeddb: навыки `spocić|VERB::verb:…` и `vocab:*` → после миграции те же FSRS-поля
-      у `spocić się|VERB::…`, старых записей нет
-- [ ] `to|NOUN::noun:sg:genitive` отброшен, `to|NOUN::vocab:pl-ru` → `to|PRON::vocab:pl-ru`
-- [ ] Слияние: `dziś|NOUN` (review, reps 5) + `dziś|ADV` (new) → у `dziś|ADV` state review, reps 5,
+- [x] Тест на fake-indexeddb: навыки `spocić|VERB::verb:…` и `vocab:*` → после миграции те же FSRS-поля
+      у `spocić się|VERB::…`, старых записей нет (`src/db/repositories/word-id-renames.repository.test.ts`;
+      чистый модуль — `src/db/word-id-migration.test.ts`)
+- [x] `to|NOUN::noun:sg:genitive` отброшен, `to|NOUN::vocab:pl-ru` → `to|PRON::vocab:pl-ru`
+- [x] Слияние: `dziś|NOUN` (review, reps 5) + `dziś|ADV` (new) → у `dziś|ADV` state review, reps 5,
       `correct` = сумма
-- [ ] Логи переписаны; логи отброшенных измерений на месте
-- [ ] Повторный запуск миграции не меняет БД (тест идемпотентности)
-- [ ] Импорт бэкапа, снятого на v1, даёт то же состояние, что и миграция «на месте»
+- [x] Логи переписаны; логи отброшенных измерений на месте
+- [x] Повторный запуск миграции не меняет БД (тест идемпотентности)
+- [x] Импорт бэкапа, снятого на v1, даёт то же состояние, что и миграция «на месте»
 - [ ] `/words`, `/stats`, главная открываются без ошибок в консоли на БД с прогрессом v1
-      (живая проверка на `preview` с подложенной БД)
-- [ ] `npm test`, `npm run lint`, `npx tsc -b` проходят
+      (живая проверка на `preview` с подложенной БД — за основной сессией)
+- [x] `npm test`, `npm run lint`, `npx tsc -b` проходят
