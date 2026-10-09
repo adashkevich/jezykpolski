@@ -1,8 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { __resetLoaderCachesForTest } from './loader.ts'
 import { __resetIndexStoreForTest, initIndexStore } from './index-store.ts'
-import { getAllTranslations, getPrimaryTranslation, getSenseDetails, getSenses } from './senses.ts'
-import type { WordIndexEntry } from '@/types/content.ts'
+import {
+  getAllTranslations,
+  getPrimaryTranslation,
+  getSenseDetails,
+  getSenses,
+  primaryFirst,
+  translationsPrimaryFirst,
+} from './senses.ts'
+import type { Sense, WordIndexEntry } from '@/types/content.ts'
 import { uniformLevels } from '@/test/fixtures/levels.ts'
 
 function entry(
@@ -85,6 +92,60 @@ describe('getSenses / getAllTranslations', () => {
     initIndexStore([entry({ lemma: 'ghost', pos: 'NOUN', rank: 1, sensesShard: 3 })])
     vi.stubGlobal('fetch', makeFetchMock({ 'senses/003.json': {} }))
     expect(await getSenses('ghost|NOUN')).toEqual([])
+  })
+})
+
+// Task 49 §2: "primary" is the `primary` flag, never a position in the array. A shard that
+// (against the pipeline's own convention) lists the primary sense second must still come out
+// primary-first, and `getAllTranslations` must still put the primary sense's translations first.
+describe('primary sense is found by its flag, not by position (task 49)', () => {
+  const sense = (id: string, ru: string[], primary: boolean): Sense => ({
+    id,
+    ru,
+    levels: uniformLevels('A1'),
+    primary,
+  })
+  const secondaryFirst = [
+    sense('prawo:right', ['право'], false),
+    sense('prawo:law', ['закон', 'право'], true),
+    sense('prawo:right_side', ['правая сторона'], false),
+  ]
+
+  it('primaryFirst moves the flagged sense to the front and keeps the others in order', () => {
+    expect(primaryFirst(secondaryFirst).map((s) => s.id)).toEqual([
+      'prawo:law',
+      'prawo:right',
+      'prawo:right_side',
+    ])
+  })
+
+  it('primaryFirst leaves the order alone when nothing is flagged, and does not mutate its input', () => {
+    const unflagged = [sense('a:1', ['а'], false), sense('a:2', ['б'], false)]
+    expect(primaryFirst(unflagged).map((s) => s.id)).toEqual(['a:1', 'a:2'])
+    primaryFirst(secondaryFirst)
+    expect(secondaryFirst[0]?.id).toBe('prawo:right')
+  })
+
+  it("translationsPrimaryFirst lists the primary sense's translations first, de-duplicated", () => {
+    expect(translationsPrimaryFirst(secondaryFirst)).toEqual(['закон', 'право', 'правая сторона'])
+    expect(translationsPrimaryFirst([])).toEqual([])
+  })
+
+  it('getSenses / getAllTranslations apply it to a shard that lists the primary sense second', async () => {
+    initIndexStore([entry({ lemma: 'prawo', pos: 'NOUN', rank: 105, sensesShard: 4 })])
+    vi.stubGlobal(
+      'fetch',
+      makeFetchMock({
+        'senses/004.json': {
+          'prawo|NOUN': [
+            { id: 'prawo:right', ru: ['право'], lv: [2, 2, 2], primary: false },
+            { id: 'prawo:law', ru: ['закон', 'право'], lv: [2, 2, 2], primary: true },
+          ],
+        },
+      }),
+    )
+    expect((await getSenses('prawo|NOUN')).map((s) => s.id)).toEqual(['prawo:law', 'prawo:right'])
+    expect(await getAllTranslations('prawo|NOUN')).toEqual(['закон', 'право'])
   })
 })
 

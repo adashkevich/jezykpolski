@@ -9,12 +9,14 @@
  * Task 37 added a second, independent `runOnce` call (`THREE_STAGE_VOCAB_MIGRATION`) — see
  * this component's own header for why it's a second call under a fresh key rather than
  * folded into the first. Task 48 put its `word-id-renames-v2` step in front of both and made
- * the steps run one after another (the recomputes throw on un-migrated `wordId`s).
+ * the steps run one after another (the recomputes throw on un-migrated `wordId`s). Task 49
+ * appended `content-v2-level-reset` after all of them.
  */
 import { StrictMode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, waitFor } from '@testing-library/react'
 import { StartupMigrations } from './StartupMigrations.tsx'
+import * as contentV2LevelResetRepo from '@/db/repositories/content-v2-level-reset.repository.ts'
 import * as metaRepo from '@/db/repositories/meta.repository.ts'
 import * as wordIdRenamesRepo from '@/db/repositories/word-id-renames.repository.ts'
 import * as wordsProgressRepo from '@/db/repositories/words-progress.repository.ts'
@@ -25,16 +27,17 @@ afterEach(() => {
 })
 
 describe('StartupMigrations', () => {
-  it('runs every migration via runOnce, task 48 first, and renders nothing', async () => {
+  it('runs every migration via runOnce, task 48 first and task 49 last, and renders nothing', async () => {
     const runOnceSpy = vi.spyOn(metaRepo, 'runOnce').mockResolvedValue(true)
 
     const { container } = render(<StartupMigrations />)
 
-    await waitFor(() => expect(runOnceSpy).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(runOnceSpy).toHaveBeenCalledTimes(4))
     expect(runOnceSpy.mock.calls).toEqual([
       ['word-id-renames-v2', wordIdRenamesRepo.runWordIdRenamesMigration],
       ['recompute-word-progress-for-stage-gate', wordsProgressRepo.recomputeAll],
       ['recompute-word-progress-for-three-stage-vocab', wordsProgressRepo.recomputeAll],
+      ['content-v2-level-reset', contentV2LevelResetRepo.runContentV2LevelReset],
     ])
     expect(container).toBeEmptyDOMElement()
   })
@@ -53,7 +56,7 @@ describe('StartupMigrations', () => {
     expect(runOnceSpy).toHaveBeenCalledTimes(1)
 
     finishFirst(true)
-    await waitFor(() => expect(runOnceSpy).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(runOnceSpy).toHaveBeenCalledTimes(4))
   })
 
   it('a failing migration is swallowed — no throw, nothing rendered, the next step still runs', async () => {
@@ -64,8 +67,8 @@ describe('StartupMigrations', () => {
 
     const { container } = render(<StartupMigrations />)
 
-    await waitFor(() => expect(warnSpy).toHaveBeenCalledTimes(3))
-    expect(runOnceSpy).toHaveBeenCalledTimes(3)
+    await waitFor(() => expect(warnSpy).toHaveBeenCalledTimes(4))
+    expect(runOnceSpy).toHaveBeenCalledTimes(4)
     expect(container).toBeEmptyDOMElement()
   })
 
@@ -78,9 +81,9 @@ describe('StartupMigrations', () => {
       </StrictMode>,
     )
 
-    await waitFor(() => expect(runOnceSpy).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(runOnceSpy).toHaveBeenCalledTimes(4))
     // Give any accidental extra invocation a chance to happen before asserting it didn't.
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(runOnceSpy).toHaveBeenCalledTimes(3)
+    expect(runOnceSpy).toHaveBeenCalledTimes(4)
   })
 })

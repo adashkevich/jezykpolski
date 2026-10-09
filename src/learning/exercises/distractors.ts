@@ -28,6 +28,7 @@
 import { LEVEL_VALUES, type PosValue } from '@/content/codec.ts'
 import { CONFUSABLE_GROUPS } from '@/content/confusable-words.ts'
 import { peekParadigmShard, peekSensesShard } from '@/content/loader.ts'
+import { translationsPrimaryFirst } from '@/content/senses.ts'
 import { getIndexStore } from '@/content/index-store.ts'
 import { getFormsForSlot } from '@/content/paradigms.ts'
 import { encodeWordId } from '@/learning/skills/skill-id.ts'
@@ -82,16 +83,7 @@ function resolveTranslations(entry: WordIndexEntry): readonly string[] {
   const shard = peekSensesShard(entry.sensesShard)
   const senses: readonly Sense[] | undefined = shard?.get(encodeWordId(entry.lemma, entry.pos))
   if (senses && senses.length > 0) {
-    const seen = new Set<string>()
-    const result: string[] = []
-    for (const sense of senses) {
-      for (const translation of sense.ru) {
-        if (!seen.has(translation)) {
-          seen.add(translation)
-          result.push(translation)
-        }
-      }
-    }
+    const result = translationsPrimaryFirst(senses)
     if (result.length > 0) return result
   }
   return [entry.primaryRu]

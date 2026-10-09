@@ -41,6 +41,16 @@ function entry(
   }
 }
 
+/** Real `prawo|NOUN` row of `public/content/index.json` (task 47): the primary sense `prawo:law`
+ *  is A2, although the word has an A1 sense too (`prawo:right_side`). */
+const PRAWO = entry({
+  lemma: 'prawo',
+  rank: 105,
+  level: 'A2',
+  levels: uniformLevels('A2'),
+  primaryRu: 'право',
+})
+
 beforeEach(async () => {
   await openDatabase()
   __resetIndexStoreForTest()
@@ -197,6 +207,29 @@ describe('resolveGlobalScope (kind: global)', () => {
     expect(candidates.newWordsBudget).toBe(10) // FR-133 default
     expect(candidates.dueSkills.map((s) => s.wordId)).toEqual([knownWordId])
     expect(candidates.candidateNewWords.map((w) => w.lemma)).toEqual(['nowy'])
+  })
+
+  // Task 49: a word is introduced at the level of its PRIMARY sense. `prawo|NOUN` has one A1
+  // sense (`prawo:right_side`), but its primary one (`prawo:law`) is A2 — the index row carries
+  // A2 (hand-copied from the real `public/content/index.json`: rank 105), so while A1 has
+  // unstarted words it must not come up, even with a far better rank than every A1 word.
+  it('a word whose primary sense is A2 (prawo|NOUN) is not a new-word candidate while the current level is A1', async () => {
+    initIndexStore([PRAWO, entry({ lemma: 'kot', rank: 300 }), entry({ lemma: 'pies', rank: 400 })])
+
+    const candidates = await resolveSessionCandidates({ kind: 'global' }, Date.now())
+
+    expect(candidates.candidateNewWords.map((w) => w.lemma)).toEqual(['kot', 'pies'])
+  })
+
+  it('...and comes up once the last A1 word is started', async () => {
+    initIndexStore([PRAWO, entry({ lemma: 'kot', rank: 300 })])
+    const kot = encodeWordId('kot', 'NOUN')
+    await ensureSkill(encodeSkillId(kot, 'vocab:pl-ru'), kot, 'vocab', 'vocab:pl-ru')
+    await recomputeWordProgress(kot)
+
+    const candidates = await resolveSessionCandidates({ kind: 'global' }, Date.now())
+
+    expect(candidates.candidateNewWords.map((w) => w.lemma)).toEqual(['prawo'])
   })
 
   it('honors settings overrides for targetSize/newWordsBudget (FR-133)', async () => {

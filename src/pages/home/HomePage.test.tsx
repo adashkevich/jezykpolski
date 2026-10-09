@@ -11,6 +11,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { HomePage } from './HomePage.tsx'
 import { applyAnswer } from '@/db/repositories/answer.repository.ts'
@@ -18,10 +19,14 @@ import { ensureSkill, getSkill, upsertSkill } from '@/db/repositories/skills.rep
 import { submitAnswer } from '@/features/session-runner/lib/answer-pipeline.ts'
 import type { Exercise } from '@/learning/exercises/exercise.types.ts'
 import { recomputeWordProgress } from '@/db/repositories/words-progress.repository.ts'
+import { runContentV2LevelReset } from '@/db/repositories/content-v2-level-reset.repository.ts'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
+import { getContentV2Notice, setContentV2Notice } from '@/db/repositories/meta.repository.ts'
+import * as settingsRepo from '@/db/repositories/settings.repository.ts'
+import { NEW_WORDS_START_LEVEL_SETTING_KEY } from '@/learning/session/level-gate.ts'
 import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
 import { useFiltersStore } from '@/stores/filters.store.ts'
-import type { PosValue } from '@/content/codec.ts'
+import type { LevelValue, PosValue } from '@/content/codec.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import type { SkillRecord } from '@/types/progress.ts'
 import { uniformLevels } from '@/test/fixtures/levels.ts'
@@ -453,5 +458,178 @@ describe('HomePage — «Точность» по чистым первым от�
     await renderToday()
     await waitFor(() => expect(within(accuracyTile()).getByText('75%')).toBeInTheDocument())
     expect(screen.getByText(/4 повторения/)).toBeInTheDocument()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Задача 49 (`spec/tasks/49-primary-sense-learning-and-level-reset.md` §1): баннер «Словарь
+// обновлён…» после `content-v2-level-reset`. Индекс — словарь v2: kot, pies — A1 и в v1
+// (пользователь их уже начал), dom, ser — стали A1 только в v2 (не начаты), woda, rzeka — A2.
+// ---------------------------------------------------------------------------
+
+describe('HomePage — баннер «Словарь обновлён» (задача 49)', () => {
+  const HEAD = 'Словарь обновлён: уровни слов пересчитаны.'
+
+  function entryAt(lemma: string, level: LevelValue, rank: number): WordIndexEntry {
+    return { ...entry(lemma, 'NOUN', rank), level, levels: uniformLevels(level) }
+  }
+
+  function initV2Index() {
+    initIndexStore([
+      entryAt('kot', 'A1', 1),
+      entryAt('pies', 'A1', 2),
+      entryAt('dom', 'A1', 3),
+      entryAt('ser', 'A1', 4),
+      entryAt('woda', 'A2', 5),
+      entryAt('rzeka', 'A2', 6),
+    ])
+  }
+
+  const banner = () => screen.queryByRole('status')
+
+  it('startLevel B1 + старый A1 начат: после шага — «Сейчас изучаем: A1 · осталось N» и баннер с обоими предложениями', async () => {
+    initV2Index()
+    await openDatabase()
+    await learnWord('kot|NOUN', 10)
+    await learnWord('pies|NOUN', 10)
+    await settingsRepo.set(NEW_WORDS_START_LEVEL_SETTING_KEY, 'B1')
+    await runContentV2LevelReset()
+
+    renderHomePage()
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(`${HEAD} Новые слова снова идут с A1 — осталось 2`),
+      ).toBeInTheDocument(),
+    )
+    expect(
+      screen.getByText('Начальный уровень сброшен с B1 на A1, изменить можно в настройках'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Сейчас изучаем: A1 · осталось 2 слова')).toBeInTheDocument()
+  })
+
+  it('startLevel уже был A1: только первое предложение, без «Начальный уровень сброшен»', async () => {
+    initV2Index()
+    await openDatabase()
+    await learnWord('kot|NOUN', 10)
+    await runContentV2LevelReset()
+
+    renderHomePage()
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(`${HEAD} Новые слова снова идут с A1 — осталось 3`),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.queryByText(/Начальный уровень сброшен/)).not.toBeInTheDocument()
+  })
+
+  it('без записи contentV2Notice баннера нет', async () => {
+    initV2Index()
+    await openDatabase()
+    await learnWord('kot|NOUN', 10)
+
+    renderHomePage()
+
+    await waitFor(() => expect(screen.getByText(/Сейчас изучаем: A1/)).toBeInTheDocument())
+    expect(banner()).not.toBeInTheDocument()
+    expect(screen.queryByText(/Словарь обновлён/)).not.toBeInTheDocument()
+  })
+
+  it('закрывается крестиком: запись удаляется, при следующем открытии главной баннера нет', async () => {
+    initV2Index()
+    await openDatabase()
+    await learnWord('kot|NOUN', 10)
+    await runContentV2LevelReset()
+    renderHomePage()
+    await waitFor(() => expect(banner()).toBeInTheDocument())
+
+    await userEvent.click(screen.getByRole('button', { name: 'Закрыть' }))
+
+    await waitFor(() => expect(banner()).not.toBeInTheDocument())
+    expect(await getContentV2Notice()).toBeUndefined()
+
+    cleanup()
+    renderHomePage()
+    await waitFor(() => expect(screen.getByText(/Сейчас изучаем: A1/)).toBeInTheDocument())
+    expect(banner()).not.toBeInTheDocument()
+  })
+
+  it('A1 в v2 уже весь начат: баннер называет следующий уровень, как и строка «Сейчас изучаем» — пустого экрана нет', async () => {
+    initIndexStore([
+      entryAt('kot', 'A1', 1),
+      entryAt('pies', 'A1', 2),
+      entryAt('woda', 'A2', 3),
+      entryAt('rzeka', 'A2', 4),
+    ])
+    await openDatabase()
+    await learnWord('kot|NOUN', 10)
+    await learnWord('pies|NOUN', 10)
+    await settingsRepo.set(NEW_WORDS_START_LEVEL_SETTING_KEY, 'A2')
+    await runContentV2LevelReset()
+
+    renderHomePage()
+
+    await waitFor(() =>
+      expect(screen.getByText(`${HEAD} Новые слова идут с A2 — осталось 2`)).toBeInTheDocument(),
+    )
+    expect(screen.getByText('Сейчас изучаем: A2 · осталось 2 слова')).toBeInTheDocument()
+    expect(
+      screen.getByText('Начальный уровень сброшен с A2 на A1, изменить можно в настройках'),
+    ).toBeInTheDocument()
+  })
+
+  it('словарь начат целиком: остаётся одно предложение — без «осталось»', async () => {
+    initIndexStore([entryAt('kot', 'A1', 1)])
+    await openDatabase()
+    await learnWord('kot|NOUN', 10)
+    await runContentV2LevelReset()
+
+    renderHomePage()
+
+    await waitFor(() => expect(screen.getByText(HEAD)).toBeInTheDocument())
+    expect(screen.queryByText(/осталось/)).not.toBeInTheDocument()
+  })
+
+  it('число считается на лету: слово, начатое после миграции, уменьшает «осталось»', async () => {
+    initV2Index()
+    await openDatabase()
+    await learnWord('kot|NOUN', 10)
+    await setContentV2Notice({ previousStartLevel: 'A1', at: Date.now() })
+    renderHomePage()
+    await waitFor(() =>
+      expect(
+        screen.getByText(`${HEAD} Новые слова снова идут с A1 — осталось 3`),
+      ).toBeInTheDocument(),
+    )
+
+    await learnWord('dom|NOUN', 10)
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(`${HEAD} Новые слова снова идут с A1 — осталось 2`),
+      ).toBeInTheDocument(),
+    )
+  })
+
+  it('появляется сам, если шаг запуска закончился уже после монтирования главной', async () => {
+    initV2Index()
+    await openDatabase()
+    await learnWord('kot|NOUN', 10)
+    await settingsRepo.set(NEW_WORDS_START_LEVEL_SETTING_KEY, 'B1')
+    renderHomePage()
+    // B1 has nothing unstarted in this index, so the level-gate line is hidden — wait for the CTA.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Продолжить обучение' })).toBeEnabled(),
+    )
+    expect(banner()).not.toBeInTheDocument()
+
+    await runContentV2LevelReset()
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(`${HEAD} Новые слова снова идут с A1 — осталось 3`),
+      ).toBeInTheDocument(),
+    )
   })
 })

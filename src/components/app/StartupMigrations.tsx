@@ -34,6 +34,13 @@
  * its paradigm), and it must run FIRST: until it lands, `skills` may hold `wordId`s the v2 index
  * doesn't know, and `recomputeAll` — which both older steps run — throws on those.
  *
+ * Task 49 (`spec/tasks/49-primary-sense-learning-and-level-reset.md` §1) appends the last step,
+ * `content-v2-level-reset`: a user who had raised `newWordsStartLevel` gets it back to A1 (the
+ * dictionary change moved ~790 unstarted words into A1) and a one-time home-screen notice is
+ * left in `meta` (`db/repositories/content-v2-level-reset.repository.ts`). It reads and writes
+ * only `settings`/`meta` and counts `skills`, so it needs no content — but it stays after task
+ * 48's step, as the spec says.
+ *
  * The steps therefore run one after another, in `STARTUP_MIGRATIONS` order, not concurrently;
  * each one's failure is caught and logged on its own and never stops the next (the key of a
  * failed step stays unwritten, so it is retried on the next start).
@@ -48,6 +55,10 @@
  * page load.
  */
 import { useEffect, useRef } from 'react'
+import {
+  CONTENT_V2_LEVEL_RESET_MIGRATION,
+  runContentV2LevelReset,
+} from '@/db/repositories/content-v2-level-reset.repository.ts'
 import { runOnce } from '@/db/repositories/meta.repository.ts'
 import { runWordIdRenamesMigration } from '@/db/repositories/word-id-renames.repository.ts'
 import { recomputeAll } from '@/db/repositories/words-progress.repository.ts'
@@ -66,12 +77,13 @@ const WORD_ID_RENAMES_MIGRATION = 'word-id-renames-v2'
  * Run in this order, each awaited before the next (see this file's header). Task 48's step
  * leads: the two task 28/37 recomputes call `recomputeAll`, which throws on a `wordId` the
  * index doesn't know — exactly what un-migrated renamed rows are. Task 49's
- * `content-v2-level-reset` step belongs after task 48's (its spec, §1) — append it here.
+ * `content-v2-level-reset` step comes after task 48's (its spec, §1).
  */
 const STARTUP_MIGRATIONS: ReadonlyArray<readonly [key: string, task: () => Promise<void>]> = [
   [WORD_ID_RENAMES_MIGRATION, runWordIdRenamesMigration],
   [STAGE_STATUS_MIGRATION, recomputeAll],
   [THREE_STAGE_VOCAB_MIGRATION, recomputeAll],
+  [CONTENT_V2_LEVEL_RESET_MIGRATION, runContentV2LevelReset],
 ]
 
 async function runStartupMigrations(): Promise<void> {

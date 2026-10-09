@@ -8,6 +8,7 @@
  * context), so a version bump here is purely informational bookkeeping, never a trigger to
  * wipe `skills`/`wordProgress`/etc.
  */
+import type { LevelValue } from '@/content/codec.ts'
 import { db } from '../database.ts'
 
 const CONTENT_VERSION_KEY = 'contentVersion'
@@ -58,4 +59,36 @@ export async function runOnce(key: string, task: () => Promise<void>): Promise<b
   await task()
   await db.meta.put({ key: storageKey, value: true })
   return true
+}
+
+// ---------------------------------------------------------------------------
+// One-time "dictionary updated" notice (`spec/tasks/49-primary-sense-learning-and-level-reset.md`
+// §1) — written by `content-v2-level-reset.repository.ts`, read and deleted by the home screen's
+// banner (`features/content-update`).
+// ---------------------------------------------------------------------------
+
+const CONTENT_V2_NOTICE_KEY = 'contentV2Notice'
+
+/** What the banner needs that isn't derivable from the content index at render time: the
+ *  `newWordsStartLevel` the user had before the reset (the banner mentions it when it was above
+ *  A1) and when the reset happened. The count of words left is deliberately NOT stored — it is
+ *  read live from the index and the user's progress. */
+export interface ContentV2Notice {
+  readonly previousStartLevel: LevelValue
+  /** Epoch ms of the reset. */
+  readonly at: number
+}
+
+export async function getContentV2Notice(): Promise<ContentV2Notice | undefined> {
+  const row = await db.meta.get(CONTENT_V2_NOTICE_KEY)
+  return row === undefined ? undefined : (row.value as ContentV2Notice)
+}
+
+export async function setContentV2Notice(notice: ContentV2Notice): Promise<void> {
+  await db.meta.put({ key: CONTENT_V2_NOTICE_KEY, value: notice })
+}
+
+/** Dismissal: deletes the key outright, so the banner never comes back. */
+export async function clearContentV2Notice(): Promise<void> {
+  await db.meta.delete(CONTENT_V2_NOTICE_KEY)
 }

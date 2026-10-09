@@ -41,6 +41,9 @@
  *    повторений" rather than "0 слов готовы к повторению" (acceptance point 7 — a bare zero
  *    reads as broken, not as "you're caught up").
  *
+ * "Словарь обновлён…" — a dismissible notice above the hero (task 49): shown after the
+ * `content-v2-level-reset` startup step left `meta.contentV2Notice`, until the user closes it.
+ *
  * Navigation for "Открыть"/a level row: sets `useFiltersStore`'s `pos`/`levels` filter and
  * pushes `/words` — reusing the store's own setters (`filters.store.ts`, task 07) rather than
  * a new mechanism, so `/words` opens already scoped instead of landing on the still-stub
@@ -64,6 +67,7 @@ import { Button } from '@/components/ui/button.tsx'
 import type { LevelValue } from '@/content/codec.ts'
 import { getIndexStore } from '@/content/index-store.ts'
 import type { WordProgressSummary } from '@/db/repositories/words-progress.repository.ts'
+import { ContentV2Notice } from '@/features/content-update/components/ContentV2Notice.tsx'
 import { LearnHero } from '@/features/learn/components/LearnHero.tsx'
 import { LevelProgressCard } from '@/features/stats/components/LevelProgressCard.tsx'
 import { useDailyStats } from '@/hooks/useDailyStats.ts'
@@ -167,6 +171,9 @@ export function HomePage() {
   return (
     <PageContainer>
       <PageHeader title="Главная" description="Dzisiaj — что делать сейчас" visuallyHidden />
+
+      {/* One-time "dictionary updated" notice (task 49) — renders nothing once dismissed. */}
+      <ContentV2Notice />
 
       {/* Hero: the one primary action on the screen (shared with `/practice`). */}
       <LearnHero />

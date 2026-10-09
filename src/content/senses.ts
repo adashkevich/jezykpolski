@@ -20,28 +20,30 @@ function requireEntry(wordId: WordId) {
   return entry
 }
 
-/** Primary Russian translation, read straight from the already-loaded index — no shard
- *  fetch, no `await`. */
+/** Primary Russian translation — the first translation of the word's primary sense
+ *  (task 47) — read straight from the already-loaded index, no shard fetch, no `await`. */
 export function getPrimaryTranslation(wordId: WordId): string {
   return requireEntry(wordId).primaryRu
 }
 
-/** Every sense (meaning) of `wordId`, in the order the content pipeline emitted them
- *  (primary sense first, the rest in source order — see `scripts/build-content.ts`). */
-export async function getSenses(wordId: WordId): Promise<Sense[]> {
-  const entry = requireEntry(wordId)
-  const shard = await loadSensesShard(entry.sensesShard)
-  return shard.get(wordId) ?? []
+/**
+ * `senses` with the primary sense (`Sense.primary`) first, the others after it in their
+ * original order (task 49 §2). The content pipeline already emits the primary sense first
+ * (`scripts/build-content.ts`), but nothing downstream should depend on that position: the
+ * flag is the source of truth. A list with no flagged sense comes back in its own order.
+ */
+export function primaryFirst(senses: readonly Sense[]): Sense[] {
+  const primary = senses.find((sense) => sense.primary)
+  return primary === undefined ? [...senses] : [primary, ...senses.filter((s) => s !== primary)]
 }
 
-/** Every Russian translation across every sense, de-duplicated, primary sense's
- *  translations first — for answer-checking and distractor generation (task 09/10), which
- *  need the full accepted-answer set, not just the one shown in the list. */
-export async function getAllTranslations(wordId: WordId): Promise<string[]> {
-  const senses = await getSenses(wordId)
+/** Every Russian translation across `senses`, de-duplicated, the primary sense's first. Shared
+ *  by {@link getAllTranslations} and the synchronous mirror in `learning/exercises/
+ *  distractors.ts`, so the two can never disagree about what "all translations" means. */
+export function translationsPrimaryFirst(senses: readonly Sense[]): string[] {
   const seen = new Set<string>()
   const result: string[] = []
-  for (const sense of senses) {
+  for (const sense of primaryFirst(senses)) {
     for (const translation of sense.ru) {
       if (!seen.has(translation)) {
         seen.add(translation)
@@ -50,6 +52,23 @@ export async function getAllTranslations(wordId: WordId): Promise<string[]> {
     }
   }
   return result
+}
+
+/** Every sense (meaning) of `wordId`, the primary one first (by its `primary` flag — see
+ *  {@link primaryFirst}), the rest in source order (`scripts/build-content.ts`). */
+export async function getSenses(wordId: WordId): Promise<Sense[]> {
+  const entry = requireEntry(wordId)
+  const shard = await loadSensesShard(entry.sensesShard)
+  return primaryFirst(shard.get(wordId) ?? [])
+}
+
+/** Every Russian translation across every sense, de-duplicated, primary sense's
+ *  translations first — for answer-checking and distractor generation (task 09/10), which
+ *  need the full accepted-answer set, not just the one shown in the list. Deliberately ALL
+ *  senses, though only the primary one is taught (task 49 §2): naming a correct but non-primary
+ *  meaning of the word is not a mistake. */
+export async function getAllTranslations(wordId: WordId): Promise<string[]> {
+  return translationsPrimaryFirst(await getSenses(wordId))
 }
 
 /**
