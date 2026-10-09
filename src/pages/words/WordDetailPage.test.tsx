@@ -16,13 +16,17 @@
  *  - `powinien|VERB` — one of the 14 real paradigm-less words (`paradigmShard: -1`).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { WordDetailPage } from './WordDetailPage.tsx'
 import { wordPath } from '@/app/word-path.ts'
 import { encodeWordId } from '@/learning/skills/skill-id.ts'
-import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
+import {
+  __resetIndexStoreForTest,
+  initIndexStore,
+  setIndexStoreProfile,
+} from '@/content/index-store.ts'
 import { __resetLoaderCachesForTest } from '@/content/loader.ts'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
 import { getSkillsForWord, upsertSkill } from '@/db/repositories/skills.repository.ts'
@@ -287,6 +291,12 @@ const SENSES_SHARD = {
     { id: 'być:exist', ru: ['быть'], lv: [1, 1, 1], primary: false },
     { id: 'być:copula', ru: ['быть'], lv: [1, 1, 1], primary: true },
   ],
+  // Real `radzić|VERB` (public/content/senses/015.json) — levels differ between profiles (task 51).
+  'radzić|VERB': [
+    { id: 'radzić:advise', ru: ['советовать'], lv: [3, 2, 2], primary: true },
+    { id: 'radzić:consult', ru: ['советоваться'], lv: [3, 3, 3], primary: false },
+    { id: 'radzić:cope', ru: ['справляться'], lv: [2, 2, 2], primary: false },
+  ],
 }
 
 // Real glosses and examples from `public/content/sense-details/014.json` (`być`) and `007.json` (`to`).
@@ -315,6 +325,25 @@ const SENSE_DETAILS_SHARD = {
     ex: 'Jeśli pada, to zostaję w domu.',
     by: ['то', 'тады'],
     ua: ['то', 'тоді'],
+  },
+  // `public/content/sense-details/015.json`'s three `radzić` entries.
+  'radzić:advise': {
+    gl: 'udzielać komuś rady',
+    ex: 'Radzę ci odpocząć.',
+    by: ['раіць'],
+    ua: ['радити'],
+  },
+  'radzić:consult': {
+    gl: 'W połączeniu z „się”: prosić kogoś o radę.',
+    ex: 'Radzę się lekarza w tej sprawie.',
+    by: ['раіцца'],
+    ua: ['радитися'],
+  },
+  'radzić:cope': {
+    gl: 'W połączeniu z „sobie”: pokonywać trudności.',
+    ex: 'Dobrze radzę sobie z nauką.',
+    by: ['спраўляцца'],
+    ua: ['давати раду'],
   },
 }
 
@@ -453,6 +482,63 @@ describe('header, senses (FR-40/FR-41)', () => {
     expect(screen.queryByText(/«/)).not.toBeInTheDocument()
     expect(document.querySelector('[lang="pl"]')).toBeNull()
     expect(screen.queryByText(/Не удалось/)).not.toBeInTheDocument()
+  })
+})
+
+// Task 51 (`spec/tasks/51-language-profile.md` §2/§3): the card follows the language profile —
+// the header's level and each sense's badge read its column, and in by/ua every sense gets that
+// language's translations. `radzić|VERB` is the real row (B1 for ru, A2 for by/ua), except
+// `paradigmShard: -1` so no paradigm fetch is needed here.
+describe('language profile (task 51)', () => {
+  const RADZIC_ENTRY: WordIndexEntry = {
+    lemma: 'radzić',
+    pos: 'VERB',
+    rank: 1016,
+    level: 'B1',
+    levels: { ru: 'B1', by: 'A2', ua: 'A2' },
+    primaryRu: 'советовать',
+    sensesShard: 0,
+    paradigmShard: -1,
+  }
+  const RADZIC_ID = encodeWordId('radzić', 'VERB')
+
+  function headerText(): string | null | undefined {
+    return screen.getByRole('heading', { name: 'radzić' }).closest('header')?.textContent
+  }
+
+  it('by: Belarusian translations under every sense, and by levels in the header and badges', async () => {
+    initIndexStore([...FIXTURE_ENTRIES, RADZIC_ENTRY], 'by')
+    renderWordDetail(RADZIC_ID)
+
+    await screen.findByText('раіць')
+    const items = screen.getAllByRole('listitem')
+    expect(items).toHaveLength(3)
+    const expected = ['раіць', 'раіцца', 'спраўляцца']
+    items.forEach((item, i) => {
+      expect(within(item).getByText('бел.')).toBeInTheDocument()
+      expect(within(item).getByText(expected[i]!)).toHaveAttribute('lang', 'be')
+    })
+    expect(within(items[0]!).getByText('A2')).toBeInTheDocument()
+    expect(headerText()).toContain('A2')
+    expect(headerText()).not.toContain('B1')
+  })
+
+  it('ru: Russian only, ru levels — and a live switch to ua redraws the card without a reload', async () => {
+    initIndexStore([...FIXTURE_ENTRIES, RADZIC_ENTRY])
+    renderWordDetail(RADZIC_ID)
+
+    await screen.findByText('«Radzę ci odpocząć.»')
+    expect(screen.queryByText('бел.')).not.toBeInTheDocument()
+    expect(screen.queryByText('укр.')).not.toBeInTheDocument()
+    expect(headerText()).toContain('B1')
+
+    act(() => {
+      setIndexStoreProfile('ua')
+    })
+
+    expect(await screen.findByText('давати раду')).toHaveAttribute('lang', 'uk')
+    expect(screen.getAllByText('укр.')).toHaveLength(3)
+    expect(headerText()).toContain('A2')
   })
 })
 

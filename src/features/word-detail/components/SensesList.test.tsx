@@ -1,8 +1,9 @@
 /**
  * `SensesList` (`spec/tasks/50-word-detail-senses-v2.md` §1): translations, the sense's own
  * level, the «изучаем»/«позже» badge (several senses only), and — when the lazy details shard is
- * in — the Polish gloss and example. Senses/details are shaped like the real `być` entries of
- * `public/content/senses/014.json` / `sense-details/014.json` (checked with a one-off script).
+ * in — the Polish gloss and example, plus (task 51) the profile's by/ua translations.
+ * Senses/details are shaped like the real `być` entries of `public/content/senses/014.json` /
+ * `sense-details/014.json` (checked with a one-off script).
  */
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
@@ -144,5 +145,101 @@ describe('SensesList — loading / error / empty', () => {
   it('renders nothing for a word with no senses', () => {
     const { container } = renderList({ senses: [] })
     expect(container).toBeEmptyDOMElement()
+  })
+})
+
+// Task 51 (`spec/tasks/51-language-profile.md` §3): in the by/ua profiles every sense gets a line
+// with that language's translations under the Russian ones. `radzić|VERB` as in the real
+// content (`public/content/senses/015.json` + `sense-details/015.json`): three senses, different
+// translations in each language.
+describe('SensesList — the profile’s own translations (task 51)', () => {
+  const ADVISE: Sense = {
+    id: 'radzić:advise',
+    ru: ['советовать'],
+    levels: { ru: 'B1', by: 'A2', ua: 'A2' },
+    primary: true,
+  }
+  const CONSULT: Sense = {
+    id: 'radzić:consult',
+    ru: ['советоваться'],
+    levels: uniformLevels('B1'),
+    primary: false,
+  }
+  const COPE: Sense = {
+    id: 'radzić:cope',
+    ru: ['справляться'],
+    levels: uniformLevels('A2'),
+    primary: false,
+  }
+  const RADZIC_DETAILS: SenseDetailsById = new Map<string, SenseDetails>([
+    [
+      ADVISE.id,
+      {
+        gloss: 'udzielać komuś rady',
+        example: 'Radzę ci odpocząć.',
+        by: ['раіць'],
+        ua: ['радити'],
+      },
+    ],
+    [
+      CONSULT.id,
+      {
+        gloss: 'W połączeniu z „się”: prosić kogoś o radę.',
+        example: 'Radzę się lekarza w tej sprawie.',
+        by: ['раіцца'],
+        ua: ['радитися'],
+      },
+    ],
+    [
+      COPE.id,
+      {
+        gloss: 'W połączeniu z „sobie”: pokonywać trudności.',
+        example: 'Dobrze radzę sobie z nauką.',
+        by: ['спраўляцца'],
+        ua: ['давати раду'],
+      },
+    ],
+  ])
+  const RADZIC = [ADVISE, CONSULT, COPE]
+
+  it('by: every sense shows «бел.» and its Belarusian translations, marked lang="be"', () => {
+    renderList({ senses: RADZIC, details: RADZIC_DETAILS, profile: 'by' })
+
+    const items = screen.getAllByRole('listitem')
+    const expected = ['раіць', 'раіцца', 'спраўляцца']
+    items.forEach((item, i) => {
+      expect(within(item).getByText('бел.')).toBeInTheDocument()
+      const translations = within(item).getByText(expected[i]!)
+      expect(translations).toHaveAttribute('lang', 'be')
+    })
+    expect(screen.queryByText('укр.')).not.toBeInTheDocument()
+    // The Russian translations stay, and the level badge reads the by column.
+    expect(within(items[0]!).getByText('советовать')).toBeInTheDocument()
+    expect(within(items[0]!).getByText('A2')).toBeInTheDocument()
+  })
+
+  it('ua: «укр.» with the Ukrainian translations, marked lang="uk"', () => {
+    renderList({ senses: RADZIC, details: RADZIC_DETAILS, profile: 'ua' })
+
+    expect(screen.getAllByText('укр.')).toHaveLength(3)
+    expect(screen.getByText('давати раду')).toHaveAttribute('lang', 'uk')
+    expect(screen.queryByText('бел.')).not.toBeInTheDocument()
+  })
+
+  it('ru: no extra line at all', () => {
+    renderList({ senses: RADZIC, details: RADZIC_DETAILS, profile: 'ru' })
+
+    expect(screen.queryByText('бел.')).not.toBeInTheDocument()
+    expect(screen.queryByText('укр.')).not.toBeInTheDocument()
+    expect(screen.queryByText('раіць')).not.toBeInTheDocument()
+    expect(document.querySelector('[lang="be"], [lang="uk"]')).toBeNull()
+  })
+
+  it('no empty line while the details shard has not arrived', () => {
+    renderList({ senses: RADZIC, details: NO_DETAILS, profile: 'by' })
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(3)
+    expect(screen.queryByText('бел.')).not.toBeInTheDocument()
+    expect(document.querySelector('[lang="be"]')).toBeNull()
   })
 })

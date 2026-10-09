@@ -16,6 +16,10 @@
  *  - "Тип задания по умолчанию" -> `default-exercise-type.ts`'s
  *    `DEFAULT_EXERCISE_TYPES_SETTING_KEY` (new in this task — see that module's header for
  *    why no such global default existed before).
+ *  - "Языки, которые я знаю" (task 51) -> `lang-profile.ts`'s `LANG_PROFILE_SETTING_KEY`,
+ *    right above "Начинать с уровня": the profile decides which column of levels that row and
+ *    the level gate work with. `ContentProvider` applies a change at once (no reload); it
+ *    resets neither the start level nor any progress.
  */
 import {
   DEFAULT_NEW_WORDS_BUDGET,
@@ -37,6 +41,12 @@ import {
   NEW_WORDS_START_LEVEL_DEFAULT,
   NEW_WORDS_START_LEVEL_SETTING_KEY,
 } from '@/learning/session/level-gate.ts'
+import {
+  DEFAULT_LANG_PROFILE,
+  LANG_PROFILE_SETTING_KEY,
+  parseLangProfile,
+  type LangProfile,
+} from '@/learning/session/lang-profile.ts'
 import { LEVEL_VALUES, type LevelValue } from '@/content/codec.ts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.tsx'
 import { CONTROL_CLASS } from '@/components/ui/control.ts'
@@ -53,6 +63,12 @@ const TARGET_SIZE_OPTIONS = [10, 15, 20, 30, 50]
  *  screen's compact `h-9`/`px-2.5` sizing (`SettingRow.tsx`'s header explains why this isn't
  *  a shared export from that file). */
 const selectClassName = cn(CONTROL_CLASS, 'h-9 px-2.5')
+
+const LANG_PROFILE_OPTIONS: ReadonlyArray<{ value: LangProfile; label: string }> = [
+  { value: 'ru', label: 'Русский' },
+  { value: 'by', label: 'Русский и белорусский' },
+  { value: 'ua', label: 'Русский и украинский' },
+]
 
 const HINT_MODE_OPTIONS: ReadonlyArray<{ value: HintMode; label: string }> = [
   { value: 'lemma', label: 'Лемма' },
@@ -73,6 +89,10 @@ export function LearningSettingsSection() {
   const [exerciseTypes, setExerciseTypes] = useSetting<ExerciseTypeSelection>(
     DEFAULT_EXERCISE_TYPES_SETTING_KEY,
     DEFAULT_EXERCISE_TYPES_DEFAULT,
+  )
+  const [storedLangProfile, setLangProfile] = useSetting<unknown>(
+    LANG_PROFILE_SETTING_KEY,
+    DEFAULT_LANG_PROFILE,
   )
   const [startLevel, setStartLevel] = useSetting<LevelValue>(
     NEW_WORDS_START_LEVEL_SETTING_KEY,
@@ -175,6 +195,28 @@ export function LearningSettingsSection() {
             gates which NEW words the session may introduce (`level-gate.ts#unlockedLevels`,
             wired in `session-scope.ts#resolveGlobalScope`) — changing it never touches
             already-started words, which stay in their normal review schedule regardless. */}
+        {/* Task 51 (`spec/tasks/51-language-profile.md` §1) — which column of levels the
+            gate, filters and stats use, and which extra translations the word card and the
+            exercise feedback show. Questions and answers stay Russian in every profile. */}
+        <SettingRow label="Языки, которые я знаю">
+          <select
+            className={selectClassName}
+            value={parseLangProfile(storedLangProfile)}
+            onChange={(e) => setLangProfile(parseLangProfile(e.target.value))}
+            aria-label="Языки, которые я знаю"
+          >
+            {LANG_PROFILE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </SettingRow>
+        <p className="text-xs text-muted-foreground">
+          От выбора зависят уровни слов. Белорусские или украинские переводы видны на карточке слова
+          и после ответа.
+        </p>
+
         <SettingRow label="Начинать с уровня">
           <select
             className={selectClassName}

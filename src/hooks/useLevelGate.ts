@@ -16,10 +16,15 @@
  * `computeLevelPoolCounts` already reads through `getAllWordProgress()` (the same full
  * `wordProgress` read `useWordProgressSummary`'s screens already trigger) and the in-memory
  * content index.
+ *
+ * Task 51: the counts are per level of the active language profile — the index's `level` —
+ * so the pool query is keyed on the profile too (`useLangProfile`): a profile switch writes no
+ * Dexie table, it only swaps the index, and must still recount.
  */
 import { useLiveQuery } from 'dexie-react-hooks'
 import type { LevelValue } from '@/content/codec.ts'
 import * as settingsRepo from '@/db/repositories/settings.repository.ts'
+import { useLangProfile } from '@/hooks/useLangProfile.ts'
 import {
   computeLevelPoolCounts,
   getAllWordProgress,
@@ -56,7 +61,13 @@ export function useLevelGate(): LevelGateState | undefined {
     () => settingsRepo.get(NEW_WORDS_START_LEVEL_SETTING_KEY, NEW_WORDS_START_LEVEL_DEFAULT),
     [],
   )
-  const counts = useLiveQuery(async () => computeLevelPoolCounts(await getAllWordProgress()), [])
+  // `computeLevelPoolCounts` reads the store's current index — already the new profile's by
+  // the time this re-runs; the dependency only makes it re-run on a switch.
+  const profile = useLangProfile()
+  const counts = useLiveQuery(
+    async () => computeLevelPoolCounts(await getAllWordProgress()),
+    [profile],
+  )
 
   if (startLevel === undefined || counts === undefined) return undefined
   return {

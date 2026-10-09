@@ -25,7 +25,11 @@ import { getSession } from '@/db/repositories/sessions.repository.ts'
 import { getSkill, getSkillsForWord, upsertSkill } from '@/db/repositories/skills.repository.ts'
 import { toLocalDateKey } from '@/lib/dates.ts'
 import { recomputeWordProgress } from '@/db/repositories/words-progress.repository.ts'
-import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
+import {
+  __resetIndexStoreForTest,
+  initIndexStore,
+  setIndexStoreProfile,
+} from '@/content/index-store.ts'
 import { __resetLoaderCachesForTest } from '@/content/loader.ts'
 import type { ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import type { VocabDimension } from '@/learning/skills/dimensions.ts'
@@ -700,6 +704,43 @@ describe('пример значения в фидбэке (задача 50)', ()
     await screen.findByRole('button', { name: 'Далее' })
 
     expect(screen.getByText(`«${EXAMPLE}»`)).toBeInTheDocument()
+  })
+
+  // Задача 51 §3: в профиле by/ua под ответом — переводы primary-значения на этот язык; из той
+  // же записи деталей, что и пример, и с теми же условиями (только после ответа).
+  it('профиль ua: после ответа — строка «укр. жінка»; до ответа её нет', async () => {
+    const user = userEvent.setup()
+    setIndexStoreProfile('ua')
+    stubContent(Promise.resolve(DETAILS))
+    const runtime = await startSession({ kind: 'word', wordId: KOBIETA })
+    await vi.waitFor(() => expect(runtime.cache.getPrimaryDetails(KOBIETA)?.ua).toEqual(['жінка']))
+    expect(screen.queryByText('жінка')).not.toBeInTheDocument()
+
+    await answerChoice(user, false)
+
+    expect(screen.getByText('укр.')).toBeInTheDocument()
+    expect(screen.getByText('жінка')).toHaveAttribute('lang', 'uk')
+    expect(screen.queryByText('жанчына')).not.toBeInTheDocument()
+    expect(screen.getByText(`«${EXAMPLE}»`)).toBeInTheDocument()
+    // Деталей просили один раз — строка профиля не добавила своего запроса.
+    const detailFetches = vi
+      .mocked(fetch)
+      .mock.calls.filter(([url]) => String(url).includes('sense-details/'))
+    expect(detailFetches).toHaveLength(1)
+  })
+
+  it('профиль ru: строки с переводом нет, только пример', async () => {
+    const user = userEvent.setup()
+    stubContent(Promise.resolve(DETAILS))
+    const runtime = await startSession({ kind: 'word', wordId: KOBIETA })
+    await vi.waitFor(() => expect(runtime.cache.getPrimaryExample(KOBIETA)).toBe(EXAMPLE))
+
+    await answerChoice(user, true)
+
+    expect(screen.getByText(`«${EXAMPLE}»`)).toBeInTheDocument()
+    expect(screen.queryByText('жінка')).not.toBeInTheDocument()
+    expect(screen.queryByText('жанчына')).not.toBeInTheDocument()
+    expect(document.querySelector('[lang="be"], [lang="uk"]')).toBeNull()
   })
 
   it('шард деталей не пришёл: вопрос показывается, ответ принимается, фидбэк без примера', async () => {

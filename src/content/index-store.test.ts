@@ -1,10 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   __resetIndexStoreForTest,
   buildIndexStore,
   getIndexStore,
+  getIndexStoreProfile,
   initIndexStore,
   normalizeSearchText,
+  setIndexStoreProfile,
+  subscribeIndexStore,
 } from './index-store.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import { uniformLevels } from '@/test/fixtures/levels.ts'
@@ -123,5 +126,111 @@ describe('singleton (initIndexStore / getIndexStore)', () => {
     const built = initIndexStore(rows)
     expect(getIndexStore()).toBe(built)
     expect(getIndexStore().byId.get('test|NOUN')?.rank).toBe(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Task 51 (`spec/tasks/51-language-profile.md` §2): `level` is the active profile's level.
+// ---------------------------------------------------------------------------
+
+/** Real rows of `public/content/index.json` whose levels differ between profiles:
+ *  `uśmiech|NOUN` is A2 for `ru` but A1 for `by`/`ua`; `radzić|VERB` is B1 for `ru`, A2 for
+ *  `by`/`ua`. `być|VERB` is A1 everywhere. `level` is `levels.ru`, as the loader decodes it. */
+const PROFILE_ROWS: WordIndexEntry[] = [
+  entry({ lemma: 'być', rank: 3, pos: 'VERB', primaryRu: 'быть', level: 'A1' }),
+  entry({
+    lemma: 'uśmiech',
+    rank: 1008,
+    primaryRu: 'улыбка',
+    level: 'A2',
+    levels: { ru: 'A2', by: 'A1', ua: 'A1' },
+  }),
+  entry({
+    lemma: 'radzić',
+    rank: 1016,
+    pos: 'VERB',
+    primaryRu: 'советовать',
+    level: 'B1',
+    levels: { ru: 'B1', by: 'A2', ua: 'A2' },
+  }),
+]
+
+describe('buildIndexStore — language profile (task 51)', () => {
+  it('ru (the default): level is levels.ru, rows and byRank are the input as-is', () => {
+    const index = buildIndexStore(PROFILE_ROWS)
+    expect(index.byId.get('uśmiech|NOUN')?.level).toBe('A2')
+    expect(index.byRank).toBe(PROFILE_ROWS)
+    expect(index.byId.get('uśmiech|NOUN')).toBe(PROFILE_ROWS[1])
+    expect(index.byLevel.map((e) => e.lemma)).toEqual(['być', 'uśmiech', 'radzić'])
+  })
+
+  it('ua: level comes from levels.ua — byLevel, byId and byPos all carry it', () => {
+    const index = buildIndexStore(PROFILE_ROWS, 'ua')
+    expect(index.byId.get('uśmiech|NOUN')?.level).toBe('A1')
+    expect(index.byId.get('radzić|VERB')?.level).toBe('A2')
+    expect(index.byPos.get('VERB')?.map((e) => e.level)).toEqual(['A1', 'A2'])
+    // A1 bucket now holds być and uśmiech (rank order), A2 holds radzić.
+    expect(index.byLevel.map((e) => `${e.lemma}:${e.level}`)).toEqual([
+      'być:A1',
+      'uśmiech:A1',
+      'radzić:A2',
+    ])
+    // Everything else about the entry is untouched; unchanged rows stay the same objects.
+    expect(index.byId.get('uśmiech|NOUN')?.levels).toEqual({ ru: 'A2', by: 'A1', ua: 'A1' })
+    expect(index.byId.get('być|VERB')).toBe(PROFILE_ROWS[0])
+    expect(index.byRank.map((e) => e.lemma)).toEqual(['być', 'uśmiech', 'radzić'])
+  })
+
+  it('by: level comes from levels.by', () => {
+    const index = buildIndexStore(PROFILE_ROWS, 'by')
+    expect(index.byId.get('radzić|VERB')?.level).toBe('A2')
+  })
+})
+
+describe('singleton — setIndexStoreProfile / subscribeIndexStore (task 51)', () => {
+  it('initIndexStore builds for the given profile and remembers it', () => {
+    __resetIndexStoreForTest()
+    expect(getIndexStoreProfile()).toBe('ru')
+    initIndexStore(PROFILE_ROWS, 'ua')
+    expect(getIndexStoreProfile()).toBe('ua')
+    expect(getIndexStore().byId.get('uśmiech|NOUN')?.level).toBe('A1')
+  })
+
+  it('switching swaps in a new index object and notifies subscribers; switching back reuses the first one', () => {
+    __resetIndexStoreForTest()
+    const ru = initIndexStore(PROFILE_ROWS)
+    const listener = vi.fn()
+    const unsubscribe = subscribeIndexStore(listener)
+
+    const ua = setIndexStoreProfile('ua')
+    expect(ua).not.toBe(ru)
+    expect(getIndexStore()).toBe(ua)
+    expect(getIndexStoreProfile()).toBe('ua')
+    expect(getIndexStore().byId.get('radzić|VERB')?.level).toBe('A2')
+    expect(listener).toHaveBeenCalledTimes(1)
+
+    expect(setIndexStoreProfile('ru')).toBe(ru)
+    expect(getIndexStore().byId.get('radzić|VERB')?.level).toBe('B1')
+    expect(listener).toHaveBeenCalledTimes(2)
+
+    unsubscribe()
+    setIndexStoreProfile('by')
+    expect(listener).toHaveBeenCalledTimes(2)
+  })
+
+  it('setting the profile it already has is a no-op: same object, nobody notified', () => {
+    __resetIndexStoreForTest()
+    const ru = initIndexStore(PROFILE_ROWS)
+    const listener = vi.fn()
+    const unsubscribe = subscribeIndexStore(listener)
+
+    expect(setIndexStoreProfile('ru')).toBe(ru)
+    expect(listener).not.toHaveBeenCalled()
+    unsubscribe()
+  })
+
+  it('throws before initIndexStore, like getIndexStore', () => {
+    __resetIndexStoreForTest()
+    expect(() => setIndexStoreProfile('ua')).toThrow()
   })
 })

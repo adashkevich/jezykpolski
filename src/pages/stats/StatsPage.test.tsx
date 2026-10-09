@@ -9,14 +9,18 @@
  * the page wires numbers/gates through correctly.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { StatsPage } from './StatsPage.tsx'
 import { upsertSkill } from '@/db/repositories/skills.repository.ts'
 import { __resetMorphologyDenominatorsForTest } from '@/db/repositories/stats.repository.ts'
 import { recomputeWordProgress } from '@/db/repositories/words-progress.repository.ts'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
-import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
+import {
+  __resetIndexStoreForTest,
+  initIndexStore,
+  setIndexStoreProfile,
+} from '@/content/index-store.ts'
 import { __resetLoaderCachesForTest } from '@/content/loader.ts'
 import { encodeForm, type PosValue } from '@/content/codec.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
@@ -238,5 +242,41 @@ describe('StatsPage', () => {
     renderStatsPage()
     await waitFor(() => expect(screen.getByText('По уровням')).toBeInTheDocument())
     expect(screen.queryByText('Частая путаница')).not.toBeInTheDocument()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Task 51 (`spec/tasks/51-language-profile.md` §2): "По уровням" buckets words — numerators and
+// denominators — by the active profile's column of levels. Real `index.json` rows: `uśmiech`
+// is A2 for `ru`, A1 for `by`/`ua`; `radzić` is B1 for `ru`, A2 for `by`/`ua`.
+// ---------------------------------------------------------------------------
+
+describe('StatsPage — language profile (task 51)', () => {
+  const PROFILE_ENTRIES: WordIndexEntry[] = [
+    entry('kot', 'NOUN', 1),
+    entry('być', 'VERB', 3),
+    { ...entry('uśmiech', 'NOUN', 1008), level: 'A2', levels: { ru: 'A2', by: 'A1', ua: 'A1' } },
+    { ...entry('radzić', 'VERB', 1016), level: 'B1', levels: { ru: 'B1', by: 'A2', ua: 'A2' } },
+  ]
+
+  it('ua: the A1 row counts uśmiech too — and follows a live profile switch', async () => {
+    initIndexStore(PROFILE_ENTRIES)
+    await openDatabase()
+    await learnWord('kot|NOUN', 10) // learning
+    await learnWord('uśmiech|NOUN', 60) // known
+
+    renderStatsPage()
+
+    // ru: A1 = kot (learning) + być (new) — uśmiech is an A2 word.
+    await waitFor(() => expect(screen.getByText(exactTextContent('1 / 0 / 2'))).toBeInTheDocument())
+
+    // What `ContentProvider` does when the `langProfile` setting changes.
+    act(() => {
+      setIndexStoreProfile('ua')
+    })
+
+    // ua: A1 = kot (learning) + uśmiech (known) + być (new).
+    await waitFor(() => expect(screen.getByText(exactTextContent('1 / 1 / 3'))).toBeInTheDocument())
+    expect(screen.queryByText(exactTextContent('1 / 0 / 2'))).not.toBeInTheDocument()
   })
 })

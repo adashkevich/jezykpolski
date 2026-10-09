@@ -143,7 +143,7 @@ function decodeIndexRow(row: IndexJson[number]): WordIndexEntry {
   }
   const levels = decodeLevels([levelRu, levelBy, levelUa], `index row "${id}"`)
   const { lemma } = decodeWordId(id)
-  // The active language profile is always `ru` until task 51 makes it switchable.
+  // `level` is the `ru` column here; `index-store.ts` swaps in the active profile's (task 51).
   return { lemma, pos, rank, level: levels.ru, levels, primaryRu, sensesShard, paradigmShard }
 }
 

@@ -33,7 +33,7 @@ function entry(
   return {
     pos: 'NOUN',
     level: 'A1',
-    levels: uniformLevels('A1'),
+    levels: uniformLevels(overrides.level ?? 'A1'),
     primaryRu: `${overrides.lemma}-ru`,
     sensesShard: 0,
     paradigmShard: -1, // vocab-only fixtures — no paradigm fetch needed anywhere here.

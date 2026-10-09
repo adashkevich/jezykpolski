@@ -10,7 +10,7 @@
  * `vocabMaturity = stability / 60` exactly (`aggregate.ts#TARGET_STABILITY_DAYS`).
  */
 import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { HomePage } from './HomePage.tsx'
@@ -24,7 +24,11 @@ import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.reposi
 import { getContentV2Notice, setContentV2Notice } from '@/db/repositories/meta.repository.ts'
 import * as settingsRepo from '@/db/repositories/settings.repository.ts'
 import { NEW_WORDS_START_LEVEL_SETTING_KEY } from '@/learning/session/level-gate.ts'
-import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
+import {
+  __resetIndexStoreForTest,
+  initIndexStore,
+  setIndexStoreProfile,
+} from '@/content/index-store.ts'
 import { useFiltersStore } from '@/stores/filters.store.ts'
 import type { LevelValue, PosValue } from '@/content/codec.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
@@ -258,7 +262,7 @@ describe('HomePage', () => {
     initIndexStore([
       entry('kot', 'NOUN', 1), // A1, unstarted
       entry('pies', 'NOUN', 2), // A1, unstarted
-      { ...entry('dom', 'NOUN', 3), level: 'A2' }, // A2, unstarted — must stay invisible
+      { ...entry('dom', 'NOUN', 3), level: 'A2', levels: uniformLevels('A2') }, // A2, unstarted — must stay invisible
     ])
     await openDatabase()
 
@@ -277,7 +281,7 @@ describe('HomePage', () => {
   it('level-gate line switches to the next level the instant the current one is fully started (no ratchet, no early threshold)', async () => {
     initIndexStore([
       entry('kot', 'NOUN', 1), // A1, will be started below
-      { ...entry('dom', 'NOUN', 2), level: 'A2' }, // A2, unstarted throughout
+      { ...entry('dom', 'NOUN', 2), level: 'A2', levels: uniformLevels('A2') }, // A2, unstarted throughout
     ])
     await openDatabase()
     await learnWord('kot|NOUN', 10) // A1's only word started -> A1 fully started
@@ -505,7 +509,10 @@ describe('HomePage — баннер «Словарь обновлён» (зад�
     expect(
       screen.getByText('Начальный уровень сброшен с B1 на A1, изменить можно в настройках'),
     ).toBeInTheDocument()
-    expect(screen.getByText('Сейчас изучаем: A1 · осталось 2 слова')).toBeInTheDocument()
+    // The hero has its own level-gate live query — it may land a tick after the banner's.
+    await waitFor(() =>
+      expect(screen.getByText('Сейчас изучаем: A1 · осталось 2 слова')).toBeInTheDocument(),
+    )
   })
 
   it('startLevel уже был A1: только первое предложение, без «Начальный уровень сброшен»', async () => {
@@ -573,7 +580,10 @@ describe('HomePage — баннер «Словарь обновлён» (зад�
     await waitFor(() =>
       expect(screen.getByText(`${HEAD} Новые слова идут с A2 — осталось 2`)).toBeInTheDocument(),
     )
-    expect(screen.getByText('Сейчас изучаем: A2 · осталось 2 слова')).toBeInTheDocument()
+    // The hero has its own level-gate live query — it may land a tick after the banner's.
+    await waitFor(() =>
+      expect(screen.getByText('Сейчас изучаем: A2 · осталось 2 слова')).toBeInTheDocument(),
+    )
     expect(
       screen.getByText('Начальный уровень сброшен с A2 на A1, изменить можно в настройках'),
     ).toBeInTheDocument()
@@ -631,5 +641,60 @@ describe('HomePage — баннер «Словарь обновлён» (зад�
         screen.getByText(`${HEAD} Новые слова снова идут с A1 — осталось 3`),
       ).toBeInTheDocument(),
     )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Задача 51 (`spec/tasks/51-language-profile.md` §2): «Сейчас изучаем … осталось N» считает по
+// колонке уровней активного профиля. Слова — настоящие строки `index.json`: `uśmiech` — A2 для
+// `ru`, A1 для `by`/`ua`; `radzić` — B1 для `ru`, A2 для `by`/`ua`.
+// ---------------------------------------------------------------------------
+
+describe('HomePage — языковой профиль (задача 51)', () => {
+  const PROFILE_ENTRIES: WordIndexEntry[] = [
+    entry('kot', 'NOUN', 1),
+    { ...entry('uśmiech', 'NOUN', 1008), level: 'A2', levels: { ru: 'A2', by: 'A1', ua: 'A1' } },
+    { ...entry('radzić', 'VERB', 1016), level: 'B1', levels: { ru: 'B1', by: 'A2', ua: 'A2' } },
+  ]
+
+  it('профиль ua: A1 — это kot и uśmiech, так что после kot осталось ещё одно A1-слово', async () => {
+    initIndexStore(PROFILE_ENTRIES, 'ua')
+    await openDatabase()
+    await learnWord('kot|NOUN', 10)
+
+    renderHomePage()
+
+    await waitFor(() =>
+      expect(screen.getByText('Сейчас изучаем: A1 · осталось 1 слово')).toBeInTheDocument(),
+    )
+  })
+
+  it('смена профиля применяется сразу, без перезагрузки; прогресс и startLevel не трогаются', async () => {
+    initIndexStore(PROFILE_ENTRIES)
+    await openDatabase()
+    await learnWord('kot|NOUN', 10)
+    await settingsRepo.set(NEW_WORDS_START_LEVEL_SETTING_KEY, 'A1')
+
+    renderHomePage()
+
+    // ru: единственное A1-слово (kot) начато — гейт уже на A2 (uśmiech).
+    await waitFor(() =>
+      expect(screen.getByText('Сейчас изучаем: A2 · осталось 1 слово')).toBeInTheDocument(),
+    )
+    // Its own live query (`useWordProgressSummary`) — may land a tick after the gate's.
+    await waitFor(() => expect(screen.getByText(/1 изучается/)).toBeInTheDocument())
+
+    // What `ContentProvider` does when the `langProfile` setting changes.
+    act(() => {
+      setIndexStoreProfile('ua')
+    })
+
+    // ua: uśmiech — A1, и он не начат: гейт пересчитался сам и вернулся на A1.
+    await waitFor(() =>
+      expect(screen.getByText('Сейчас изучаем: A1 · осталось 1 слово')).toBeInTheDocument(),
+    )
+    await waitFor(() => expect(screen.getByText(/1 изучается/)).toBeInTheDocument())
+    expect(await settingsRepo.get(NEW_WORDS_START_LEVEL_SETTING_KEY, null)).toBe('A1')
+    expect((await getSkill('kot|NOUN::vocab:pl-ru'))?.stability).toBe(10)
   })
 })

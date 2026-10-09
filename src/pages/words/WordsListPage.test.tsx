@@ -17,11 +17,15 @@
  * test suite uses.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { WordsListPage } from './WordsListPage.tsx'
-import { __resetIndexStoreForTest, initIndexStore } from '@/content/index-store.ts'
+import {
+  __resetIndexStoreForTest,
+  initIndexStore,
+  setIndexStoreProfile,
+} from '@/content/index-store.ts'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
 import { get as settingsGet } from '@/db/repositories/settings.repository.ts'
 import { useFiltersStore } from '@/stores/filters.store.ts'
@@ -315,3 +319,32 @@ describe('WordsListPage', () => {
 function fireClickTab(label: string) {
   fireEvent.click(screen.getByRole('tab', { name: label }))
 }
+
+// Task 51 (`spec/tasks/51-language-profile.md` §2): the level filter and the rows' level badge
+// read the active profile's column. Real `uśmiech|NOUN` row: A2 for ru, A1 for by/ua.
+describe('WordsListPage — language profile (task 51)', () => {
+  const USMIECH: WordIndexEntry = {
+    lemma: 'uśmiech',
+    pos: 'NOUN',
+    rank: 1008,
+    level: 'A2',
+    levels: { ru: 'A2', by: 'A1', ua: 'A1' },
+    primaryRu: 'улыбка',
+    sensesShard: 3,
+    paradigmShard: 35,
+  }
+
+  it('the A1 filter picks uśmiech up after a live switch to ua, and its row shows A1', () => {
+    initIndexStore([...FIXTURE_WORDS, USMIECH])
+    useFiltersStore.setState({ ...DEFAULT_FILTER_STATE, levels: ['A1'] })
+    renderWordsListPage()
+    expect(screen.queryByRole('link', { name: /uśmiech/ })).not.toBeInTheDocument()
+
+    act(() => {
+      setIndexStoreProfile('ua')
+    })
+
+    const row = screen.getByRole('link', { name: /uśmiech/ })
+    expect(within(row).getByText('A1')).toBeInTheDocument()
+  })
+})

@@ -21,6 +21,8 @@ import type { WordIndexEntry } from '@/types/content.ts'
 import type { ReviewLogRecord, SessionRecord, SkillRecord } from '@/types/progress.ts'
 import { CURRENT_BACKUP_SCHEMA_VERSION } from '../backup.schema.ts'
 import { uniformLevels } from '@/test/fixtures/levels.ts'
+import { readLangProfileSetting } from '@/hooks/useLangProfile.ts'
+import { LANG_PROFILE_SETTING_KEY } from '@/learning/session/lang-profile.ts'
 
 function entry(lemma: string, rank: number): WordIndexEntry {
   return {
@@ -249,6 +251,36 @@ describe('export -> reset -> import — серия и блокировка вв�
     // Навык без полей остаётся без них — импорт ничего не дописывает.
     expect('correctStreak' in plain!).toBe(false)
     expect('awaitingRecognition' in plain!).toBe(false)
+  })
+})
+
+describe('export -> reset -> import — языковой профиль (задача 51 §4)', () => {
+  it('langProfile — обычная настройка: попадает в экспорт и возвращается импортом', async () => {
+    initIndexStore([entry('kobieta', 1)])
+    await settingsSet(LANG_PROFILE_SETTING_KEY, 'by')
+
+    const backup = await buildBackupExport('content-v1')
+    expect(backup.settings).toEqual({ langProfile: 'by' })
+
+    await resetAllData()
+    expect(await readLangProfileSetting()).toBe('ru')
+
+    const { data } = await prepareImport(JSON.parse(JSON.stringify(backup)), 'content-v1')
+    await applyImport(data, 'content-v1')
+
+    expect(await readLangProfileSetting()).toBe('by')
+  })
+
+  it('бэкап с неизвестным профилем импортируется, а читается профиль как ru', async () => {
+    initIndexStore([entry('kobieta', 1)])
+    const backup = await buildBackupExport('content-v1')
+    const foreign = JSON.parse(JSON.stringify({ ...backup, settings: { langProfile: 'pl' } }))
+
+    const { data } = await prepareImport(foreign, 'content-v1')
+    await applyImport(data, 'content-v1')
+
+    expect(await settingsGet(LANG_PROFILE_SETTING_KEY, null)).toBe('pl')
+    expect(await readLangProfileSetting()).toBe('ru')
   })
 })
 

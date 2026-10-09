@@ -4,6 +4,7 @@ import { __resetIndexStoreForTest, initIndexStore } from './index-store.ts'
 import {
   getAllTranslations,
   getPrimaryExample,
+  getPrimarySenseDetails,
   getPrimaryTranslation,
   getSenseDetails,
   getSenses,
@@ -228,5 +229,20 @@ describe('getPrimaryExample', () => {
     initIndexStore([entry({ lemma: 'być', pos: 'VERB', rank: 1, sensesShard: 9 })])
     vi.stubGlobal('fetch', makeFetchMock({ 'senses/009.json': senses }))
     await expect(getPrimaryExample('być|VERB')).rejects.toThrow(/sense-details\/009\.json/)
+  })
+
+  // Task 51 §3: the feedback's by/ua line reads the same primary-sense entry.
+  it('getPrimarySenseDetails: the whole entry of the primary sense, by/ua translations included', async () => {
+    initIndexStore([entry({ lemma: 'być', pos: 'VERB', rank: 1, sensesShard: 9 })])
+    vi.stubGlobal(
+      'fetch',
+      makeFetchMock({ 'senses/009.json': senses, 'sense-details/009.json': details }),
+    )
+    expect(await getPrimarySenseDetails('być|VERB')).toEqual({
+      gloss: 'łącznik',
+      example: 'Anna jest lekarką.',
+      by: ['быць'],
+      ua: ['бути'],
+    })
   })
 })

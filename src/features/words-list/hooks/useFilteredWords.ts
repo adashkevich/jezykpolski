@@ -7,9 +7,14 @@
  * `useAllWordProgress()` (task 05, `useLiveQuery`) is fetched exactly once here and threaded
  * down as a plain `Map`, per the task text's step 6: "загружать один раз... не запрашивать
  * на каждую строку".
+ *
+ * Task 51: the index of the active language profile (`useContentIndex`) goes into the query
+ * and its memo, so level filters, the level sort and the rows' level badges follow a profile
+ * switch.
  */
 import { useMemo } from 'react'
 import { queryWords, type WordQuery } from '@/content/query.ts'
+import { useContentIndex } from '@/hooks/useLangProfile.ts'
 import { useAllWordProgress } from '@/hooks/useWordProgress.ts'
 import { filtersToQuery, useFiltersStore } from '@/stores/filters.store.ts'
 import type { WordId } from '@/learning/skills/skill-id.ts'
@@ -36,6 +41,7 @@ export function useFilteredWords(): FilteredWords {
   const sort = useFiltersStore((s) => s.sort)
   const search = useFiltersStore((s) => s.search)
 
+  const index = useContentIndex()
   const progressMaybe = useAllWordProgress()
   const progress = progressMaybe ?? EMPTY_PROGRESS
 
@@ -44,7 +50,7 @@ export function useFilteredWords(): FilteredWords {
     [levels, pos, status, topN, sort, search],
   )
 
-  const results = useMemo(() => queryWords(query, progress), [query, progress])
+  const results = useMemo(() => queryWords(query, progress, index), [query, progress, index])
 
   return { query, results, progress, isLoadingProgress: progressMaybe === undefined }
 }

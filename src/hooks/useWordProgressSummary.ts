@@ -8,8 +8,12 @@
  * react-hooks` tracks which tables/indexes a live query actually touched during execution,
  * so this re-runs on any `wordProgress` write (`applyAnswer`, `resetWord`, `recomputeAll`)
  * without this hook needing to name those tables itself.
+ *
+ * Task 51: the per-level buckets use the active language profile's levels, so the query is
+ * also keyed on the profile (`useLangProfile`) — a profile switch writes no table.
  */
 import { useLiveQuery } from 'dexie-react-hooks'
+import { useLangProfile } from '@/hooks/useLangProfile.ts'
 import {
   getWordProgressSummary,
   type WordProgressSummary,
@@ -17,5 +21,6 @@ import {
 
 /** `undefined` while the first query is still in flight. */
 export function useWordProgressSummary(): WordProgressSummary | undefined {
-  return useLiveQuery(() => getWordProgressSummary(), [])
+  const profile = useLangProfile()
+  return useLiveQuery(() => getWordProgressSummary(), [profile])
 }

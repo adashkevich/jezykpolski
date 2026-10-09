@@ -92,6 +92,20 @@ describe('SessionContentCache — primary-sense example', () => {
     expect(cache.getPrimaryExample(BYC)).toBeUndefined()
   })
 
+  // Task 51 §3: the by/ua line of the feedback comes from the very same details entry.
+  it('getPrimaryDetails hands out the whole primary-sense entry — by/ua too — from the same request', async () => {
+    const fetchMock = stubFetch(async () => json(DETAILS))
+    const cache = new SessionContentCache()
+
+    await cache.preload(BYC)
+    await vi.waitFor(() => expect(cache.getPrimaryDetails(BYC)?.ua).toEqual(['бути']))
+    expect(cache.getPrimaryDetails(BYC)?.by).toEqual(['быць'])
+    expect(cache.getPrimaryExample(BYC)).toBe('Anna jest lekarką.')
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).includes('sense-details/')),
+    ).toHaveLength(1)
+  })
+
   it('asks for the example once per word, however many times the word is preloaded', async () => {
     const fetchMock = stubFetch(async () => json(DETAILS))
     const cache = new SessionContentCache()

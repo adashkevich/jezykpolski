@@ -42,7 +42,8 @@ export interface WordIndexEntry {
   readonly rank: number
   /**
    * Level of the word's PRIMARY sense in the active language profile — what the level gate,
-   * filters and `/stats` use. Always `levels.ru` until task 51 makes the profile switchable.
+   * filters and `/stats` use. The loader decodes it as `levels.ru`; `content/index-store.ts`
+   * builds the index with the active profile's column instead (task 51).
    */
   readonly level: LevelValue
   /** Level of the primary sense per profile (task 47) — not the minimum over all senses. */

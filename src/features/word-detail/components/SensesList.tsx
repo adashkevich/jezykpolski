@@ -7,16 +7,21 @@
  *
  * ```text
  * 1. закон, право                         [A2] [изучаем]
+ *    укр. закон, право                    (profiles by/ua only — task 51)
  *    ogół przepisów obowiązujących w państwie
  *    «Prawo zabrania palenia w restauracjach.»
  * ```
  *
  * The «изучаем»/«позже» badge says which meaning is being taught (only the primary one is,
  * task 49); with a single sense there is nothing to tell apart, so only the level badge stays.
- * Translations are the Russian ones for now; task 51 adds the profile's by/ua line under them.
- * `profile` picks the column of `Sense.levels` for the level badge.
+ * `profile` (task 51, `spec/tasks/51-language-profile.md` §3) picks the column of
+ * `Sense.levels` for the level badge and, in the `by`/`ua` profiles, adds that language's
+ * translations under the Russian ones — they come from the same details shard as the gloss, so
+ * that line too appears once the shard is in.
  */
 import type { LangProfile } from '@/content/codec.ts'
+import { ProfileTranslationsLine } from '@/components/app/ProfileTranslationsLine.tsx'
+import { profileTranslationsOf } from '@/learning/session/lang-profile.ts'
 import type { Sense, SenseDetails } from '@/types/content.ts'
 import type { SenseDetailsById, SensesStatus } from '../hooks/useSenses.ts'
 
@@ -31,7 +36,8 @@ export function SensesList({
 }: {
   status: SensesStatus
   senses: readonly Sense[]
-  /** Gloss/example per sense id; empty while loading or when the shard is unavailable. */
+  /** Gloss/example and by/ua translations per sense id; empty while loading or when the shard
+   *  is unavailable. */
   details: SenseDetailsById
   error: Error | undefined
   profile: LangProfile
@@ -106,6 +112,7 @@ function SenseItem({
               ))}
           </span>
         </div>
+        <ProfileTranslationsLine value={profileTranslationsOf(profile, details)} />
         {details && (
           <>
             <p lang="pl" className="text-body-sm text-muted-foreground">

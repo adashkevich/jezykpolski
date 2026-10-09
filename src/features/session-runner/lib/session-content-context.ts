@@ -19,36 +19,43 @@
  * It comes from the lazy `sense-details` shard and is NOT awaited — the question must never
  * wait for a display-only extra — so it is requested in the background and read with
  * {@link SessionContentCache.getPrimaryExample}, which simply answers `undefined` until (or
- * unless: offline, never cached) the shard has arrived.
+ * unless: offline, never cached) the shard has arrived. Task 51 reads the Belarusian/Ukrainian
+ * translations for the feedback from the very same entry
+ * ({@link SessionContentCache.getPrimaryDetails}) — no second request.
  */
-import { getAllTranslations, getPrimaryExample, getPrimaryTranslation } from '@/content/senses.ts'
+import {
+  getAllTranslations,
+  getPrimarySenseDetails,
+  getPrimaryTranslation,
+} from '@/content/senses.ts'
 import { getParadigm } from '@/content/paradigms.ts'
 import { getIndexStore } from '@/content/index-store.ts'
 import type { WordId } from '@/learning/skills/skill-id.ts'
 import type { ContentContext } from '@/learning/exercises/exercise.types.ts'
-import type { Paradigm } from '@/types/content.ts'
+import type { Paradigm, SenseDetails } from '@/types/content.ts'
 
-/** Primary-sense examples, fetched in the background and read synchronously. */
-class PrimaryExamples {
+/** Primary-sense details (example, by/ua translations), fetched in the background and read
+ *  synchronously. */
+class PrimaryDetails {
   /** Words already asked for — once each; a failed attempt is not retried (offline it would
    *  only fail again on every later `preload` of the same word). */
   private readonly requested = new Set<WordId>()
-  private readonly loaded = new Map<WordId, string>()
+  private readonly loaded = new Map<WordId, SenseDetails>()
 
   request(wordId: WordId): void {
     if (this.requested.has(wordId)) return
     this.requested.add(wordId)
-    getPrimaryExample(wordId)
-      .then((example) => {
-        if (example) this.loaded.set(wordId, example)
+    getPrimarySenseDetails(wordId)
+      .then((details) => {
+        if (details) this.loaded.set(wordId, details)
       })
       .catch(() => {
-        // Display-only: no example (details shard unavailable offline, unknown word) just
-        // means a feedback line less — `preload` reports the failures that matter.
+        // Display-only: no details (shard unavailable offline, unknown word) just means a
+        // feedback line or two less — `preload` reports the failures that matter.
       })
   }
 
-  get(wordId: WordId): string | undefined {
+  get(wordId: WordId): SenseDetails | undefined {
     return this.loaded.get(wordId)
   }
 }
@@ -56,11 +63,12 @@ class PrimaryExamples {
 export class SessionContentCache {
   private readonly paradigms = new Map<WordId, Paradigm | null>()
   private readonly translations = new Map<WordId, string[]>()
-  private readonly examples = new PrimaryExamples()
+  private readonly primaryDetails = new PrimaryDetails()
 
   /** Idempotent — safe to call more than once for the same `wordId` (e.g. a word that shows
    *  up both as a `'due'` skill and, later, requeued after a mistake). Resolves once the
-   *  translations and the paradigm are in; the example is requested but never awaited. */
+   *  translations and the paradigm are in; the primary sense's details are requested but
+   *  never awaited. */
   async preload(wordId: WordId): Promise<void> {
     if (!this.paradigms.has(wordId) || !this.translations.has(wordId)) {
       const [paradigm, allTranslations] = await Promise.all([
@@ -71,13 +79,18 @@ export class SessionContentCache {
       this.translations.set(wordId, allTranslations)
     }
     // Only now, so the shards the question needs are never queued behind the extra one.
-    this.examples.request(wordId)
+    this.primaryDetails.request(wordId)
   }
 
-  /** The Polish example of `wordId`'s primary sense; `undefined` while loading, on failure, or
-   *  when there is none. Never throws, never fetches. */
+  /** The details (example, by/ua translations) of `wordId`'s primary sense; `undefined` while
+   *  loading, on failure, or when there are none. Never throws, never fetches. */
+  getPrimaryDetails(wordId: WordId): SenseDetails | undefined {
+    return this.primaryDetails.get(wordId)
+  }
+
+  /** The Polish example of `wordId`'s primary sense — {@link getPrimaryDetails}'s `example`. */
   getPrimaryExample(wordId: WordId): string | undefined {
-    return this.examples.get(wordId)
+    return this.primaryDetails.get(wordId)?.example
   }
 
   /** Synchronous facade — throws if `preload(wordId)` hasn't resolved yet, which would be a

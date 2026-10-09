@@ -1,16 +1,26 @@
 /**
  * The in-memory word index (`spec/tasks/04-content-access-layer.md` §2).
  *
- * Built exactly once at startup (`initIndexStore`, called by `app/providers/ContentProvider`
- * after `loadIndex()` resolves) from the already-decoded `WordIndexEntry[]`. Every other
+ * Built at startup (`initIndexStore`, called by `app/providers/ContentProvider` after
+ * `loadIndex()` resolves) from the already-decoded `WordIndexEntry[]`. Every other
  * `content/**` module that needs to look words up (`query.ts`, `paradigms.ts`, `senses.ts`)
  * reads the resulting singleton via `getIndexStore()` rather than threading it through
  * function parameters — this mirrors the task's own `queryWords(q, progress)` signature,
  * which takes no index argument.
+ *
+ * Task 51 (`spec/tasks/51-language-profile.md` §2): the index is built for one language
+ * profile — `WordIndexEntry.level` is that profile's column of `levels`, so the level gate,
+ * filters and `/stats`, which all read `level`/`byLevel`, follow the profile without knowing
+ * about it. `setIndexStoreProfile` (driven by `ContentProvider`, which watches the setting)
+ * swaps the singleton for the other profile's index — a NEW object, so anything keyed on its
+ * identity (`useMemo`/`useLiveQuery` deps via `hooks/useLangProfile.ts#useContentIndex`,
+ * `query.ts`'s per-index caches) recomputes — and notifies `subscribeIndexStore` listeners.
+ * Each profile's index is built at most once per load and reused when switching back.
  */
-import type { PosValue } from './codec.ts'
+import type { LangProfile, PosValue } from './codec.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import { encodeWordId, type WordId } from '@/learning/skills/skill-id.ts'
+import { DEFAULT_LANG_PROFILE } from '@/learning/session/lang-profile.ts'
 
 /** Precomputed search text for one word — lowercased, diacritics stripped (see
  *  {@link normalizeSearchText}), computed once at index-build time instead of per query. */
@@ -22,7 +32,8 @@ export interface SearchTokens {
 export interface ContentIndex {
   readonly byId: ReadonlyMap<WordId, WordIndexEntry>
   /** Already sorted by frequency rank ascending — the content pipeline guarantees
-   *  `index.json` rows come out in rank order, so this is `loadIndex()`'s array as-is. */
+   *  `index.json` rows come out in rank order, so this is `loadIndex()`'s array as-is (with
+   *  the profile's `level` swapped in, task 51 — a copy only when some level differs). */
   readonly byRank: readonly WordIndexEntry[]
   /** Sorted with `Intl.Collator('pl')`, NOT `String.prototype.localeCompare`'s default
    *  locale — the default locale sorts `ą` after `z`; the Polish collator sorts it right
@@ -71,7 +82,22 @@ const LEVEL_ORDER: Record<string, number> = {
 
 const polishCollator = new Intl.Collator('pl')
 
-export function buildIndexStore(rows: readonly WordIndexEntry[]): ContentIndex {
+/** `entry` with `level` set to `profile`'s column of `levels` — the same object when it already
+ *  is (always, for the `ru` profile: the loader decodes `level` as `levels.ru`). */
+function withProfileLevel(entry: WordIndexEntry, profile: LangProfile): WordIndexEntry {
+  const level = entry.levels[profile]
+  return entry.level === level ? entry : { ...entry, level }
+}
+
+export function buildIndexStore(
+  decodedRows: readonly WordIndexEntry[],
+  profile: LangProfile = DEFAULT_LANG_PROFILE,
+): ContentIndex {
+  // The input array itself when no row changes (the `ru` profile of real data), so `byRank`
+  // stays `loadIndex()`'s array as-is.
+  const rows = decodedRows.some((entry) => entry.level !== entry.levels[profile])
+    ? decodedRows.map((entry) => withProfileLevel(entry, profile))
+    : decodedRows
   const byId = new Map<WordId, WordIndexEntry>()
   const byPosMutable = new Map<PosValue, WordIndexEntry[]>()
   const searchTokens = new Map<WordId, SearchTokens>()
@@ -104,13 +130,27 @@ export function buildIndexStore(rows: readonly WordIndexEntry[]): ContentIndex {
 }
 
 // ---------------------------------------------------------------------------
-// Singleton — built once by ContentProvider, read by every other content/** module.
+// Singleton — built by ContentProvider, read by every other content/** module.
 // ---------------------------------------------------------------------------
 
 let singleton: ContentIndex | null = null
+let singletonProfile: LangProfile = DEFAULT_LANG_PROFILE
+/** The decoded rows `initIndexStore` got — what `setIndexStoreProfile` rebuilds from. */
+let sourceRows: readonly WordIndexEntry[] | null = null
+/** Every profile's index built since the last `initIndexStore`, so switching back is free and
+ *  hands out the very same object (and so the same `query.ts` caches). */
+const builtByProfile = new Map<LangProfile, ContentIndex>()
+const listeners = new Set<() => void>()
 
-export function initIndexStore(rows: readonly WordIndexEntry[]): ContentIndex {
-  singleton = buildIndexStore(rows)
+export function initIndexStore(
+  rows: readonly WordIndexEntry[],
+  profile: LangProfile = DEFAULT_LANG_PROFILE,
+): ContentIndex {
+  sourceRows = rows
+  builtByProfile.clear()
+  singletonProfile = profile
+  singleton = buildIndexStore(rows, profile)
+  builtByProfile.set(profile, singleton)
   return singleton
 }
 
@@ -124,7 +164,46 @@ export function getIndexStore(): ContentIndex {
   return singleton
 }
 
+/** The language profile the current index was built for — `DEFAULT_LANG_PROFILE` before
+ *  `initIndexStore`. */
+export function getIndexStoreProfile(): LangProfile {
+  return singletonProfile
+}
+
+/**
+ * Switches the index to `profile` (task 51): a no-op when it already is, otherwise the
+ * singleton becomes `profile`'s index (built from the same rows on first use) and every
+ * {@link subscribeIndexStore} listener is called. Throws before `initIndexStore`, like
+ * `getIndexStore`.
+ */
+export function setIndexStoreProfile(profile: LangProfile): ContentIndex {
+  const rows = sourceRows
+  if (!singleton || !rows) return getIndexStore()
+  if (profile === singletonProfile) return singleton
+
+  let index = builtByProfile.get(profile)
+  if (!index) {
+    index = buildIndexStore(rows, profile)
+    builtByProfile.set(profile, index)
+  }
+  singleton = index
+  singletonProfile = profile
+  for (const listener of listeners) listener()
+  return index
+}
+
+/** `useSyncExternalStore`-shaped subscription to profile switches; returns the unsubscribe. */
+export function subscribeIndexStore(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
+
 /** Test-only: clears the singleton so test files don't leak state into each other. */
 export function __resetIndexStoreForTest(): void {
   singleton = null
+  singletonProfile = DEFAULT_LANG_PROFILE
+  sourceRows = null
+  builtByProfile.clear()
 }

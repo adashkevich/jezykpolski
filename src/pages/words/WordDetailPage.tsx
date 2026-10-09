@@ -2,8 +2,8 @@
  * `/words/:wordId` — the word detail card (`spec/tasks/08-word-detail.md`, FR-40…FR-48).
  *
  * `WordDetailPage` itself only resolves `:wordId` -> a `WordIndexEntry` (or renders the
- * "not found" state) — it calls no hooks beyond `useParams`/`useMemo`, so the "not found"
- * early return never skips a hook call. Everything that needs the entry to exist lives in
+ * "not found" state) — it calls no hooks beyond `useParams`/`useMemo`/`useContentIndex`, so
+ * the "not found" early return never skips a hook call. Everything that needs the entry to exist lives in
  * `WordDetailContent`, mounted only once `entry` is known, where every hook this screen
  * needs (`useSenses`, `useWordProgress`, `useWordSkills`, `useLazyParadigm`) is called
  * unconditionally, same as any other page in this app.
@@ -11,6 +11,10 @@
  * One `useLazyParadigm` instance is shared between `FormsSection` (which triggers the fetch
  * on expand) and `ProgressSection` (which only reads the result) — see that hook's own
  * header for why this is a single source of truth rather than two independent fetches.
+ *
+ * Task 51: the entry comes from the active language profile's index (`useContentIndex` — its
+ * `level` is that profile's), and the same profile picks the senses' level column and the
+ * extra Belarusian/Ukrainian line in `SensesList`.
  */
 import { useMemo } from 'react'
 import { ArrowLeft } from 'lucide-react'
@@ -18,11 +22,10 @@ import { Link, useParams } from 'react-router'
 import { PageContainer } from '@/components/app/PageContainer.tsx'
 import { PageHeader } from '@/components/app/PageHeader.tsx'
 import { parseWordParam } from '@/app/word-path.ts'
-import { getIndexStore } from '@/content/index-store.ts'
 import { getPrimaryTranslation } from '@/content/senses.ts'
+import { useContentIndex, useLangProfile } from '@/hooks/useLangProfile.ts'
 import { useWordProgress } from '@/hooks/useWordProgress.ts'
 import { useWordSkills } from '@/hooks/useWordSkills.ts'
-import { DEFAULT_LANG_PROFILE } from '@/learning/session/lang-profile.ts'
 import type { WordId } from '@/learning/skills/skill-id.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import { useLazyParadigm } from '@/features/word-detail/hooks/useLazyParadigm.ts'
@@ -45,7 +48,8 @@ export function WordDetailPage() {
     }
   }, [rawWordId])
 
-  const entry = wordId ? getIndexStore().byId.get(wordId) : undefined
+  const index = useContentIndex()
+  const entry = wordId ? index.byId.get(wordId) : undefined
 
   if (!wordId || !entry) {
     return (
@@ -67,6 +71,7 @@ function WordDetailContent({ wordId, entry }: { wordId: WordId; entry: WordIndex
   const wordProgress = useWordProgress(wordId)
   const skills = useWordSkills(wordId)
   const lazyParadigm = useLazyParadigm(wordId)
+  const profile = useLangProfile()
   const hasParadigm = entry.paradigmShard !== -1
 
   return (
@@ -86,13 +91,12 @@ function WordDetailContent({ wordId, entry }: { wordId: WordId; entry: WordIndex
           paradigm={lazyParadigm.paradigm}
         />
 
-        {/* Task 51: the active profile from the setting replaces the default here. */}
         <SensesList
           status={sensesStatus}
           senses={senses}
           details={details}
           error={sensesError}
-          profile={DEFAULT_LANG_PROFILE}
+          profile={profile}
         />
       </section>
 

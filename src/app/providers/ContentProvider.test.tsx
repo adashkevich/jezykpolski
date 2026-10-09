@@ -5,6 +5,10 @@ import { ContentProvider } from './ContentProvider.tsx'
 import { useContent } from './content-context.ts'
 import { __resetLoaderCachesForTest } from '@/content/loader.ts'
 import { __resetIndexStoreForTest } from '@/content/index-store.ts'
+import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
+import * as settingsRepo from '@/db/repositories/settings.repository.ts'
+import { useContentIndex, useLangProfile } from '@/hooks/useLangProfile.ts'
+import { LANG_PROFILE_SETTING_KEY } from '@/learning/session/lang-profile.ts'
 
 const REAL_CODEC = {
   pos: ['NOUN', 'VERB', 'ADJ', 'ADV', 'PRON', 'SCONJ', 'INTJ'],
@@ -60,18 +64,21 @@ function Probe() {
   )
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   __resetLoaderCachesForTest()
   __resetIndexStoreForTest()
+  // In the app `DatabaseProvider` opens it first; the provider reads `langProfile` (task 51).
+  await openDatabase()
 })
 
-afterEach(() => {
+afterEach(async () => {
   // Vitest's `test.globals` is off (see vite.config.ts), so `@testing-library/react`'s
   // automatic afterEach-cleanup registration (which looks for a global `afterEach`) never
   // fires — without this, a second `render()` in the same file leaves the first render's
   // DOM behind and every `screen` query becomes ambiguous.
   cleanup()
   vi.unstubAllGlobals()
+  await deleteDatabase()
 })
 
 describe('ContentProvider', () => {
@@ -120,5 +127,66 @@ describe('ContentProvider', () => {
     await user.click(screen.getByRole('button', { name: /spróbuj ponownie/i }))
 
     await waitFor(() => expect(screen.getByText(/contentVersion=abcdef123456/)).toBeInTheDocument())
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Task 51 (`spec/tasks/51-language-profile.md` §2): the index follows the `langProfile` setting.
+// ---------------------------------------------------------------------------
+
+/** Real `uśmiech|NOUN` row of `public/content/index.json`: A2 for `ru`, A1 for `by` and `ua`. */
+const usmiechRows = [['uśmiech|NOUN', 1, 1008, 2, 1, 1, 'улыбка', 3, 35]]
+
+function ProfileProbe() {
+  const index = useContentIndex()
+  const profile = useLangProfile()
+  return (
+    <p data-testid="profile-probe">
+      {profile}:{index.byId.get('uśmiech|NOUN')?.level}
+    </p>
+  )
+}
+
+function renderWithProfileProbe() {
+  vi.stubGlobal(
+    'fetch',
+    makeFetchMock({ 'manifest.json': makeManifest(), 'index.json': usmiechRows }),
+  )
+  render(
+    <ContentProvider>
+      <ProfileProbe />
+    </ContentProvider>,
+  )
+}
+
+describe('ContentProvider — language profile (task 51)', () => {
+  it('no stored profile: the index is built for ru', async () => {
+    renderWithProfileProbe()
+    await waitFor(() => expect(screen.getByTestId('profile-probe')).toHaveTextContent('ru:A2'))
+  })
+
+  it('builds the index for the stored profile before the first screen renders', async () => {
+    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, 'ua')
+    renderWithProfileProbe()
+    // The very first render of the children already has the ua level — never a ru flash.
+    const probe = await screen.findByTestId('profile-probe')
+    expect(probe).toHaveTextContent('ua:A1')
+  })
+
+  it('an invalid stored value (e.g. from an imported backup) reads as ru', async () => {
+    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, 'pl')
+    renderWithProfileProbe()
+    await waitFor(() => expect(screen.getByTestId('profile-probe')).toHaveTextContent('ru:A2'))
+  })
+
+  it('a change of the setting applies while mounted — no reload — and back again', async () => {
+    renderWithProfileProbe()
+    await waitFor(() => expect(screen.getByTestId('profile-probe')).toHaveTextContent('ru:A2'))
+
+    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, 'by')
+    await waitFor(() => expect(screen.getByTestId('profile-probe')).toHaveTextContent('by:A1'))
+
+    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, 'ru')
+    await waitFor(() => expect(screen.getByTestId('profile-probe')).toHaveTextContent('ru:A2'))
   })
 })
