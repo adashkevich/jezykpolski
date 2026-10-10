@@ -28,7 +28,7 @@ import { recomputeWordProgress } from '@/db/repositories/words-progress.reposito
 import {
   __resetIndexStoreForTest,
   initIndexStore,
-  setIndexStoreProfile,
+  setIndexStoreLangs,
 } from '@/content/index-store.ts'
 import { __resetLoaderCachesForTest } from '@/content/loader.ts'
 import type { ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
@@ -710,7 +710,7 @@ describe('пример значения в фидбэке (задача 50)', ()
   // же записи деталей, что и пример, и с теми же условиями (только после ответа).
   it('профиль ua: после ответа — строка «укр. жінка»; до ответа её нет', async () => {
     const user = userEvent.setup()
-    setIndexStoreProfile('ua')
+    setIndexStoreLangs(['ru', 'ua'])
     stubContent(Promise.resolve(DETAILS))
     const runtime = await startSession({ kind: 'word', wordId: KOBIETA })
     await vi.waitFor(() => expect(runtime.cache.getPrimaryDetails(KOBIETA)?.ua).toEqual(['жінка']))

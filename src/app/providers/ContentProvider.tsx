@@ -25,16 +25,16 @@
  * setting, read alongside the two fetches so the first screen already counts levels in the
  * right column. After that this provider watches the setting (`useLiveQuery`, the same
  * "live query + effect" shape as `useThemeSync`) and hands every change to
- * `setIndexStoreProfile` — whether it came from the settings screen or a backup import. The
- * store notifies its subscribers (`hooks/useLangProfile.ts`), so the switch applies without a
+ * `setIndexStoreLangs` — whether it came from the settings screen or a backup import. The
+ * store notifies its subscribers (`hooks/useKnownLangs.ts`), so the switch applies without a
  * reload; the context value below doesn't change with it.
  */
 import { useEffect, useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { loadIndex, loadManifest } from '@/content/loader.ts'
-import { initIndexStore, setIndexStoreProfile } from '@/content/index-store.ts'
-import { readLangProfileSetting } from '@/hooks/useLangProfile.ts'
-import { DEFAULT_LANG_PROFILE } from '@/learning/session/lang-profile.ts'
+import { initIndexStore, setIndexStoreLangs } from '@/content/index-store.ts'
+import { readKnownLangsSetting } from '@/hooks/useKnownLangs.ts'
+import { DEFAULT_KNOWN_LANGS } from '@/learning/session/lang-profile.ts'
 import { prewarmSensesCache } from '@/content/senses-prewarm.ts'
 import { cleanupStaleContentCaches } from '@/content/stale-cache-cleanup.ts'
 import { ContentContext, type ContentContextValue } from './content-context.ts'
@@ -52,12 +52,12 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   // its cached (rejected) promises on failure, so re-calling loadManifest()/loadIndex() here
   // genuinely retries the fetch rather than replaying the same rejection.
   const [attempt, setAttempt] = useState(0)
-  const liveProfile = useLiveQuery(readLangProfileSetting, [])
+  const liveLangs = useLiveQuery(readKnownLangsSetting, [])
   const ready = state.status === 'ready'
 
   useEffect(() => {
-    if (ready && liveProfile !== undefined) setIndexStoreProfile(liveProfile)
-  }, [ready, liveProfile])
+    if (ready && liveLangs !== undefined) setIndexStoreLangs(liveLangs)
+  }, [ready, liveLangs])
 
   useEffect(() => {
     let cancelled = false
@@ -66,11 +66,11 @@ export function ContentProvider({ children }: { children: ReactNode }) {
       loadManifest(),
       loadIndex(),
       // A preference: failing to read it must not keep the content from loading.
-      readLangProfileSetting().catch(() => DEFAULT_LANG_PROFILE),
+      readKnownLangsSetting().catch(() => DEFAULT_KNOWN_LANGS),
     ])
-      .then(([manifest, rows, profile]) => {
+      .then(([manifest, rows, langs]) => {
         if (cancelled) return
-        initIndexStore(rows, profile)
+        initIndexStore(rows, langs)
         setState({ status: 'ready', value: { manifest, wordCount: rows.length } })
         void prewarmSensesCache(manifest.contentVersion)
         void cleanupStaleContentCaches(manifest.contentVersion)

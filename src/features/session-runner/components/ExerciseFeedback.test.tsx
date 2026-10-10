@@ -234,16 +234,16 @@ describe('ExerciseFeedback', () => {
     expect(screen.queryByText(/«/)).not.toBeInTheDocument()
   })
 
-  // Задача 51 §3: в профилях by/ua — строка с переводами primary-значения на этот язык, под
-  // правильным ответом и над примером.
-  it('неверный ответ, профиль ua: «укр.» и украинский перевод (lang="uk") между ответом и примером', () => {
+  // Задача 51 §3: если известен беларуский/украинский — строка с переводами primary-значения на
+  // этот язык (по строке на язык), под правильным ответом и над примером.
+  it('неверный ответ, известен украинский: «укр.» и украинский перевод (lang="uk") между ответом и примером', () => {
     const feedback = grade(plRuExercise, 'иметь')
     render(
       <ExerciseFeedback
         feedback={feedback}
         correctAnswer="быть"
         example="Anna jest lekarką."
-        profileTranslations={{ profile: 'ua', translations: ['бути'] }}
+        profileTranslations={[{ profile: 'ua', translations: ['бути'] }]}
         onNext={() => {}}
       />,
     )
@@ -259,13 +259,13 @@ describe('ExerciseFeedback', () => {
     expect(follows(translations, example)).toBeTruthy()
   })
 
-  it('верный ответ, профиль by: строка «бел.» тоже есть (lang="be")', () => {
+  it('верный ответ, известен беларуский: строка «бел.» тоже есть (lang="be")', () => {
     const feedback = grade(plRuExercise, 'быть')
     render(
       <ExerciseFeedback
         feedback={feedback}
         correctAnswer="быть"
-        profileTranslations={{ profile: 'by', translations: ['быць'] }}
+        profileTranslations={[{ profile: 'by', translations: ['быць'] }]}
         onNext={() => {}}
       />,
     )
@@ -273,7 +273,27 @@ describe('ExerciseFeedback', () => {
     expect(screen.getByText('быць')).toHaveAttribute('lang', 'be')
   })
 
-  it('без profileTranslations (профиль ru, детали не успели) строки нет', () => {
+  it('известны оба языка: две строки, «бел.» над «укр.»', () => {
+    const feedback = grade(plRuExercise, 'быть')
+    render(
+      <ExerciseFeedback
+        feedback={feedback}
+        correctAnswer="быть"
+        profileTranslations={[
+          { profile: 'by', translations: ['быць'] },
+          { profile: 'ua', translations: ['бути'] },
+        ]}
+        onNext={() => {}}
+      />,
+    )
+    const by = screen.getByText('быць')
+    const ua = screen.getByText('бути')
+    expect(by).toHaveAttribute('lang', 'be')
+    expect(ua).toHaveAttribute('lang', 'uk')
+    expect(by.compareDocumentPosition(ua) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('без profileTranslations (только русский, детали не успели) строки нет', () => {
     const feedback = grade(plRuExercise, 'иметь')
     render(
       <ExerciseFeedback

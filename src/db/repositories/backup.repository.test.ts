@@ -21,7 +21,7 @@ import type { WordIndexEntry } from '@/types/content.ts'
 import type { ReviewLogRecord, SessionRecord, SkillRecord } from '@/types/progress.ts'
 import { CURRENT_BACKUP_SCHEMA_VERSION } from '../backup.schema.ts'
 import { uniformLevels } from '@/test/fixtures/levels.ts'
-import { readLangProfileSetting } from '@/hooks/useLangProfile.ts'
+import { readKnownLangsSetting } from '@/hooks/useKnownLangs.ts'
 import { LANG_PROFILE_SETTING_KEY } from '@/learning/session/lang-profile.ts'
 
 function entry(lemma: string, rank: number): WordIndexEntry {
@@ -254,24 +254,35 @@ describe('export -> reset -> import — серия и блокировка вв�
   })
 })
 
-describe('export -> reset -> import — языковой профиль (задача 51 §4)', () => {
+describe('export -> reset -> import — известные языки (задачи 51 §4, 52)', () => {
   it('langProfile — обычная настройка: попадает в экспорт и возвращается импортом', async () => {
     initIndexStore([entry('kobieta', 1)])
-    await settingsSet(LANG_PROFILE_SETTING_KEY, 'by')
+    await settingsSet(LANG_PROFILE_SETTING_KEY, ['by', 'ua'])
 
     const backup = await buildBackupExport('content-v1')
-    expect(backup.settings).toEqual({ langProfile: 'by' })
+    expect(backup.settings).toEqual({ langProfile: ['by', 'ua'] })
 
     await resetAllData()
-    expect(await readLangProfileSetting()).toBe('ru')
+    expect(await readKnownLangsSetting()).toEqual(['ru'])
 
     const { data } = await prepareImport(JSON.parse(JSON.stringify(backup)), 'content-v1')
     await applyImport(data, 'content-v1')
 
-    expect(await readLangProfileSetting()).toBe('by')
+    expect(await readKnownLangsSetting()).toEqual(['by', 'ua'])
   })
 
-  it('бэкап с неизвестным профилем импортируется, а читается профиль как ru', async () => {
+  it('бэкап задачи 51 (одна строка «by») читается как «русский и беларуский»', async () => {
+    initIndexStore([entry('kobieta', 1)])
+    const backup = await buildBackupExport('content-v1')
+    const old = JSON.parse(JSON.stringify({ ...backup, settings: { langProfile: 'by' } }))
+
+    const { data } = await prepareImport(old, 'content-v1')
+    await applyImport(data, 'content-v1')
+
+    expect(await readKnownLangsSetting()).toEqual(['ru', 'by'])
+  })
+
+  it('бэкап с неизвестным профилем импортируется, а читается как «только русский»', async () => {
     initIndexStore([entry('kobieta', 1)])
     const backup = await buildBackupExport('content-v1')
     const foreign = JSON.parse(JSON.stringify({ ...backup, settings: { langProfile: 'pl' } }))
@@ -280,7 +291,7 @@ describe('export -> reset -> import — языковой профиль (зад�
     await applyImport(data, 'content-v1')
 
     expect(await settingsGet(LANG_PROFILE_SETTING_KEY, null)).toBe('pl')
-    expect(await readLangProfileSetting()).toBe('ru')
+    expect(await readKnownLangsSetting()).toEqual(['ru'])
   })
 })
 

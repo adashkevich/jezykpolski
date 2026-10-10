@@ -1,11 +1,12 @@
 /**
- * "Обучение" block — the «Языки, которые я знаю» select (`spec/tasks/51-language-profile.md` §1):
- * where it sits, what it stores, how it reads a bad stored value, and — inside a real
- * `ContentProvider` next to the home screen's `LearnHero` — that a switch applies at once and
- * leaves the start level and the progress alone (§2).
+ * "Обучение" block — the «Языки, которые я знаю» checkboxes (`spec/tasks/51-language-profile.md`
+ * §1, made a set of languages by `52-language-onboarding.md`): where they sit, what they store,
+ * how a bad stored value reads, and — inside a real `ContentProvider` next to the home screen's
+ * `LearnHero` — that a change applies at once and leaves the start level and the progress alone
+ * (§2).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { LearningSettingsSection } from './LearningSettingsSection.tsx'
@@ -38,50 +39,101 @@ afterEach(async () => {
   await deleteDatabase()
 })
 
-function profileSelect(): HTMLSelectElement {
-  return screen.getByRole('combobox', { name: 'Языки, которые я знаю' })
+function langsGroup(): HTMLElement {
+  return screen.getByRole('group', { name: 'Языки, которые я знаю' })
 }
 
-describe('LearningSettingsSection — «Языки, которые я знаю» (task 51)', () => {
-  it('sits right above «Начинать с уровня», offers the three profiles and defaults to Russian only', async () => {
+function langBox(name: RegExp): HTMLInputElement {
+  return within(langsGroup()).getByRole('checkbox', { name })
+}
+
+const storedLangs = () => settingsRepo.get<unknown>(LANG_PROFILE_SETTING_KEY, null)
+
+describe('LearningSettingsSection — «Языки, которые я знаю» (tasks 51, 52)', () => {
+  it('sits right above «Начинать с уровня», offers the three languages and defaults to Russian only', async () => {
     render(<LearningSettingsSection />)
 
-    const select = profileSelect()
-    await waitFor(() => expect(select).toHaveValue('ru'))
-    expect([...select.options].map((o) => [o.value, o.text])).toEqual([
-      ['ru', 'Русский'],
-      ['by', 'Русский и белорусский'],
-      ['ua', 'Русский и украинский'],
+    await waitFor(() => expect(langBox(/русский/)).toBeChecked())
+    expect(within(langsGroup()).getAllByRole('checkbox').map((box) => box.closest('label')?.textContent)).toEqual([
+      'Знаю русский',
+      'Знаю беларуский',
+      'Знаю украинский',
     ])
+    expect(langBox(/беларуский/)).not.toBeChecked()
+    expect(langBox(/украинский/)).not.toBeChecked()
 
-    const comboboxes = screen.getAllByRole('combobox').map((el) => el.getAttribute('aria-label'))
-    const at = comboboxes.indexOf('Языки, которые я знаю')
-    expect(comboboxes[at + 1]).toBe('Начинать с уровня')
+    const startLevel = screen.getByRole('combobox', { name: 'Начинать с уровня' })
+    expect(
+      langsGroup().compareDocumentPosition(startLevel) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 
-  it('choosing a profile stores it under "langProfile"', async () => {
+  it('ticking a language stores the list under "langProfile", in ru, by, ua order', async () => {
     const user = userEvent.setup()
     render(<LearningSettingsSection />)
-    await waitFor(() => expect(profileSelect()).toHaveValue('ru'))
+    await waitFor(() => expect(langBox(/русский/)).toBeChecked())
 
-    await user.selectOptions(profileSelect(), 'Русский и белорусский')
+    await user.click(langBox(/украинский/))
+    await waitFor(async () => expect(await storedLangs()).toEqual(['ru', 'ua']))
 
-    await waitFor(async () =>
-      expect(await settingsRepo.get(LANG_PROFILE_SETTING_KEY, null)).toBe('by'),
-    )
+    await user.click(langBox(/беларуский/))
+    await waitFor(async () => expect(await storedLangs()).toEqual(['ru', 'by', 'ua']))
     // Controlled by the setting's live query, which re-renders a tick after the write lands.
-    await waitFor(() => expect(profileSelect()).toHaveValue('by'))
+    await waitFor(() => expect(langBox(/беларуский/)).toBeChecked())
   })
 
-  it('shows a stored profile, and an invalid stored value as Russian only', async () => {
+  it('Russian can be un-ticked once another language is ticked', async () => {
+    const user = userEvent.setup()
+    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, ['ru', 'by'])
+    render(<LearningSettingsSection />)
+    await waitFor(() => expect(langBox(/беларуский/)).toBeChecked())
+
+    await user.click(langBox(/русский/))
+
+    await waitFor(async () => expect(await storedLangs()).toEqual(['by']))
+    await waitFor(() => expect(langBox(/русский/)).not.toBeChecked())
+  })
+
+  it('the last ticked language cannot be un-ticked — at least one stays', async () => {
+    const user = userEvent.setup()
+    render(<LearningSettingsSection />)
+    await waitFor(() => expect(langBox(/русский/)).toBeChecked())
+
+    expect(langBox(/русский/)).toBeDisabled()
+    await user.click(langBox(/русский/))
+    expect(langBox(/русский/)).toBeChecked()
+    expect(await storedLangs()).toBeNull()
+
+    // Ticking another one frees it again.
+    await user.click(langBox(/украинский/))
+    await waitFor(() => expect(langBox(/русский/)).toBeEnabled())
+  })
+
+  it('shows a stored list as ticked boxes — also one without Russian', async () => {
+    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, ['by', 'ua'])
+    render(<LearningSettingsSection />)
+
+    await waitFor(() => expect(langBox(/беларуский/)).toBeChecked())
+    expect(langBox(/украинский/)).toBeChecked()
+    expect(langBox(/русский/)).not.toBeChecked()
+  })
+
+  it('reads task 51\'s single string: "ua" is Russian + Ukrainian', async () => {
     await settingsRepo.set(LANG_PROFILE_SETTING_KEY, 'ua')
     render(<LearningSettingsSection />)
-    await waitFor(() => expect(profileSelect()).toHaveValue('ua'))
-    cleanup()
 
+    await waitFor(() => expect(langBox(/украинский/)).toBeChecked())
+    expect(langBox(/русский/)).toBeChecked()
+    expect(langBox(/беларуский/)).not.toBeChecked()
+  })
+
+  it('shows an invalid stored value as Russian only', async () => {
     await settingsRepo.set(LANG_PROFILE_SETTING_KEY, 'pl')
     render(<LearningSettingsSection />)
-    await waitFor(() => expect(profileSelect()).toHaveValue('ru'))
+
+    await waitFor(() => expect(langBox(/русский/)).toBeChecked())
+    expect(langBox(/беларуский/)).not.toBeChecked()
+    expect(langBox(/украинский/)).not.toBeChecked()
   })
 })
 
@@ -195,7 +247,7 @@ function vocabSkill(dimension: SkillRecord['dimension']): SkillRecord {
   }
 }
 
-describe('switching the profile in a running app (task 51 §2)', () => {
+describe('changing the languages in a running app (task 51 §2)', () => {
   it('applies at once — the home gate moves from A2 back to A1 — and keeps startLevel and progress', async () => {
     const user = userEvent.setup()
     initIndexStore(DECODED_ENTRIES)
@@ -221,7 +273,7 @@ describe('switching the profile in a running app (task 51 §2)', () => {
       expect(screen.getByText('Сейчас изучаем: A2 · осталось 1 слово')).toBeInTheDocument(),
     )
 
-    await user.selectOptions(profileSelect(), 'Русский и украинский')
+    await user.click(langBox(/украинский/))
 
     // ua: uśmiech is A1 and not started — the gate recomputes on its own, no reload.
     await waitFor(() =>

@@ -14,7 +14,7 @@
  */
 import { useMemo } from 'react'
 import { queryWords, type WordQuery } from '@/content/query.ts'
-import { useContentIndex } from '@/hooks/useLangProfile.ts'
+import { useContentIndex } from '@/hooks/useKnownLangs.ts'
 import { useAllWordProgress } from '@/hooks/useWordProgress.ts'
 import { filtersToQuery, useFiltersStore } from '@/stores/filters.store.ts'
 import type { WordId } from '@/learning/skills/skill-id.ts'

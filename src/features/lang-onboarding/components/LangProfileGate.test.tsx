@@ -1,7 +1,7 @@
 /**
  * `LangProfileGate` (`spec/tasks/52-language-onboarding.md` §1, §3): the first-run language
- * screen shows instead of the app until `settings.langProfile` holds a known profile; the
- * stored profile is the only "already asked" record; the read happens once per load.
+ * screen shows instead of the app until `settings.langProfile` holds a known language; the
+ * stored languages are the only "already asked" record; the read happens once per load.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
@@ -9,7 +9,7 @@ import userEvent from '@testing-library/user-event'
 import { LangProfileGate } from './LangProfileGate.tsx'
 import {
   __resetIndexStoreForTest,
-  getIndexStoreProfile,
+  getIndexStoreLangs,
   initIndexStore,
 } from '@/content/index-store.ts'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
@@ -50,10 +50,10 @@ afterEach(async () => {
 })
 
 describe('LangProfileGate', () => {
-  it('shows the language screen instead of the app when no profile was ever stored', async () => {
+  it('shows the language screen instead of the app when no answer was ever stored', async () => {
     renderGate()
 
-    expect(await screen.findByRole('heading', { name: 'Какой язык вы знаете?' })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Какие языки вы знаете?' })).toBeVisible()
     expect(screen.queryByText('app-content')).not.toBeInTheDocument()
   })
 
@@ -62,58 +62,80 @@ describe('LangProfileGate', () => {
 
     expect(screen.getByRole('status')).toBeInTheDocument()
     expect(screen.queryByText('app-content')).not.toBeInTheDocument()
-    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
-    await screen.findByRole('radiogroup')
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    await screen.findByRole('group', { name: 'Какие языки вы знаете?' })
   })
 
-  it('stores "by" for the Belarusian card, applies it to the index and opens the app', async () => {
+  it('stores Russian alone when the screen is confirmed as it opened, and opens the app', async () => {
     const user = userEvent.setup()
     renderGate()
 
-    await user.click(await screen.findByRole('radio', { name: /Белорусский/ }))
+    await user.click(await screen.findByRole('button', { name: 'Продолжить' }))
+
+    await waitFor(() => expect(screen.getByText('app-content')).toBeInTheDocument())
+    expect(await settingsRepo.get<unknown>(LANG_PROFILE_SETTING_KEY, null)).toEqual(['ru'])
+    expect(getIndexStoreLangs()).toEqual(['ru'])
+  })
+
+  it('stores every ticked language as a list, applies it to the index and opens the app', async () => {
+    const user = userEvent.setup()
+    renderGate()
+
+    await user.click(await screen.findByRole('checkbox', { name: /беларуский/ }))
+    await user.click(screen.getByRole('checkbox', { name: /украинский/ }))
     await user.click(screen.getByRole('button', { name: 'Продолжить' }))
 
     await waitFor(() => expect(screen.getByText('app-content')).toBeInTheDocument())
-    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
-    expect(await settingsRepo.get<unknown>(LANG_PROFILE_SETTING_KEY, null)).toBe('by')
+    expect(screen.queryByRole('group', { name: 'Какие языки вы знаете?' })).not.toBeInTheDocument()
+    expect(await settingsRepo.get<unknown>(LANG_PROFILE_SETTING_KEY, null)).toEqual([
+      'ru',
+      'by',
+      'ua',
+    ])
     // Applied before the app's first frame, not left to `ContentProvider`'s live query.
-    expect(getIndexStoreProfile()).toBe('by')
+    expect(getIndexStoreLangs()).toEqual(['ru', 'by', 'ua'])
   })
 
-  it('stores "ru" explicitly for the Russian card — the answer, not the absence of one', async () => {
+  it('stores an answer without Russian as it is', async () => {
     const user = userEvent.setup()
     renderGate()
 
-    await user.click(await screen.findByRole('radio', { name: /Русский/ }))
+    await user.click(await screen.findByRole('checkbox', { name: /беларуский/ }))
+    await user.click(screen.getByRole('checkbox', { name: /русский/ }))
     await user.click(screen.getByRole('button', { name: 'Продолжить' }))
 
     await waitFor(() => expect(screen.getByText('app-content')).toBeInTheDocument())
-    expect(await settingsRepo.get<unknown>(LANG_PROFILE_SETTING_KEY, null)).toBe('ru')
-    expect(getIndexStoreProfile()).toBe('ru')
+    expect(await settingsRepo.get<unknown>(LANG_PROFILE_SETTING_KEY, null)).toEqual(['by'])
+    expect(getIndexStoreLangs()).toEqual(['by'])
   })
 
-  it.each(['ru', 'by', 'ua'] as const)(
-    'goes straight to the app when "%s" is already stored — the screen never repeats',
+  it.each([['ru'], ['by'], ['ua'], [['ru']], [['by', 'ua']], [['ua']]] as const)(
+    'goes straight to the app when %j is already stored — the screen never repeats',
     async (stored) => {
       await settingsRepo.set(LANG_PROFILE_SETTING_KEY, stored)
       renderGate()
 
       expect(await screen.findByText('app-content')).toBeInTheDocument()
-      expect(screen.queryByRole('radio')).not.toBeInTheDocument()
-      expect(screen.queryByRole('heading', { name: 'Какой язык вы знаете?' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('heading', { name: 'Какие языки вы знаете?' }),
+      ).not.toBeInTheDocument()
     },
   )
 
-  it('asks again when the stored value is no known profile (a foreign or hand-edited backup)', async () => {
-    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, 'pl')
-    renderGate()
+  it.each([['pl'], [[]], [['pl']], [7]] as const)(
+    'asks again when the stored value %j holds no known language (a foreign or hand-edited backup)',
+    async (stored) => {
+      await settingsRepo.set(LANG_PROFILE_SETTING_KEY, stored)
+      renderGate()
 
-    expect(await screen.findByRole('radiogroup')).toBeInTheDocument()
-    expect(screen.queryByText('app-content')).not.toBeInTheDocument()
-  })
+      expect(await screen.findByRole('group', { name: 'Какие языки вы знаете?' })).toBeInTheDocument()
+      expect(screen.queryByText('app-content')).not.toBeInTheDocument()
+    },
+  )
 
   it('reads the setting once per load — a later change to it does not bring the screen back', async () => {
-    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, 'by')
+    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, ['ru', 'by'])
     renderGate()
     expect(await screen.findByText('app-content')).toBeInTheDocument()
 
@@ -122,7 +144,7 @@ describe('LangProfileGate', () => {
     })
 
     expect(screen.getByText('app-content')).toBeInTheDocument()
-    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Какие языки вы знаете?' })).not.toBeInTheDocument()
   })
 
   it('opens the app without the screen when the setting cannot be read (a preference must not block start)', async () => {
@@ -131,7 +153,7 @@ describe('LangProfileGate', () => {
     renderGate()
 
     expect(await screen.findByText('app-content')).toBeInTheDocument()
-    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Какие языки вы знаете?' })).not.toBeInTheDocument()
     expect(warn).toHaveBeenCalled()
   })
 
@@ -140,12 +162,12 @@ describe('LangProfileGate', () => {
     vi.spyOn(settingsRepo, 'set').mockRejectedValue(new Error('quota'))
     renderGate()
 
-    await user.click(await screen.findByRole('radio', { name: /Белорусский/ }))
+    await user.click(await screen.findByRole('checkbox', { name: /беларуский/ }))
     await user.click(screen.getByRole('button', { name: 'Продолжить' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Не удалось сохранить выбор')
     expect(screen.queryByText('app-content')).not.toBeInTheDocument()
     // Nothing was applied that isn't stored.
-    expect(getIndexStoreProfile()).toBe('ru')
+    expect(getIndexStoreLangs()).toEqual(['ru'])
   })
 })

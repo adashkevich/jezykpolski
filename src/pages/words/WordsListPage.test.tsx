@@ -24,7 +24,7 @@ import { WordsListPage } from './WordsListPage.tsx'
 import {
   __resetIndexStoreForTest,
   initIndexStore,
-  setIndexStoreProfile,
+  setIndexStoreLangs,
 } from '@/content/index-store.ts'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
 import { get as settingsGet } from '@/db/repositories/settings.repository.ts'
@@ -341,7 +341,7 @@ describe('WordsListPage — language profile (task 51)', () => {
     expect(screen.queryByRole('link', { name: /uśmiech/ })).not.toBeInTheDocument()
 
     act(() => {
-      setIndexStoreProfile('ua')
+      setIndexStoreLangs(['ru', 'ua'])
     })
 
     const row = screen.getByRole('link', { name: /uśmiech/ })

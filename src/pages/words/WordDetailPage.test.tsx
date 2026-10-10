@@ -25,7 +25,7 @@ import { encodeWordId } from '@/learning/skills/skill-id.ts'
 import {
   __resetIndexStoreForTest,
   initIndexStore,
-  setIndexStoreProfile,
+  setIndexStoreLangs,
 } from '@/content/index-store.ts'
 import { __resetLoaderCachesForTest } from '@/content/loader.ts'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
@@ -507,7 +507,7 @@ describe('language profile (task 51)', () => {
   }
 
   it('by: Belarusian translations under every sense, and by levels in the header and badges', async () => {
-    initIndexStore([...FIXTURE_ENTRIES, RADZIC_ENTRY], 'by')
+    initIndexStore([...FIXTURE_ENTRIES, RADZIC_ENTRY], ['ru', 'by'])
     renderWordDetail(RADZIC_ID)
 
     await screen.findByText('раіць')
@@ -533,7 +533,7 @@ describe('language profile (task 51)', () => {
     expect(headerText()).toContain('B1')
 
     act(() => {
-      setIndexStoreProfile('ua')
+      setIndexStoreLangs(['ru', 'ua'])
     })
 
     expect(await screen.findByText('давати раду')).toHaveAttribute('lang', 'uk')

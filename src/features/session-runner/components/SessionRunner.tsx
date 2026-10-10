@@ -54,8 +54,8 @@ import {
 } from '@/db/repositories/swipe.repository.ts'
 import type { Exercise, ExerciseInstance } from '@/learning/exercises/exercise.types.ts'
 import type { GradeResult } from '@/learning/exercises/grade.ts'
-import { useLangProfile } from '@/hooks/useLangProfile.ts'
-import { profileTranslationsOf } from '@/learning/session/lang-profile.ts'
+import { useKnownLangs } from '@/hooks/useKnownLangs.ts'
+import { knownLangsTranslations } from '@/learning/session/lang-profile.ts'
 import type { TypedAttemptOutcome } from '@/learning/exercises/letter-attempt.ts'
 import { isCleanAnswer, summarizeFirstAnswers } from '@/learning/progress/accuracy.ts'
 import { VOCAB_STAGE_ORDER } from '@/learning/progress/stage.ts'
@@ -259,7 +259,7 @@ function ActiveQuestion({
   const [markKnownOffered, setMarkKnownOffered] = useState(false)
   // Lazy initializer -> runs exactly once, at this component's mount — see file header.
   const [questionShownAt] = useState(() => Date.now())
-  const langProfile = useLangProfile()
+  const knownLangs = useKnownLangs()
 
   const skillId = instance.skillId as SkillId
   const maybeDescriptor = runtime.descriptors.get(skillId)
@@ -374,13 +374,14 @@ function ActiveQuestion({
   // Task 50 §2: the primary sense's example goes under the answer — vocab questions only, and
   // only once there IS feedback (before the answer it would give the answer away). Whatever
   // the details shard has delivered by now; if it is not here yet, the line is just absent.
-  // Task 51 §3: the same entry carries the profile's by/ua translations — same conditions.
+  // Task 51 §3: the same entry carries the by/ua translations of the languages the learner
+  // knows — same conditions.
   const primaryDetails =
     feedback !== null && showsWordExample(instance.exercise)
       ? runtime.cache.getPrimaryDetails(descriptor.wordId)
       : undefined
   const example = primaryDetails?.example
-  const profileTranslations = profileTranslationsOf(langProfile, primaryDetails)
+  const profileTranslations = knownLangsTranslations(knownLangs, primaryDetails)
 
   // «Знаю» после чистого ответа (задача 41 §2, на этапах выбора — задача 40 §3): сам ответ уже
   // оценён и записан `handleAnswer` — кнопка лишь дополнительно помечает слово известным

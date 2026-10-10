@@ -3,10 +3,10 @@ import {
   __resetIndexStoreForTest,
   buildIndexStore,
   getIndexStore,
-  getIndexStoreProfile,
+  getIndexStoreLangs,
   initIndexStore,
   normalizeSearchText,
-  setIndexStoreProfile,
+  setIndexStoreLangs,
   subscribeIndexStore,
 } from './index-store.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
@@ -155,8 +155,8 @@ const PROFILE_ROWS: WordIndexEntry[] = [
   }),
 ]
 
-describe('buildIndexStore — language profile (task 51)', () => {
-  it('ru (the default): level is levels.ru, rows and byRank are the input as-is', () => {
+describe('buildIndexStore — known languages (task 51, 52)', () => {
+  it('Russian only (the default): level is levels.ru, rows and byRank are the input as-is', () => {
     const index = buildIndexStore(PROFILE_ROWS)
     expect(index.byId.get('uśmiech|NOUN')?.level).toBe('A2')
     expect(index.byRank).toBe(PROFILE_ROWS)
@@ -164,8 +164,8 @@ describe('buildIndexStore — language profile (task 51)', () => {
     expect(index.byLevel.map((e) => e.lemma)).toEqual(['być', 'uśmiech', 'radzić'])
   })
 
-  it('ua: level comes from levels.ua — byLevel, byId and byPos all carry it', () => {
-    const index = buildIndexStore(PROFILE_ROWS, 'ua')
+  it('ru + ua: level comes from levels.ua — byLevel, byId and byPos all carry it', () => {
+    const index = buildIndexStore(PROFILE_ROWS, ['ru', 'ua'])
     expect(index.byId.get('uśmiech|NOUN')?.level).toBe('A1')
     expect(index.byId.get('radzić|VERB')?.level).toBe('A2')
     expect(index.byPos.get('VERB')?.map((e) => e.level)).toEqual(['A1', 'A2'])
@@ -181,18 +181,44 @@ describe('buildIndexStore — language profile (task 51)', () => {
     expect(index.byRank.map((e) => e.lemma)).toEqual(['być', 'uśmiech', 'radzić'])
   })
 
-  it('by: level comes from levels.by', () => {
-    const index = buildIndexStore(PROFILE_ROWS, 'by')
+  it('ru + by: level comes from levels.by', () => {
+    const index = buildIndexStore(PROFILE_ROWS, ['ru', 'by'])
     expect(index.byId.get('radzić|VERB')?.level).toBe('A2')
+  })
+
+  it('without Russian the other language alone decides: the same levels as with it', () => {
+    const index = buildIndexStore(PROFILE_ROWS, ['by'])
+    expect(index.byId.get('uśmiech|NOUN')?.level).toBe('A1')
+    expect(index.byId.get('radzić|VERB')?.level).toBe('A2')
+  })
+
+  it('several languages: the easiest of their columns', () => {
+    const rows = [
+      entry({
+        lemma: 'a',
+        rank: 1,
+        level: 'B2',
+        levels: { ru: 'B2', by: 'B1', ua: 'A2' },
+      }),
+      entry({
+        lemma: 'b',
+        rank: 2,
+        level: 'B2',
+        levels: { ru: 'B2', by: 'A2', ua: 'B1' },
+      }),
+    ]
+    const index = buildIndexStore(rows, ['ru', 'by', 'ua'])
+    expect(index.byId.get('a|NOUN')?.level).toBe('A2')
+    expect(index.byId.get('b|NOUN')?.level).toBe('A2')
   })
 })
 
-describe('singleton — setIndexStoreProfile / subscribeIndexStore (task 51)', () => {
-  it('initIndexStore builds for the given profile and remembers it', () => {
+describe('singleton — setIndexStoreLangs / subscribeIndexStore (task 51, 52)', () => {
+  it('initIndexStore builds for the given languages and remembers them', () => {
     __resetIndexStoreForTest()
-    expect(getIndexStoreProfile()).toBe('ru')
-    initIndexStore(PROFILE_ROWS, 'ua')
-    expect(getIndexStoreProfile()).toBe('ua')
+    expect(getIndexStoreLangs()).toEqual(['ru'])
+    initIndexStore(PROFILE_ROWS, ['ru', 'ua'])
+    expect(getIndexStoreLangs()).toEqual(['ru', 'ua'])
     expect(getIndexStore().byId.get('uśmiech|NOUN')?.level).toBe('A1')
   })
 
@@ -202,35 +228,58 @@ describe('singleton — setIndexStoreProfile / subscribeIndexStore (task 51)', (
     const listener = vi.fn()
     const unsubscribe = subscribeIndexStore(listener)
 
-    const ua = setIndexStoreProfile('ua')
+    const ua = setIndexStoreLangs(['ru', 'ua'])
     expect(ua).not.toBe(ru)
     expect(getIndexStore()).toBe(ua)
-    expect(getIndexStoreProfile()).toBe('ua')
+    expect(getIndexStoreLangs()).toEqual(['ru', 'ua'])
     expect(getIndexStore().byId.get('radzić|VERB')?.level).toBe('A2')
     expect(listener).toHaveBeenCalledTimes(1)
 
-    expect(setIndexStoreProfile('ru')).toBe(ru)
+    expect(setIndexStoreLangs(['ru'])).toBe(ru)
     expect(getIndexStore().byId.get('radzić|VERB')?.level).toBe('B1')
     expect(listener).toHaveBeenCalledTimes(2)
 
     unsubscribe()
-    setIndexStoreProfile('by')
+    setIndexStoreLangs(['ru', 'by'])
     expect(listener).toHaveBeenCalledTimes(2)
   })
 
-  it('setting the profile it already has is a no-op: same object, nobody notified', () => {
+  it('setting the languages it already has is a no-op: same object, nobody notified', () => {
     __resetIndexStoreForTest()
     const ru = initIndexStore(PROFILE_ROWS)
     const listener = vi.fn()
     const unsubscribe = subscribeIndexStore(listener)
 
-    expect(setIndexStoreProfile('ru')).toBe(ru)
+    expect(setIndexStoreLangs(['ru'])).toBe(ru)
     expect(listener).not.toHaveBeenCalled()
     unsubscribe()
   })
 
+  it('the same set written in another order or with repeats is the same set', () => {
+    __resetIndexStoreForTest()
+    initIndexStore(PROFILE_ROWS)
+    const first = setIndexStoreLangs(['ua', 'ru'])
+    const langs = getIndexStoreLangs()
+    const listener = vi.fn()
+    const unsubscribe = subscribeIndexStore(listener)
+
+    expect(setIndexStoreLangs(['ru', 'ua', 'ua'])).toBe(first)
+    expect(listener).not.toHaveBeenCalled()
+    // A stable snapshot — `useSyncExternalStore` compares it by identity.
+    expect(getIndexStoreLangs()).toBe(langs)
+    expect(langs).toEqual(['ru', 'ua'])
+    unsubscribe()
+  })
+
+  it('an empty list falls back to Russian only', () => {
+    __resetIndexStoreForTest()
+    const ru = initIndexStore(PROFILE_ROWS, ['ru', 'by'])
+    expect(setIndexStoreLangs([])).not.toBe(ru)
+    expect(getIndexStoreLangs()).toEqual(['ru'])
+  })
+
   it('throws before initIndexStore, like getIndexStore', () => {
     __resetIndexStoreForTest()
-    expect(() => setIndexStoreProfile('ua')).toThrow()
+    expect(() => setIndexStoreLangs(['ru', 'ua'])).toThrow()
   })
 })

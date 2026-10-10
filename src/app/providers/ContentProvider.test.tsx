@@ -7,7 +7,7 @@ import { __resetLoaderCachesForTest } from '@/content/loader.ts'
 import { __resetIndexStoreForTest } from '@/content/index-store.ts'
 import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.repository.ts'
 import * as settingsRepo from '@/db/repositories/settings.repository.ts'
-import { useContentIndex, useLangProfile } from '@/hooks/useLangProfile.ts'
+import { useContentIndex, useKnownLangs } from '@/hooks/useKnownLangs.ts'
 import { LANG_PROFILE_SETTING_KEY } from '@/learning/session/lang-profile.ts'
 
 const REAL_CODEC = {
@@ -139,10 +139,10 @@ const usmiechRows = [['uśmiech|NOUN', 1, 1008, 2, 1, 1, 'улыбка', 3, 35]]
 
 function ProfileProbe() {
   const index = useContentIndex()
-  const profile = useLangProfile()
+  const langs = useKnownLangs()
   return (
     <p data-testid="profile-probe">
-      {profile}:{index.byId.get('uśmiech|NOUN')?.level}
+      {langs.join('+')}:{index.byId.get('uśmiech|NOUN')?.level}
     </p>
   )
 }
@@ -159,21 +159,21 @@ function renderWithProfileProbe() {
   )
 }
 
-describe('ContentProvider — language profile (task 51)', () => {
-  it('no stored profile: the index is built for ru', async () => {
+describe('ContentProvider — known languages (tasks 51, 52)', () => {
+  it('nothing stored: the index is built for Russian only', async () => {
     renderWithProfileProbe()
     await waitFor(() => expect(screen.getByTestId('profile-probe')).toHaveTextContent('ru:A2'))
   })
 
-  it('builds the index for the stored profile before the first screen renders', async () => {
-    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, 'ua')
+  it('builds the index for the stored languages before the first screen renders', async () => {
+    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, ['ru', 'ua'])
     renderWithProfileProbe()
     // The very first render of the children already has the ua level — never a ru flash.
     const probe = await screen.findByTestId('profile-probe')
-    expect(probe).toHaveTextContent('ua:A1')
+    expect(probe).toHaveTextContent('ru+ua:A1')
   })
 
-  it('an invalid stored value (e.g. from an imported backup) reads as ru', async () => {
+  it('an invalid stored value (e.g. from an imported backup) reads as Russian only', async () => {
     await settingsRepo.set(LANG_PROFILE_SETTING_KEY, 'pl')
     renderWithProfileProbe()
     await waitFor(() => expect(screen.getByTestId('profile-probe')).toHaveTextContent('ru:A2'))
@@ -183,10 +183,22 @@ describe('ContentProvider — language profile (task 51)', () => {
     renderWithProfileProbe()
     await waitFor(() => expect(screen.getByTestId('profile-probe')).toHaveTextContent('ru:A2'))
 
-    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, 'by')
-    await waitFor(() => expect(screen.getByTestId('profile-probe')).toHaveTextContent('by:A1'))
+    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, ['ru', 'by'])
+    await waitFor(() => expect(screen.getByTestId('profile-probe')).toHaveTextContent('ru+by:A1'))
 
-    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, 'ru')
+    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, ['ru'])
     await waitFor(() => expect(screen.getByTestId('profile-probe')).toHaveTextContent('ru:A2'))
+  })
+
+  it('task 51\'s single-string value still reads: "ua" is Russian + Ukrainian', async () => {
+    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, 'ua')
+    renderWithProfileProbe()
+    expect(await screen.findByTestId('profile-probe')).toHaveTextContent('ru+ua:A1')
+  })
+
+  it('without Russian: a Belarusian-only learner gets the by level', async () => {
+    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, ['by'])
+    renderWithProfileProbe()
+    expect(await screen.findByTestId('profile-probe')).toHaveTextContent('by:A1')
   })
 })

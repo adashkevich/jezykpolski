@@ -36,10 +36,10 @@
  * до ответа пример подсказал бы его; решает, показывать ли, вызывающий (`SessionRunner`), а
  * компонент лишь рисует строку, если она передана.
  *
- * **Задача 51** (`spec/tasks/51-language-profile.md` §3): в профилях `by`/`ua` над примером —
- * строка с переводами primary-значения на белорусский/украинский («бел.»/«укр.»,
- * `ProfileTranslationsLine`). Те же условия, что у примера, и те же данные (одна запись
- * `sense-details`); в профиле `ru` вызывающий её не передаёт.
+ * **Задача 51** (`spec/tasks/51-language-profile.md` §3): если среди известных языков есть
+ * беларуский/украинский, над примером — по строке с переводами primary-значения на каждый из них
+ * («бел.»/«укр.», `ProfileTranslationsLines`). Те же условия, что у примера, и те же данные (одна
+ * запись `sense-details`); при одном русском вызывающий строки не передаёт.
  */
 import {
   AlertTriangle,
@@ -52,7 +52,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button.tsx'
-import { ProfileTranslationsLine } from '@/components/app/ProfileTranslationsLine.tsx'
+import { ProfileTranslationsLines } from '@/components/app/ProfileTranslationsLine.tsx'
 import { cn } from '@/lib/utils'
 import type { GradeResult } from '@/learning/exercises/grade.ts'
 import { assistOf, type TypedAttemptOutcome } from '@/learning/exercises/letter-attempt.ts'
@@ -71,10 +71,11 @@ export interface ExerciseFeedbackProps {
   /** Polish usage example of the word's primary sense (task 50) — a line under the status
    *  block. Absent for grammar/matching exercises and when the example hasn't loaded. */
   readonly example?: string
-  /** The primary sense's translations in the language profile's extra language (task 51) — a
-   *  line under the answer, above the example. Absent in the `ru` profile, for grammar/matching
-   *  exercises, and when the details haven't loaded. */
-  readonly profileTranslations?: ProfileTranslations
+  /** The primary sense's translations in the extra languages the learner knows (task 51: one
+   *  line each, Belarusian and/or Ukrainian) — under the answer, above the example. Empty or
+   *  absent for Russian only, for grammar/matching exercises, and when the details haven't
+   *  loaded. */
+  readonly profileTranslations?: readonly ProfileTranslations[]
   /** "Далее" was activated (click, or Enter on the auto-focused button). */
   onNext(): void
   /** When set, a secondary "Знаю" button is shown next to "Далее" — the runner passes it only
@@ -197,7 +198,7 @@ export function ExerciseFeedback({
         </div>
       )}
 
-      <ProfileTranslationsLine value={profileTranslations} className="px-1" />
+      <ProfileTranslationsLines values={profileTranslations} className="px-1" />
 
       {example && (
         <p lang="pl" className="px-1 text-body-md italic text-muted-foreground">

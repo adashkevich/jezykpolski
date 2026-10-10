@@ -8,19 +8,27 @@
  * function parameters — this mirrors the task's own `queryWords(q, progress)` signature,
  * which takes no index argument.
  *
- * Task 51 (`spec/tasks/51-language-profile.md` §2): the index is built for one language
- * profile — `WordIndexEntry.level` is that profile's column of `levels`, so the level gate,
- * filters and `/stats`, which all read `level`/`byLevel`, follow the profile without knowing
- * about it. `setIndexStoreProfile` (driven by `ContentProvider`, which watches the setting)
- * swaps the singleton for the other profile's index — a NEW object, so anything keyed on its
- * identity (`useMemo`/`useLiveQuery` deps via `hooks/useLangProfile.ts#useContentIndex`,
- * `query.ts`'s per-index caches) recomputes — and notifies `subscribeIndexStore` listeners.
- * Each profile's index is built at most once per load and reused when switching back.
+ * Task 51 (`spec/tasks/51-language-profile.md` §2), widened to a set of languages by task 52: the
+ * index is built for the languages the learner knows — `WordIndexEntry.level` is their level of
+ * the word (`lang-profile.ts#levelForKnownLangs`), so the level gate, filters and `/stats`, which
+ * all read `level`/`byLevel`, follow the languages without knowing about them.
+ * `setIndexStoreLangs` (driven by `ContentProvider`, which watches the setting) swaps the
+ * singleton for the other set's index — a NEW object, so anything keyed on its identity
+ * (`useMemo`/`useLiveQuery` deps via `hooks/useKnownLangs.ts#useContentIndex`, `query.ts`'s
+ * per-index caches) recomputes — and notifies `subscribeIndexStore` listeners. Each set's index
+ * is built at most once per load and reused when switching back; the same set in another order is
+ * the same set.
  */
-import type { LangProfile, PosValue } from './codec.ts'
+import type { PosValue } from './codec.ts'
 import type { WordIndexEntry } from '@/types/content.ts'
 import { encodeWordId, type WordId } from '@/learning/skills/skill-id.ts'
-import { DEFAULT_LANG_PROFILE } from '@/learning/session/lang-profile.ts'
+import {
+  canonicalKnownLangs,
+  DEFAULT_KNOWN_LANGS,
+  knownLangsKey,
+  levelForKnownLangs,
+  type KnownLangs,
+} from '@/learning/session/lang-profile.ts'
 
 /** Precomputed search text for one word — lowercased, diacritics stripped (see
  *  {@link normalizeSearchText}), computed once at index-build time instead of per query. */
@@ -82,21 +90,21 @@ const LEVEL_ORDER: Record<string, number> = {
 
 const polishCollator = new Intl.Collator('pl')
 
-/** `entry` with `level` set to `profile`'s column of `levels` — the same object when it already
- *  is (always, for the `ru` profile: the loader decodes `level` as `levels.ru`). */
-function withProfileLevel(entry: WordIndexEntry, profile: LangProfile): WordIndexEntry {
-  const level = entry.levels[profile]
+/** `entry` with `level` set to the learner's level of it — the same object when it already is
+ *  (always, for Russian only: the loader decodes `level` as `levels.ru`). */
+function withKnownLangsLevel(entry: WordIndexEntry, langs: KnownLangs): WordIndexEntry {
+  const level = levelForKnownLangs(entry.levels, langs)
   return entry.level === level ? entry : { ...entry, level }
 }
 
 export function buildIndexStore(
   decodedRows: readonly WordIndexEntry[],
-  profile: LangProfile = DEFAULT_LANG_PROFILE,
+  langs: KnownLangs = DEFAULT_KNOWN_LANGS,
 ): ContentIndex {
-  // The input array itself when no row changes (the `ru` profile of real data), so `byRank`
+  // The input array itself when no row changes (Russian only, on real data), so `byRank`
   // stays `loadIndex()`'s array as-is.
-  const rows = decodedRows.some((entry) => entry.level !== entry.levels[profile])
-    ? decodedRows.map((entry) => withProfileLevel(entry, profile))
+  const rows = decodedRows.some((entry) => entry.level !== levelForKnownLangs(entry.levels, langs))
+    ? decodedRows.map((entry) => withKnownLangsLevel(entry, langs))
     : decodedRows
   const byId = new Map<WordId, WordIndexEntry>()
   const byPosMutable = new Map<PosValue, WordIndexEntry[]>()
@@ -134,23 +142,38 @@ export function buildIndexStore(
 // ---------------------------------------------------------------------------
 
 let singleton: ContentIndex | null = null
-let singletonProfile: LangProfile = DEFAULT_LANG_PROFILE
-/** The decoded rows `initIndexStore` got — what `setIndexStoreProfile` rebuilds from. */
+/** The languages `singleton` was built for — one canonical object per set, so it is a stable
+ *  `useSyncExternalStore` snapshot (`hooks/useKnownLangs.ts`). */
+let singletonLangs: KnownLangs = DEFAULT_KNOWN_LANGS
+/** The decoded rows `initIndexStore` got — what `setIndexStoreLangs` rebuilds from. */
 let sourceRows: readonly WordIndexEntry[] | null = null
-/** Every profile's index built since the last `initIndexStore`, so switching back is free and
- *  hands out the very same object (and so the same `query.ts` caches). */
-const builtByProfile = new Map<LangProfile, ContentIndex>()
+/** Every set's index built since the last `initIndexStore` (by {@link knownLangsKey}), so
+ *  switching back is free and hands out the very same object (and so the same `query.ts`
+ *  caches) — and the same canonical `langs` object. */
+const builtByLangs = new Map<string, { readonly langs: KnownLangs; readonly index: ContentIndex }>()
 const listeners = new Set<() => void>()
+
+/** The built index for `langs`, built from `rows` on first use. */
+function indexFor(rows: readonly WordIndexEntry[], langs: KnownLangs) {
+  const canonical = canonicalKnownLangs(langs)
+  const key = knownLangsKey(canonical)
+  let built = builtByLangs.get(key)
+  if (!built) {
+    built = { langs: canonical, index: buildIndexStore(rows, canonical) }
+    builtByLangs.set(key, built)
+  }
+  return built
+}
 
 export function initIndexStore(
   rows: readonly WordIndexEntry[],
-  profile: LangProfile = DEFAULT_LANG_PROFILE,
+  langs: KnownLangs = DEFAULT_KNOWN_LANGS,
 ): ContentIndex {
   sourceRows = rows
-  builtByProfile.clear()
-  singletonProfile = profile
-  singleton = buildIndexStore(rows, profile)
-  builtByProfile.set(profile, singleton)
+  builtByLangs.clear()
+  const built = indexFor(rows, langs)
+  singletonLangs = built.langs
+  singleton = built.index
   return singleton
 }
 
@@ -164,32 +187,29 @@ export function getIndexStore(): ContentIndex {
   return singleton
 }
 
-/** The language profile the current index was built for — `DEFAULT_LANG_PROFILE` before
- *  `initIndexStore`. */
-export function getIndexStoreProfile(): LangProfile {
-  return singletonProfile
+/** The languages the current index was built for — {@link DEFAULT_KNOWN_LANGS} before
+ *  `initIndexStore`. The same object for as long as the set does not change. */
+export function getIndexStoreLangs(): KnownLangs {
+  return singletonLangs
 }
 
 /**
- * Switches the index to `profile` (task 51): a no-op when it already is, otherwise the
- * singleton becomes `profile`'s index (built from the same rows on first use) and every
- * {@link subscribeIndexStore} listener is called. Throws before `initIndexStore`, like
- * `getIndexStore`.
+ * Switches the index to the set `langs` (tasks 51, 52): a no-op when it already is, otherwise the
+ * singleton becomes that set's index (built from the same rows on first use) and every
+ * {@link subscribeIndexStore} listener is called. An empty list is Russian only. Throws before
+ * `initIndexStore`, like `getIndexStore`.
  */
-export function setIndexStoreProfile(profile: LangProfile): ContentIndex {
+export function setIndexStoreLangs(langs: KnownLangs): ContentIndex {
   const rows = sourceRows
   if (!singleton || !rows) return getIndexStore()
-  if (profile === singletonProfile) return singleton
 
-  let index = builtByProfile.get(profile)
-  if (!index) {
-    index = buildIndexStore(rows, profile)
-    builtByProfile.set(profile, index)
-  }
-  singleton = index
-  singletonProfile = profile
+  const built = indexFor(rows, langs)
+  if (built.langs === singletonLangs) return singleton
+
+  singleton = built.index
+  singletonLangs = built.langs
   for (const listener of listeners) listener()
-  return index
+  return singleton
 }
 
 /** `useSyncExternalStore`-shaped subscription to profile switches; returns the unsubscribe. */
@@ -203,7 +223,7 @@ export function subscribeIndexStore(listener: () => void): () => void {
 /** Test-only: clears the singleton so test files don't leak state into each other. */
 export function __resetIndexStoreForTest(): void {
   singleton = null
-  singletonProfile = DEFAULT_LANG_PROFILE
+  singletonLangs = DEFAULT_KNOWN_LANGS
   sourceRows = null
-  builtByProfile.clear()
+  builtByLangs.clear()
 }

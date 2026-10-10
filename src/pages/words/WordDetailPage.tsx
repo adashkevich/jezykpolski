@@ -23,7 +23,7 @@ import { PageContainer } from '@/components/app/PageContainer.tsx'
 import { PageHeader } from '@/components/app/PageHeader.tsx'
 import { parseWordParam } from '@/app/word-path.ts'
 import { getPrimaryTranslation } from '@/content/senses.ts'
-import { useContentIndex, useLangProfile } from '@/hooks/useLangProfile.ts'
+import { useContentIndex, useKnownLangs } from '@/hooks/useKnownLangs.ts'
 import { useWordProgress } from '@/hooks/useWordProgress.ts'
 import { useWordSkills } from '@/hooks/useWordSkills.ts'
 import type { WordId } from '@/learning/skills/skill-id.ts'
@@ -71,7 +71,7 @@ function WordDetailContent({ wordId, entry }: { wordId: WordId; entry: WordIndex
   const wordProgress = useWordProgress(wordId)
   const skills = useWordSkills(wordId)
   const lazyParadigm = useLazyParadigm(wordId)
-  const profile = useLangProfile()
+  const langs = useKnownLangs()
   const hasParadigm = entry.paradigmShard !== -1
 
   return (
@@ -96,7 +96,7 @@ function WordDetailContent({ wordId, entry }: { wordId: WordId; entry: WordIndex
           senses={senses}
           details={details}
           error={sensesError}
-          profile={profile}
+          langs={langs}
         />
       </section>
 

@@ -8,10 +8,13 @@ import type { ReactNode } from 'react'
 export function CheckboxRow({
   checked,
   onChange,
+  disabled,
   children,
 }: {
   checked: boolean
   onChange: (checked: boolean) => void
+  /** Locks the box (e.g. the last ticked one of a "at least one" group). */
+  disabled?: boolean
   children: ReactNode
 }) {
   return (
@@ -19,6 +22,7 @@ export function CheckboxRow({
       <input
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
         className="size-5 shrink-0 rounded border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       />

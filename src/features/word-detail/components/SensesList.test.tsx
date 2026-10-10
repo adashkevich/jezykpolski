@@ -1,7 +1,7 @@
 /**
  * `SensesList` (`spec/tasks/50-word-detail-senses-v2.md` §1): translations, the sense's own
  * level, the «изучаем»/«позже» badge (several senses only), and — when the lazy details shard is
- * in — the Polish gloss and example, plus (task 51) the profile's by/ua translations.
+ * in — the Polish gloss and example, plus (task 51) the by/ua translations of the languages the learner knows.
  * Senses/details are shaped like the real `być` entries of `public/content/senses/014.json` /
  * `sense-details/014.json` (checked with a one-off script).
  */
@@ -50,7 +50,7 @@ function renderList(
   props: Partial<React.ComponentProps<typeof SensesList>> & { senses: readonly Sense[] },
 ) {
   return render(
-    <SensesList status="ready" details={NO_DETAILS} error={undefined} profile="ru" {...props} />,
+    <SensesList status="ready" details={NO_DETAILS} error={undefined} langs={['ru']} {...props} />,
   )
 }
 
@@ -99,8 +99,8 @@ describe('SensesList — several senses', () => {
     expect(within(second!).getByText('«Czy na Marsie jest życie?»')).toBeInTheDocument()
   })
 
-  it('the level badge reads the column of the given profile', () => {
-    renderList({ senses: [COPULA, EXIST], details: ALL_DETAILS, profile: 'ua' })
+  it('the level badge reads the column of the known languages', () => {
+    renderList({ senses: [COPULA, EXIST], details: ALL_DETAILS, langs: ['ru', 'ua'] })
 
     const second = screen.getAllByRole('listitem')[1]!
     expect(within(second).getByText('B2')).toBeInTheDocument()
@@ -148,11 +148,11 @@ describe('SensesList — loading / error / empty', () => {
   })
 })
 
-// Task 51 (`spec/tasks/51-language-profile.md` §3): in the by/ua profiles every sense gets a line
+// Task 51 (`spec/tasks/51-language-profile.md` §3): with by/ua known, every sense gets a line per language
 // with that language's translations under the Russian ones. `radzić|VERB` as in the real
 // content (`public/content/senses/015.json` + `sense-details/015.json`): three senses, different
 // translations in each language.
-describe('SensesList — the profile’s own translations (task 51)', () => {
+describe('SensesList — the known languages’ own translations (tasks 51, 52)', () => {
   const ADVISE: Sense = {
     id: 'radzić:advise',
     ru: ['советовать'],
@@ -202,8 +202,8 @@ describe('SensesList — the profile’s own translations (task 51)', () => {
   ])
   const RADZIC = [ADVISE, CONSULT, COPE]
 
-  it('by: every sense shows «бел.» and its Belarusian translations, marked lang="be"', () => {
-    renderList({ senses: RADZIC, details: RADZIC_DETAILS, profile: 'by' })
+  it('Russian + Belarusian: every sense shows «бел.» and its Belarusian translations, marked lang="be"', () => {
+    renderList({ senses: RADZIC, details: RADZIC_DETAILS, langs: ['ru', 'by'] })
 
     const items = screen.getAllByRole('listitem')
     const expected = ['раіць', 'раіцца', 'спраўляцца']
@@ -218,16 +218,29 @@ describe('SensesList — the profile’s own translations (task 51)', () => {
     expect(within(items[0]!).getByText('A2')).toBeInTheDocument()
   })
 
-  it('ua: «укр.» with the Ukrainian translations, marked lang="uk"', () => {
-    renderList({ senses: RADZIC, details: RADZIC_DETAILS, profile: 'ua' })
+  it('Russian + Ukrainian: «укр.» with the Ukrainian translations, marked lang="uk"', () => {
+    renderList({ senses: RADZIC, details: RADZIC_DETAILS, langs: ['ru', 'ua'] })
 
     expect(screen.getAllByText('укр.')).toHaveLength(3)
     expect(screen.getByText('давати раду')).toHaveAttribute('lang', 'uk')
     expect(screen.queryByText('бел.')).not.toBeInTheDocument()
   })
 
-  it('ru: no extra line at all', () => {
-    renderList({ senses: RADZIC, details: RADZIC_DETAILS, profile: 'ru' })
+  it('Belarusian and Ukrainian both known: both lines on every sense, «бел.» above «укр.»', () => {
+    renderList({ senses: RADZIC, details: RADZIC_DETAILS, langs: ['by', 'ua'] })
+
+    const items = screen.getAllByRole('listitem')
+    expect(screen.getAllByText('бел.')).toHaveLength(3)
+    expect(screen.getAllByText('укр.')).toHaveLength(3)
+    const by = within(items[0]!).getByText('раіць')
+    const ua = within(items[0]!).getByText('радити')
+    expect(by.compareDocumentPosition(ua) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // The level is the easier of the two columns (by A2, ua A2 for the first sense).
+    expect(within(items[0]!).getByText('A2')).toBeInTheDocument()
+  })
+
+  it('Russian only: no extra line at all', () => {
+    renderList({ senses: RADZIC, details: RADZIC_DETAILS, langs: ['ru'] })
 
     expect(screen.queryByText('бел.')).not.toBeInTheDocument()
     expect(screen.queryByText('укр.')).not.toBeInTheDocument()
@@ -236,7 +249,7 @@ describe('SensesList — the profile’s own translations (task 51)', () => {
   })
 
   it('no empty line while the details shard has not arrived', () => {
-    renderList({ senses: RADZIC, details: NO_DETAILS, profile: 'by' })
+    renderList({ senses: RADZIC, details: NO_DETAILS, langs: ['ru', 'by'] })
 
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
     expect(screen.queryByText('бел.')).not.toBeInTheDocument()

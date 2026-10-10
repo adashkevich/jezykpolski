@@ -7,21 +7,24 @@
  *
  * ```text
  * 1. закон, право                         [A2] [изучаем]
- *    укр. закон, право                    (profiles by/ua only — task 51)
+ *    укр. закон, право                    (a line per known extra language, by/ua — task 51)
  *    ogół przepisów obowiązujących w państwie
  *    «Prawo zabrania palenia w restauracjach.»
  * ```
  *
  * The «изучаем»/«позже» badge says which meaning is being taught (only the primary one is,
  * task 49); with a single sense there is nothing to tell apart, so only the level badge stays.
- * `profile` (task 51, `spec/tasks/51-language-profile.md` §3) picks the column of
- * `Sense.levels` for the level badge and, in the `by`/`ua` profiles, adds that language's
- * translations under the Russian ones — they come from the same details shard as the gloss, so
- * that line too appears once the shard is in.
+ * `langs` (tasks 51, 52 — the languages the learner knows) pick the level badge
+ * (`lang-profile.ts#levelForKnownLangs` over `Sense.levels`) and add one line of translations
+ * per extra known language (Belarusian, Ukrainian) under the Russian ones — they come from the
+ * same details shard as the gloss, so those lines too appear once the shard is in.
  */
-import type { LangProfile } from '@/content/codec.ts'
-import { ProfileTranslationsLine } from '@/components/app/ProfileTranslationsLine.tsx'
-import { profileTranslationsOf } from '@/learning/session/lang-profile.ts'
+import { ProfileTranslationsLines } from '@/components/app/ProfileTranslationsLine.tsx'
+import {
+  knownLangsTranslations,
+  levelForKnownLangs,
+  type KnownLangs,
+} from '@/learning/session/lang-profile.ts'
 import type { Sense, SenseDetails } from '@/types/content.ts'
 import type { SenseDetailsById, SensesStatus } from '../hooks/useSenses.ts'
 
@@ -32,7 +35,7 @@ export function SensesList({
   senses,
   details,
   error,
-  profile,
+  langs,
 }: {
   status: SensesStatus
   senses: readonly Sense[]
@@ -40,7 +43,7 @@ export function SensesList({
    *  is unavailable. */
   details: SenseDetailsById
   error: Error | undefined
-  profile: LangProfile
+  langs: KnownLangs
 }) {
   if (status === 'loading') {
     return <p className="text-body-sm text-muted-foreground">Загрузка значений…</p>
@@ -66,7 +69,7 @@ export function SensesList({
             number={index + 1}
             sense={sense}
             details={details.get(sense.id)}
-            profile={profile}
+            langs={langs}
             showLearningBadge={senses.length > 1}
           />
         ))}
@@ -79,13 +82,13 @@ function SenseItem({
   number,
   sense,
   details,
-  profile,
+  langs,
   showLearningBadge,
 }: {
   number: number
   sense: Sense
   details: SenseDetails | undefined
-  profile: LangProfile
+  langs: KnownLangs
   /** «изучаем»/«позже» — only meaningful when there is more than one sense to tell apart. */
   showLearningBadge: boolean
 }) {
@@ -102,7 +105,7 @@ function SenseItem({
           <span className="flex shrink-0 items-center gap-1.5">
             <span className={`${BADGE_CLASS} bg-primary-soft text-primary-strong`}>
               <span className="sr-only">Уровень </span>
-              {sense.levels[profile]}
+              {levelForKnownLangs(sense.levels, langs)}
             </span>
             {showLearningBadge &&
               (sense.primary ? (
@@ -112,7 +115,7 @@ function SenseItem({
               ))}
           </span>
         </div>
-        <ProfileTranslationsLine value={profileTranslationsOf(profile, details)} />
+        <ProfileTranslationsLines values={knownLangsTranslations(langs, details)} />
         {details && (
           <>
             <p lang="pl" className="text-body-sm text-muted-foreground">

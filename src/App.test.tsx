@@ -75,7 +75,7 @@ describe('App', () => {
     stubContentFetch()
     // A returning learner: the language question (task 52) was answered on an earlier start.
     await lifecycle.openDatabase()
-    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, 'ru')
+    await settingsRepo.set(LANG_PROFILE_SETTING_KEY, ['ru'])
     render(<App />)
 
     // Gated on a readiness provider first — nothing app-shaped yet.
@@ -89,21 +89,21 @@ describe('App', () => {
     expect(screen.getByRole('navigation', { name: 'Основная навигация' })).toBeInTheDocument()
   })
 
-  it('first start (task 52): asks which language the learner knows before the home screen, once', async () => {
+  it('first start (task 52): asks which languages the learner knows before the home screen, once', async () => {
     stubContentFetch()
     const user = userEvent.setup()
     render(<App />)
 
     // Nothing stored yet: the language screen stands in for the whole app — no shell, no router.
-    expect(await screen.findByRole('heading', { name: 'Какой язык вы знаете?' })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Какие языки вы знаете?' })).toBeVisible()
     expect(screen.queryByRole('heading', { name: 'Главная' })).not.toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Основная навигация' })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('radio', { name: /Белорусский/ }))
+    await user.click(screen.getByRole('checkbox', { name: /беларуский/ }))
     await user.click(screen.getByRole('button', { name: 'Продолжить' }))
 
     expect(await screen.findByRole('heading', { name: 'Главная' })).toBeInTheDocument()
-    expect(await settingsRepo.get<unknown>(LANG_PROFILE_SETTING_KEY, null)).toBe('by')
+    expect(await settingsRepo.get<unknown>(LANG_PROFILE_SETTING_KEY, null)).toEqual(['ru', 'by'])
 
     // A second start with the same data: straight to the app.
     cleanup()
@@ -111,6 +111,6 @@ describe('App', () => {
     __resetIndexStoreForTest()
     render(<App />)
     expect(await screen.findByRole('heading', { name: 'Главная' })).toBeInTheDocument()
-    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
   })
 })

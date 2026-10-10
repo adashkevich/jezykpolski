@@ -27,7 +27,7 @@ import { NEW_WORDS_START_LEVEL_SETTING_KEY } from '@/learning/session/level-gate
 import {
   __resetIndexStoreForTest,
   initIndexStore,
-  setIndexStoreProfile,
+  setIndexStoreLangs,
 } from '@/content/index-store.ts'
 import { useFiltersStore } from '@/stores/filters.store.ts'
 import type { LevelValue, PosValue } from '@/content/codec.ts'
@@ -658,7 +658,7 @@ describe('HomePage — языковой профиль (задача 51)', () =>
   ]
 
   it('профиль ua: A1 — это kot и uśmiech, так что после kot осталось ещё одно A1-слово', async () => {
-    initIndexStore(PROFILE_ENTRIES, 'ua')
+    initIndexStore(PROFILE_ENTRIES, ['ru', 'ua'])
     await openDatabase()
     await learnWord('kot|NOUN', 10)
 
@@ -686,7 +686,7 @@ describe('HomePage — языковой профиль (задача 51)', () =>
 
     // What `ContentProvider` does when the `langProfile` setting changes.
     act(() => {
-      setIndexStoreProfile('ua')
+      setIndexStoreLangs(['ru', 'ua'])
     })
 
     // ua: uśmiech — A1, и он не начат: гейт пересчитался сам и вернулся на A1.

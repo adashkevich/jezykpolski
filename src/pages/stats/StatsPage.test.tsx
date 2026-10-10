@@ -19,7 +19,7 @@ import { deleteDatabase, openDatabase } from '@/db/repositories/lifecycle.reposi
 import {
   __resetIndexStoreForTest,
   initIndexStore,
-  setIndexStoreProfile,
+  setIndexStoreLangs,
 } from '@/content/index-store.ts'
 import { __resetLoaderCachesForTest } from '@/content/loader.ts'
 import { encodeForm, type PosValue } from '@/content/codec.ts'
@@ -272,7 +272,7 @@ describe('StatsPage — language profile (task 51)', () => {
 
     // What `ContentProvider` does when the `langProfile` setting changes.
     act(() => {
-      setIndexStoreProfile('ua')
+      setIndexStoreLangs(['ru', 'ua'])
     })
 
     // ua: A1 = kot (learning) + uśmiech (known) + być (new).
