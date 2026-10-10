@@ -4,6 +4,7 @@ import { DatabaseProvider } from './DatabaseProvider.tsx'
 import { useThemeSync } from '@/features/settings/hooks/useThemeSync.ts'
 import { StoragePersistRequest } from '@/components/app/StoragePersistRequest.tsx'
 import { StartupMigrations } from '@/components/app/StartupMigrations.tsx'
+import { LangProfileGate } from '@/features/lang-onboarding/components/LangProfileGate.tsx'
 
 /**
  * Composes the two readiness gates every route needs before it can render for real
@@ -34,6 +35,12 @@ import { StartupMigrations } from '@/components/app/StartupMigrations.tsx'
  * used to live in `DatabaseProvider` and why that was broken. `wordProgress` being briefly
  * stale after a fresh recompute pass is fine — every reader of it is on `useLiveQuery` and
  * rerenders once `recomputeAll()`'s `bulkPut` lands.
+ *
+ * Task 52 (`spec/tasks/52-language-onboarding.md`): `<LangProfileGate>` wraps `children` inside
+ * `ContentProvider` — the first-run language screen replaces the app (router included) until
+ * `settings.langProfile` holds a known profile, and it applies the chosen profile to the loaded
+ * index. `StartupMigrations` stays outside the gate: the migrations are about data, not about
+ * which screen is up, and they should run on the very first start too.
  */
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -42,7 +49,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <StoragePersistRequest />
       <ContentProvider>
         <StartupMigrations />
-        {children}
+        <LangProfileGate>{children}</LangProfileGate>
       </ContentProvider>
     </DatabaseProvider>
   )

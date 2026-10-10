@@ -20,7 +20,8 @@
  * `setViewportSize`/width-specific test anywhere in `e2e/` before this file) — added here
  * since task 34 explicitly calls for verifying it as part of this same fix.
  */
-import { expect, type Page, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from './support/test.ts'
 import { openTrainingBlock } from './support/training.ts'
 
 const MOBILE_VIEWPORT = { width: 320, height: 640 }

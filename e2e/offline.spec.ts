@@ -15,7 +15,7 @@
  * still lets the SW's own `fetch` event listener see a request go out (just answered
  * differently).
  */
-import { expect, test } from '@playwright/test'
+import { expect, test } from './support/test.ts'
 import { answerChoiceExercise } from './support/exercise.ts'
 
 test('offline: load online once, then install, reload, and complete a session fully offline', async ({

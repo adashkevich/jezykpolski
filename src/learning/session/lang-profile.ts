@@ -31,6 +31,17 @@ export function parseLangProfile(value: unknown): LangProfile {
   return LANG_PROFILES.find((profile) => profile === value) ?? DEFAULT_LANG_PROFILE
 }
 
+/**
+ * Whether the first-run language screen (`spec/tasks/52-language-onboarding.md` §1) is due for
+ * this stored setting value: yes unless it is one of the known profiles. No separate "shown"
+ * flag exists — the stored profile *is* the record that the question was answered, so a missing
+ * row (`null`/`undefined`) and a value no profile recognises (a foreign or hand-edited backup)
+ * both ask again.
+ */
+export function needsLangProfileChoice(stored: unknown): boolean {
+  return !LANG_PROFILES.some((profile) => profile === stored)
+}
+
 /** A profile that adds a second language on top of Russian. */
 export type ExtraLangProfile = Exclude<LangProfile, 'ru'>
 

@@ -38,7 +38,7 @@
  * later mistake-review pass (same non-Practice scope resolution,
  * `useSessionBootstrap.ts#buildAndStart`) stays `choice` too, not just the first pass.
  */
-import { expect, test } from '@playwright/test'
+import { expect, test } from './support/test.ts'
 import { dbGetByKeys, getHistoryStateSessionId, STORE } from './support/db.ts'
 import { answerUntilAtLeastOneMistake, answerUntilSessionEnds } from './support/exercise.ts'
 

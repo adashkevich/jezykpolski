@@ -15,7 +15,7 @@
  * those happen to be very-high-frequency pronouns tagged NOUN in this corpus); `/session` and
  * `/session/result` need a real (brief) Learn session in progress/finished.
  */
-import { expect, test } from '@playwright/test'
+import { expect, test } from './support/test.ts'
 import { answerChoiceExercise } from './support/exercise.ts'
 import { expectNoAxeViolations } from './support/axe.ts'
 import { openTrainingBlock } from './support/training.ts'

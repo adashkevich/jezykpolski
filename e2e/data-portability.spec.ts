@@ -8,7 +8,7 @@
  * (`page.waitForEvent('download')`), fed back in via a real `<input type="file">`
  * (`page.setInputFiles`), against the real `Settings` screen (`features/settings/**`).
  */
-import { expect, test } from '@playwright/test'
+import { expect, test } from './support/test.ts'
 import { answerUntilSessionEnds } from './support/exercise.ts'
 
 test('export -> reset -> import restores progress identically', async ({ page }) => {

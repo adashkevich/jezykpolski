@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_LANG_PROFILE,
   LANG_PROFILE_SETTING_KEY,
+  needsLangProfileChoice,
   parseLangProfile,
   profileTranslationsOf,
 } from './lang-profile.ts'
@@ -23,6 +24,18 @@ describe('LANG_PROFILE_SETTING_KEY / DEFAULT_LANG_PROFILE', () => {
   it('the setting is "langProfile", and the default is the Russian-only profile', () => {
     expect(LANG_PROFILE_SETTING_KEY).toBe('langProfile')
     expect(DEFAULT_LANG_PROFILE).toBe('ru')
+  })
+})
+
+describe('needsLangProfileChoice (task 52)', () => {
+  it('is false for each of the three stored profiles — the choice was made', () => {
+    for (const value of ['ru', 'by', 'ua']) expect(needsLangProfileChoice(value)).toBe(false)
+  })
+
+  it('is true for no stored row (null from the settings read) and for any foreign value', () => {
+    for (const value of [null, undefined, '', 'pl', 'be', 'UA', 1, {}, ['by']]) {
+      expect(needsLangProfileChoice(value)).toBe(true)
+    }
   })
 })
 

@@ -98,4 +98,5 @@ export const STORE = {
   skills: 'skills',
   reviewLogs: 'reviewLogs',
   wordProgress: 'wordProgress',
+  settings: 'settings',
 } as const
