@@ -117137,7 +117137,9 @@
         {
           "sense_id": "ładny:pretty",
           "translation_ru": [
-            "красивый"
+            "красивый",
+            "симпатичный",
+            "приятный на вид"
           ],
           "translation_by": [
             "прыгожы"
@@ -192236,56 +192238,6 @@
       "morph_lemma": "zarzucać"
     },
     {
-      "lemma": "a",
-      "pos": "NOUN",
-      "frequency": {
-        "rank": 2666,
-        "count": 3486,
-        "per_million": 42.659,
-        "arf": 1475.53,
-        "dispersion": 0.2757
-      },
-      "introduced_at": {
-        "ru": "A1",
-        "by": "A1",
-        "ua": "A1"
-      },
-      "level_confidence": {
-        "ru": 0.92,
-        "by": 0.92,
-        "ua": 0.92
-      },
-      "senses": [
-        {
-          "sense_id": "a:letter_a",
-          "translation_ru": [
-            "буква а"
-          ],
-          "translation_by": [
-            "літара а"
-          ],
-          "translation_ua": [
-            "літера а"
-          ],
-          "gloss_pl": "Pierwsza litera alfabetu.",
-          "example_pl": "Napisz małe a.",
-          "introduced_at": {
-            "ru": "A1",
-            "by": "A1",
-            "ua": "A1"
-          },
-          "level_confidence": {
-            "ru": 0.92,
-            "by": 0.92,
-            "ua": 0.92
-          },
-          "primary": true,
-          "source": "model"
-        }
-      ],
-      "morph_lemma": null
-    },
-    {
       "lemma": "wypuścić",
       "pos": "VERB",
       "frequency": {
@@ -223037,7 +222989,8 @@
           "sense_id": "ładnie:w_sposób_estetyczny_miły_lub_przyjemny",
           "translation_ru": [
             "красиво",
-            "приятно"
+            "симпатично",
+            "приятно на вид"
           ],
           "translation_by": [
             "прыгожа",
@@ -510901,56 +510854,6 @@
       "morph_lemma": "przemijać"
     },
     {
-      "lemma": "m",
-      "pos": "NOUN",
-      "frequency": {
-        "rank": 7404,
-        "count": 830,
-        "per_million": 10.157,
-        "arf": 385.67,
-        "dispersion": 0.1325
-      },
-      "introduced_at": {
-        "ru": "A1",
-        "by": "A1",
-        "ua": "A1"
-      },
-      "level_confidence": {
-        "ru": 0.9,
-        "by": 0.9,
-        "ua": 0.9
-      },
-      "senses": [
-        {
-          "sense_id": "m:letter",
-          "translation_ru": [
-            "буква m"
-          ],
-          "translation_by": [
-            "літара m"
-          ],
-          "translation_ua": [
-            "літера m"
-          ],
-          "gloss_pl": "nazwa litery alfabetu",
-          "example_pl": "Litera m występuje w słowie „mama”.",
-          "introduced_at": {
-            "ru": "A1",
-            "by": "A1",
-            "ua": "A1"
-          },
-          "level_confidence": {
-            "ru": 0.9,
-            "by": 0.9,
-            "ua": 0.9
-          },
-          "primary": true,
-          "source": "model"
-        }
-      ],
-      "morph_lemma": null
-    },
-    {
       "lemma": "terapeutyczny",
       "pos": "ADJ",
       "frequency": {
@@ -536386,59 +536289,6 @@
         }
       ],
       "morph_lemma": "eksplodować"
-    },
-    {
-      "lemma": "x",
-      "pos": "NOUN",
-      "frequency": {
-        "rank": 7798,
-        "count": 869,
-        "per_million": 10.634,
-        "arf": 358.69,
-        "dispersion": 0.1399
-      },
-      "introduced_at": {
-        "ru": "A1",
-        "by": "A1",
-        "ua": "A1"
-      },
-      "level_confidence": {
-        "ru": 0.9,
-        "by": 0.9,
-        "ua": 0.9
-      },
-      "senses": [
-        {
-          "sense_id": "x:letter_x",
-          "translation_ru": [
-            "буква x",
-            "икс"
-          ],
-          "translation_by": [
-            "літара x",
-            "ікс"
-          ],
-          "translation_ua": [
-            "літера x",
-            "ікс"
-          ],
-          "gloss_pl": "nazwa litery używanej także jako znak niewiadomej",
-          "example_pl": "W tym wzorze x oznacza niewiadomą.",
-          "introduced_at": {
-            "ru": "A1",
-            "by": "A1",
-            "ua": "A1"
-          },
-          "level_confidence": {
-            "ru": 0.9,
-            "by": 0.9,
-            "ua": 0.9
-          },
-          "primary": true,
-          "source": "model"
-        }
-      ],
-      "morph_lemma": null
     },
     {
       "lemma": "ojczysty",
